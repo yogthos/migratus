@@ -1,0 +1,33 @@
+* Migratus
+  MIGRATE ALL THE THINGS!!
+
+  A general migration framework, with an implementation for database migrations.
+
+  Designed to be compatible with a git based work flow where multiple topic
+  branches may exist simultaneously, and be merged into a master branch in
+  unpredictable order.
+
+  This is accomplished two ways:
+  1. Migration versions are timestamps (e.g. '20111202091200').
+  2. Migrations are considered for completion independently.
+
+  Using a single global version for a store and incremented numbers for
+  migration versions it is possible for a higher numbered migration to get
+  merged to master and deployed before a lower numbered migration, in which case
+  the lower numbered migration would never get run, unless it is renumbered.
+
+  Migratus considers each migration independently, and runs all uncompleted
+  migrations in order.
+** Usage
+   Migratus can be used programmatically by calling one of the following
+   methods:
+
+   | Method                | Description                                                                                       |
+   |-----------------------+---------------------------------------------------------------------------------------------------|
+   | migratus.core/migrate | Run any migrations that have not been run.                                                        |
+   | migratus.core/up      | Run 'up' for the specified migration versions. Will skip a version whose 'up' has already run.    |
+   | migratus.core/down    | Run 'down' for the specified migration versions. Will skip a version whose 'up' has not been run. |
+** License
+   : Copyright © 2011 Paul Stadig
+   : 
+   : Licensed under the Apache License, Version 2.0.
