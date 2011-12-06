@@ -1,0 +1,18 @@
+#############
+# Appenders #
+#############
+
+# standard out appender
+log4j.appender.C = org.apache.log4j.ConsoleAppender
+log4j.appender.C.layout = org.apache.log4j.PatternLayout
+log4j.appender.C.layout.ConversionPattern = %-5p | %c | %m%n
+
+###########
+# Loggers #
+###########
+
+# default
+log4j.rootLogger = FATAL, C
+
+# MIGRATUS
+log4j.logger.migratus = TRACE

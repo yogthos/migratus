@@ -13,59 +13,57 @@
 ;;;; under the License.
 (ns migratus.core
   (:require [clojure.set :as set]
+            [clojure.tools.logging :as log]
             [migratus.protocols :as proto]))
 
-(def ^{:dynamic true} *quiet* true)
-
-(defn info [& msg]
-  (when-not *quiet*
-    (apply println msg)))
-
-(defn up* [migration]
-  (info "--" (str (proto/id migration) "-" (proto/name migration) "..."))
-  (proto/up migration))
-
-(defn migrate* [migrations]
-  (if (seq migrations)
-    (let [migrations (sort-by proto/id migrations)]
-      (do (info "== Running 'up' for the following migrations"
-                (apply str (interpose " " (map proto/id migrations))))
-          (doseq [migration migrations]
-            (up* migration))
-          (info "== Migrations complete\n")))
-    (info "== No migrations need to be run\n")))
-
-(defn uncompleted-migrations [store]
+(defn- uncompleted-migrations [store]
   (let [completed? (set (proto/completed-ids store))]
     (remove (comp completed? proto/id) (proto/migrations store))))
 
-(defn migrate [config]
+(defn- migration-name [migration]
+  (str (proto/id migration) "-" (proto/name migration)))
+
+(defn- up* [migration]
+  (log/info "Up" (migration-name migration))
+  (proto/up migration))
+
+(defn- migrate* [migrations]
+  (let [migrations (sort-by proto/id migrations)]
+    (when (seq migrations)
+      (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
+      (doseq [migration migrations]
+        (up* migration))
+      (log/info "Migrations complete"))))
+
+(defn migrate
+  "Bring up any migrations that are not completed."
+  [config]
   (let [store (proto/make-store config)]
     (migrate* (uncompleted-migrations store))))
 
-(defn up [config & ids]
+(defn up
+  "Bring up the migrations identified by ids.  Any migrations that are already
+  complete will be skipped."
+  [config & ids]
   (let [store (proto/make-store config)
         completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id)
-                           (proto/migrations store))]
+        migrations (filter (comp ids proto/id) (proto/migrations store))]
     (migrate* migrations)))
 
-(defn down* [migration]
-  (info "--" (str (proto/id migration) "-" (proto/name migration) "..."))
-  (proto/down migration))
-
-(defn down [config & ids]
+(defn down
+  "Bring down the migrations identified by ids.  Any migrations that are not
+  completed will be skipped."
+  [config & ids]
   (let [store (proto/make-store config)
         completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
                            (proto/migrations store))
         migrations (reverse (sort-by proto/id migrations))]
-    (if (seq migrations)
-      (do (info "== Running 'down' for the following migrations"
-                (apply str (interpose " " (map proto/id migrations))))
-          (doseq [migration migrations]
-            (down* migration))
-          (info "== Migrations complete"))
-      (info "== No migrations need to be run"))))
+    (when (seq migrations)
+      (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
+      (doseq [migration migrations]
+        (log/info "Down" (migration-name migration))
+        (proto/down migration))
+      (log/info "Migrations complete"))))
