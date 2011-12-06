@@ -1,5 +1,5 @@
 (defproject migratus "0.1.0"
-  :description "MIGRATE ALL THE THINGS"
+  :description "MIGRATE ALL THE THINGS!"
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.jdbc "0.1.1"]
                  [org.clojure/tools.logging "0.2.3"]
