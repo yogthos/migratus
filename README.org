@@ -12,13 +12,14 @@
      recommended that they be timestamps (e.g. '20111202091200').
   2. Migrations are considered for completion independently.
 
-  Using a single global version for a store and incremented integers for
-  migration versions it is possible for a higher numbered migration to get
-  merged to master and deployed before a lower numbered migration, in which case
-  the lower numbered migration would never get run, unless it is renumbered.
+  In contrast, using a single global version for a store and incremented
+  integers for migration versions, it is possible for a higher numbered migration
+  to get merged to master and deployed before a lower numbered migration, in
+  which case the lower numbered migration would never get run, unless it is
+  renumbered.
 
-  Migratus considers each migration independently, and runs all uncompleted
-  migrations in sorted order.
+  Migratus does not use a single global version for a store.  It considers each
+  migration independently, and runs all uncompleted migrations in sorted order.
 ** Quick Start
    - Add Migratus as a dependency and a dev dependency:
      : :dependencies [[migratus "0.2.0"]]
@@ -74,7 +75,7 @@
 
    | Function              | Description                                                                               |
    |-----------------------+-------------------------------------------------------------------------------------------|
-   | migratus.core/migrate | Run any migrations that have not been run.                                                |
+   | migratus.core/migrate | Run 'up' for any migrations that have not been run.                                       |
    | migratus.core/up      | Run 'up' for the specified migration ids. Will skip any migration that is already up.     |
    | migratus.core/down    | Run 'down' for the specified migration ids. Will skip any migration that is already down. |
 
@@ -98,7 +99,7 @@
 
    | Task                     | Description                                                                                |
    |--------------------------+--------------------------------------------------------------------------------------------|
-   | lein migratus migrate    | Run any migrations that haven not been run.                                                |
+   | lein migratus migrate    | Run 'up' for any migrations that have not been run.                                        |
    | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
 ** License
