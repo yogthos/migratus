@@ -25,4 +25,4 @@
   (migrations [this] "Seq of migrations (completed or not).")
   (run [this migration-fn] "Run migration-fn against this store."))
 
-(defmulti make-store :backend)
+(defmulti make-store :store)

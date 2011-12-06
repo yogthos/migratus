@@ -10,7 +10,7 @@
                      [log4j "1.2.16"]
                      [mysql/mysql-connector-java "5.1.18"]]
   :eval-in-project true
-  :migratus {:backend :database
+  :migratus {:store :database
              :migration-dir "test/migrations/"
              :db {:classname "com.mysql.jdbc.Driver"
                   :subprotocol "mysql"

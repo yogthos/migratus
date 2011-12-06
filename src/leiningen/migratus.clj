@@ -39,7 +39,7 @@ down     Bring down the migrations specified by their ids.  Skips any migrations
          that are not already completed."
   [project command & ids]
   (if-let [config (:migratus project)]
-    (let [config (assoc config :backend :cli :real-backend (:backend config))]
+    (let [config (assoc config :store :cli :real-store (:store config))]
       (case command
         "migrate" (if (empty? ids)
                     (migrate config)

@@ -35,16 +35,16 @@
         (up* migration))
       (log/info "Migrations complete"))))
 
-(defn require-backend [backend]
-  (let [backend (symbol (str "migratus." (name backend)))]
-    (require backend)))
+(defn require-plugin [plugin]
+  (let [plugin (symbol (str "migratus." (name plugin)))]
+    (require plugin)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
-  (if-not (:backend config)
-    (throw (Exception. "Backend is not configured")))
-  (require-backend (:backend config))
+  (if-not (:store config)
+    (throw (Exception. "Store is not configured")))
+  (require-plugin (:store config))
   (let [store (proto/make-store config)]
     (proto/run store #(migrate* (uncompleted-migrations store)))))
 

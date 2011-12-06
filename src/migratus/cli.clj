@@ -13,7 +13,7 @@
 ;;;; under the License.
 (ns migratus.cli
   (:require [migratus.protocols :as proto])
-  (:use [migratus.core :only [migration-name require-backend]]))
+  (:use [migratus.core :only [migration-name require-plugin]]))
 
 ;; Wrapper implementations to print information during CLI invocations.
 (defrecord CliMigration [migration]
@@ -44,6 +44,6 @@
     (println "Migrations complete")))
 
 (defmethod proto/make-store :cli
-  [{:keys [real-backend] :as config}]
-  (require-backend real-backend)
-  (CliStore. (proto/make-store (assoc config :backend real-backend))))
+  [{:keys [real-store] :as config}]
+  (require-plugin real-store)
+  (CliStore. (proto/make-store (assoc config :store real-store))))

@@ -19,7 +19,7 @@
   (:use [clojure.test]
         [migratus.database]))
 
-(def config {:backend :database
+(def config {:store :database
              :migration-dir "test/migrations/"
              :db {:classname "com.mysql.jdbc.Driver"
                   :subprotocol "mysql"

@@ -26,7 +26,7 @@
   (let [ups (atom [])
         downs (atom [])
         migrations (migrations ups downs)
-        config {:backend :mock
+        config {:store :mock
                 :completed-ids [1 3]
                 :migrations (reverse migrations)}]
     (migrate config)
@@ -37,7 +37,7 @@
   (let [ups (atom [])
         downs (atom [])
         migrations (migrations ups downs)
-        config {:backend :mock
+        config {:store :mock
                 :completed-ids [1 3]
                 :migrations migrations}]
     (testing "should bring up an uncompleted migration"
@@ -55,7 +55,7 @@
   (let [ups (atom [])
         downs (atom [])
         migrations (migrations ups downs)
-        config {:backend :mock
+        config {:store :mock
                 :completed-ids [1 3]
                 :migrations migrations}]
     (testing "should bring down a completed migration"
