@@ -12,17 +12,8 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns leiningen.migratus
-  (:require [migratus.core :as migratus]
+  (:require [migratus.core :as core]
             [migratus.cli]))
-
-(defn- migrate [config]
-  (migratus/migrate config))
-
-(defn- up [config ids]
-  (apply migratus/up config ids))
-
-(defn- down [config ids]
-  (apply migratus/down config ids))
 
 (defn migratus
   "MIGRATE ALL THE THINGS!
@@ -34,16 +25,16 @@ Usage `lein migratus [command & ids]`.  Where 'command' is:
 
 migrate  Bring up any migrations that are not completed.
 up       Bring up the migrations specified by their ids.  Skips any migrations
-         that are already completed.
+         that are already up.
 down     Bring down the migrations specified by their ids.  Skips any migrations
-         that are not already completed."
+         that are already down."
   [project command & ids]
   (if-let [config (:migratus project)]
     (let [config (assoc config :store :cli :real-store (:store config))]
       (case command
         "migrate" (if (empty? ids)
-                    (migrate config)
+                    (core/migrate config)
                     (println "Unexpected arguments to 'migrate'"))
-        "up" (up config (map #(Long/parseLong %) ids))
-        "down" (down config (map #(Long/parseLong %) ids))))
+        "up" (apply core/up config (map #(Long/parseLong %) ids))
+        "down" (apply core/down config (map #(Long/parseLong %) ids))))
     (println "Missing :migratus config in project.clj")))
