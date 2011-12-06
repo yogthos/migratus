@@ -49,9 +49,9 @@
          (parse-name "20111202110600-create-foo-table.down.sql"))))
 
 (deftest test-find-migrations
-  (is (= [{:version 20111202110600 :name "create-foo-table"}
-          {:version 20111202113000 :name "create-bar-table"}]
-         (sort-by :version (find-migrations (io/file "test/migrations"))))))
+  (is (= [{:id 20111202110600 :name "create-foo-table"}
+          {:id 20111202113000 :name "create-bar-table"}]
+         (sort-by :id (find-migrations (io/file "test/migrations"))))))
 
 (deftest test-migrate
   (is (not (table-exists? "foo")))

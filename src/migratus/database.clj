@@ -19,73 +19,73 @@
 
 (def schema-table-name "schema_migrations")
 
-(defn complete? [version]
+(defn complete? [id]
   (sql/with-query-results results
-    [(str "SELECT * from " schema-table-name " WHERE version=?") version]
+    [(str "SELECT * from " schema-table-name " WHERE id=?") id]
     (first results)))
 
-(defn mark-complete [version]
-  (sql/insert-rows schema-table-name [version]))
+(defn mark-complete [id]
+  (sql/insert-rows schema-table-name [id]))
 
-(defn mark-not-complete [version]
-  (sql/delete-rows schema-table-name ["version=?" version]))
+(defn mark-not-complete [id]
+  (sql/delete-rows schema-table-name ["id=?" id]))
 
-(defn up* [version up]
+(defn up* [id up]
   (sql/transaction
-   (when (not (complete? version))
+   (when (not (complete? id))
      (sql/do-commands up)
-     (mark-complete version))))
+     (mark-complete id))))
 
-(defn down* [version down]
+(defn down* [id down]
   (sql/transaction
-   (when (complete? version)
+   (when (complete? id)
      (sql/do-commands down)
-     (mark-not-complete version))))
+     (mark-not-complete id))))
 
-(defrecord Migration [version name up down]
+(defrecord Migration [id name up down]
   proto/Migration
-  (proto/version [this]
-    version)
+  (proto/id [this]
+    id)
   (proto/name [this]
     name)
   (proto/up [this]
     (if up
-      (try-try-again up* version up)
-      (Exception. (format "Up commands not found for %d" version))))
+      (try-try-again up* id up)
+      (Exception. (format "Up commands not found for %d" id))))
   (proto/down [this]
     (if down
-      (try-try-again down* version down)
-      (Exception. (format "Down commands not found for %d" version)))))
+      (try-try-again down* id down)
+      (Exception. (format "Down commands not found for %d" id)))))
 
 (defn parse-name [file-name]
   (next (re-matches #".*(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
 
-(defn create-name [version name direction]
-  (str version "-" name "." direction ".sql"))
+(defn create-name [id name direction]
+  (str id "-" name "." direction ".sql"))
 
 (defn find-migrations [dir]
   (set (for [f (filter (memfn isFile) (file-seq (io/file dir)))]
-         (if-let [[version name &_] (parse-name (.getName f))]
-           {:version (Long/parseLong version) :name name}))))
+         (if-let [[id name &_] (parse-name (.getName f))]
+           {:id (Long/parseLong id) :name name}))))
 
-(defn slurp-file [migration-dir version name direction]
-  (let [file-name (str version "-" name "." direction ".sql")
+(defn slurp-file [migration-dir id name direction]
+  (let [file-name (str id "-" name "." direction ".sql")
         f (io/file migration-dir file-name)]
     (if (.exists f)
       (slurp f))))
 
 (defrecord Database [config]
   proto/Store
-  (proto/completed-versions [this]
+  (proto/completed-ids [this]
     (sql/transaction
      (sql/with-query-results results
        [(str "select * from " schema-table-name)]
-       (doall (map :version results)))))
+       (doall (map :id results)))))
   (proto/migrations [this]
-    (for [{:keys [version name]} (find-migrations (:migration-dir config))]
-      (Migration. version name
-                  (slurp-file (:migration-dir config) version name "up")
-                  (slurp-file (:migration-dir config) version name "down")))))
+    (for [{:keys [id name]} (find-migrations (:migration-dir config))]
+      (Migration. id name
+                  (slurp-file (:migration-dir config) id name "up")
+                  (slurp-file (:migration-dir config) id name "down")))))
 
 (defn table-exists? [table-name]
   (let [conn (sql/find-connection)]
@@ -96,7 +96,7 @@
 
 (defn create-table []
   (sql/create-table schema-table-name
-                    ["version" "BIGINT" "UNIQUE" "NOT NULL"]))
+                    ["id" "BIGINT" "UNIQUE" "NOT NULL"]))
 
 (defmethod proto/make-store :database
   [config]

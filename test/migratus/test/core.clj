@@ -16,81 +16,78 @@
   (:use [clojure.test]
         [migratus.core]))
 
-(defrecord MockMigration [version name up down]
+(defrecord MockMigration [id name ups downs]
   proto/Migration
-  (proto/version [this]
-    version)
+  (proto/id [this]
+    id)
   (proto/name [this]
     name)
   (proto/up [this]
-    (swap! up conj version))
+    (swap! ups conj id))
   (proto/down [this]
-    (swap! down conj version)))
+    (swap! downs conj id)))
 
-(defrecord MockStore [completed-versions migrations]
+(defrecord MockStore [completed-ids migrations]
   proto/Store
-  (proto/completed-versions [this]
-    completed-versions)
+  (proto/completed-ids [this]
+    completed-ids)
   (proto/migrations [this]
     migrations))
 
-(defn make-migration [{:keys [version name up down]}]
-  (MockMigration. version name up down))
+(defn make-migration [{:keys [id name ups downs]}]
+  (MockMigration. id name ups downs))
 
 (defmethod proto/make-store :mock
-  [{:keys [completed-versions migrations]}]
-  (MockStore. completed-versions (map make-migration migrations)))
+  [{:keys [completed-ids migrations]}]
+  (MockStore. completed-ids (map make-migration migrations)))
 
-(defn migrations [up down]
+(defn migrations [ups downs]
   (for [n (range 4)]
-    {:version (inc n) :name (str "version-" (inc n)) :up up :down down}))
+    {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs}))
 
 (deftest test-migrate
-  (let [up (atom [])
-        down (atom [])
-        migrations (migrations up down)
+  (let [ups (atom [])
+        downs (atom [])
+        migrations (migrations ups downs)
         config {:backend :mock
-                :completed-versions [1 3]
+                :completed-ids [1 3]
                 :migrations (reverse migrations)}]
     (migrate config)
-    (is (= [2 4] @up))))
+    (is (= [2 4] @ups))
+    (is (empty? @downs))))
 
 (deftest test-up
-  (testing "should bring up an uncompleted migration"
-    (let [up-calls (atom [])
-          down-calls (atom [])
-          migrations (migrations up-calls down-calls)
-          config {:backend :mock
-                  :completed [1 3]
-                  :migrations migrations}]
+  (let [ups (atom [])
+        downs (atom [])
+        migrations (migrations ups downs)
+        config {:backend :mock
+                :completed-ids [1 3]
+                :migrations migrations}]
+    (testing "should bring up an uncompleted migration"
       (up config 4 2)
-      (is (= [2 4] @up-calls))))
-  (testing "should do nothing for a completed migration"
-    (let [up-calls (atom [])
-          down-calls (atom [])
-          migrations (migrations up-calls down-calls)
-          config {:backend :mock
-                  :completed-versions [1 3]
-                  :migrations migrations}]
+      (is (= [2 4] @ups))
+      (is (empty? @downs)))
+    (reset! ups [])
+    (reset! downs [])
+    (testing "should do nothing for a completed migration"
       (up config 1)
-      (is (empty? @up-calls)))))
+      (is (empty? @ups))
+      (is (empty? @downs)))))
 
 (deftest test-down
-  (testing "should bring down a completed migration"
-    (let [up-calls (atom [])
-          down-calls (atom [])
-          migrations (migrations up-calls down-calls)
-          config {:backend :mock
-                  :completed-versions [1 3]
-                  :migrations migrations}]
+  (let [ups (atom [])
+        downs (atom [])
+        migrations (migrations ups downs)
+        config {:backend :mock
+                :completed-ids [1 3]
+                :migrations migrations}]
+    (testing "should bring down a completed migration"
       (down config 1 3)
-      (is (= [3 1] @down-calls))))
-  (testing "should do nothing for an uncompleted migration"
-    (let [up-calls (atom [])
-          down-calls (atom [])
-          migrations (migrations up-calls down-calls)
-          config {:backend :mock
-                  :completed-versions [1 3]
-                  :migrations migrations}]
+      (is (empty? @ups))
+      (is (= [3 1] @downs)))
+    (reset! ups [])
+    (reset! downs [])
+    (testing "should do nothing for an uncompleted migration"
       (down config 2)
-      (is (empty? @down-calls)))))
+      (is (empty? @ups))
+      (is (empty? @downs)))))

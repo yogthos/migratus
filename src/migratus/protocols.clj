@@ -15,13 +15,13 @@
   (:refer-clojure :exclude [name]))
 
 (defprotocol Migration
-  (version [this] "Version number of this migration.")
+  (id [this] "Id of this migration.")
   (name [this] "Name of this migration")
   (up [this] "Bring this migration up.")
   (down [this] "Bring this migration down."))
 
 (defprotocol Store
-  (completed-versions [this] "Seq of migrations that have been completed.")
+  (completed-ids [this] "Seq of ids of completed migrations.")
   (migrations [this] "Seq of migrations (completed or not)."))
 
 (defmulti make-store :backend)
