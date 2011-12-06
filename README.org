@@ -21,8 +21,9 @@
   migrations in sorted order.
 ** Quick Start
    1. Add Migratus as a dependency and a dev dependency:
-     : :dependencies [[migratus "0.2.0"]]
-     : :dev-dependencies [[migratus "0.2.0"]]
+      : :dependencies [[migratus "0.2.0"]]
+      : :dev-dependencies [[migratus "0.2.0"]]
+  
    2. Add the following key and value to your project.clj:
       : :migratus {:store :database
       :            :migration-dir "src/migrations"
@@ -31,9 +32,11 @@
       :                 :subname "//localhost/migratus"
       :                 :user "root"
       :                 :password ""}}
+  
    3. Add the following code to
       "src/migrations/20111206154000-create-foo-table.up.sql"
       : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
+  
    4. Run `lein migratus migrate`
 ** Configuration
    Migratus is configured via a configuration map that you pass in as its first
