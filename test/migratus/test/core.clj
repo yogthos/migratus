@@ -21,10 +21,6 @@
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. id name ups downs))
 
-(defmethod proto/make-store :mock
-  [{:keys [completed-ids migrations]}]
-  (MockStore. completed-ids (map make-migration migrations)))
-
 (defn migrations [ups downs]
   (for [n (range 4)]
     {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs}))

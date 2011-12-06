@@ -33,3 +33,7 @@
     migrations)
   (proto/run [this migration-fn]
     (migration-fn)))
+
+(defmethod proto/make-store :mock
+  [{:keys [completed-ids migrations]}]
+  (MockStore. completed-ids (map make-migration migrations)))
