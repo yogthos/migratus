@@ -19,6 +19,22 @@
 
   Migratus considers each migration independently, and runs all uncompleted
   migrations in sorted order.
+** Quick Start
+   1. Add Migratus as a dependency and a dev dependency:
+     : :dependencies [[migratus "0.2.0"]]
+     : :dev-dependencies [[migratus "0.2.0"]]
+   2. Add the following key and value to your project.clj:
+      : :migratus {:store :database
+      :            :migration-dir "src/migrations"
+      :            :db {:classname "com.mysql.jdbc.Driver"
+      :                 :subprotocol "mysql"
+      :                 :subname "//localhost/migratus"
+      :                 :user "root"
+      :                 :password ""}}
+   3. Add the following code to
+      "src/migrations/20111206154000-create-foo-table.up.sql"
+      : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
+   4. Run `lein migratus migrate`
 ** Configuration
    Migratus is configured via a configuration map that you pass in as its first
    parameter.  The :store key describes the type of store against which
@@ -53,11 +69,11 @@
    Migratus can be used programmatically by calling one of the following
    functions:
 
-   | Function              | Description                                                                                              |
-   |-----------------------+----------------------------------------------------------------------------------------------------------|
-   | migratus.core/migrate | Run any migrations that have not been run.                                                               |
-   | migratus.core/up      | Run 'up' for the specified migration ids. Will skip any migration that has already been completed.       |
-   | migratus.core/down    | Run 'down' for the specified migration ids. Will skip any migration that has not already been completed. |
+   | Function              | Description                                                                               |
+   |-----------------------+-------------------------------------------------------------------------------------------|
+   | migratus.core/migrate | Run any migrations that have not been run.                                                |
+   | migratus.core/up      | Run 'up' for the specified migration ids. Will skip any migration that is already up.     |
+   | migratus.core/down    | Run 'down' for the specified migration ids. Will skip any migration that is already down. |
 
    See the docstrings of each function for more details.
 
@@ -65,7 +81,7 @@
 
    : :dev-dependencies [[migratus "0.1.0"]]
 
-   And add a configuration :migratus key to you project.clj.
+   And add a configuration :migratus key to your project.clj.
 
    : :migratus {:store :database
    :            :migration-dir "test/migrations/"
@@ -77,11 +93,11 @@
 
    You can then run the following tasks:
 
-   | Task                     | Description                                                                                               |
-   |--------------------------+-----------------------------------------------------------------------------------------------------------|
-   | lein migratus migrate    | Run any migrations that haven not been run.                                                               |
-   | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that has already been completed.       |
-   | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that has not already been completed. |
+   | Task                     | Description                                                                                |
+   |--------------------------+--------------------------------------------------------------------------------------------|
+   | lein migratus migrate    | Run any migrations that haven not been run.                                                |
+   | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
+   | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
 ** License
    : Copyright © 2011 Paul Stadig
    : 
