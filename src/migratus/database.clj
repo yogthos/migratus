@@ -17,32 +17,30 @@
             [migratus.protocols :as proto])
   (:use [robert.bruce :only [try-try-again]]))
 
-(def schema-table-name "schema_migrations")
-
-(defn complete? [id]
+(defn complete? [table-name id]
   (sql/with-query-results results
-    [(str "SELECT * from " schema-table-name " WHERE id=?") id]
+    [(str "SELECT * from " table-name " WHERE id=?") id]
     (first results)))
 
-(defn mark-complete [id]
-  (sql/insert-rows schema-table-name [id]))
+(defn mark-complete [table-name id]
+  (sql/insert-rows table-name [id]))
 
-(defn mark-not-complete [id]
-  (sql/delete-rows schema-table-name ["id=?" id]))
+(defn mark-not-complete [table-name id]
+  (sql/delete-rows table-name ["id=?" id]))
 
-(defn up* [id up]
+(defn up* [table-name id up]
   (sql/transaction
-   (when (not (complete? id))
+   (when (not (complete? table-name id))
      (sql/do-commands up)
-     (mark-complete id))))
+     (mark-complete table-name id))))
 
-(defn down* [id down]
+(defn down* [table-name id down]
   (sql/transaction
-   (when (complete? id)
+   (when (complete? table-name id)
      (sql/do-commands down)
-     (mark-not-complete id))))
+     (mark-not-complete table-name id))))
 
-(defrecord Migration [id name up down]
+(defrecord Migration [table-name id name up down]
   proto/Migration
   (proto/id [this]
     id)
@@ -50,11 +48,11 @@
     name)
   (proto/up [this]
     (if up
-      (try-try-again up* id up)
+      (try-try-again up* table-name id up)
       (Exception. (format "Up commands not found for %d" id))))
   (proto/down [this]
     (if down
-      (try-try-again down* id down)
+      (try-try-again down* table-name id down)
       (Exception. (format "Down commands not found for %d" id)))))
 
 (defn parse-name [file-name]
@@ -74,16 +72,19 @@
     (if (.exists f)
       (slurp f))))
 
+(def default-table-name "schema_migrations")
+
 (defrecord Database [config]
   proto/Store
   (proto/completed-ids [this]
     (sql/transaction
      (sql/with-query-results results
-       [(str "select * from " schema-table-name)]
+       [(str "select * from " (:migration-table-name config
+                                                     default-table-name))]
        (doall (map :id results)))))
   (proto/migrations [this]
     (for [{:keys [id name]} (find-migrations (:migration-dir config))]
-      (Migration. id name
+      (Migration. (:migration-table-name config default-table-name) id name
                   (slurp-file (:migration-dir config) id name "up")
                   (slurp-file (:migration-dir config) id name "down"))))
   (proto/run [this migration-fn]
@@ -98,16 +99,17 @@
          .getMetaData
          (.getTables (.getCatalog conn) nil table-name nil)))))
 
-(defn create-table []
-  (sql/create-table schema-table-name
+(defn create-table [table-name]
+  (sql/create-table table-name
                     ["id" "BIGINT" "UNIQUE" "NOT NULL"]))
 
 (defmethod proto/make-store :database
   [config]
-  (sql/with-connection (:db config)
-    (sql/transaction
-     (if-not (table-exists? schema-table-name)
-       (create-table))))
+  (let [table-name (:migration-table-name config default-table-name)]
+    (sql/with-connection (:db config)
+      (sql/transaction
+       (if-not (table-exists? table-name)
+         (create-table table-name)))))
   (if (empty? (:migration-dir config))
     (throw (Exception. "Migration directory is not configured")))
   (Database. config))

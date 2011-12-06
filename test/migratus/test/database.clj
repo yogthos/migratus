@@ -21,16 +21,20 @@
 
 (def config {:store :database
              :migration-dir "test/migrations/"
+             :migration-table-name "foo_bar"
              :db {:classname "com.mysql.jdbc.Driver"
                   :subprotocol "mysql"
                   :subname "//localhost/migratus"
                   :user "root"
                   :password ""}})
 
-(defn setup-test-db [f]
+(defn reset-db []
   (sql/with-connection (assoc (:db config) :subname "//localhost/mysql")
     (sql/do-commands "DROP DATABASE IF EXISTS migratus;")
-    (sql/do-commands "CREATE DATABASE migratus;"))
+    (sql/do-commands "CREATE DATABASE migratus;")))
+
+(defn setup-test-db [f]
+  (reset-db)
   (f))
 
 (use-fixtures :each setup-test-db)
@@ -40,10 +44,15 @@
     (table-exists? table-name)))
 
 (deftest test-make-store
+  (testing "should create default table name"
+    (is (not (verify-table-exists? default-table-name)))
+    (proto/make-store (dissoc config :migration-table-name))
+    (is (verify-table-exists? default-table-name)))
+  (reset-db)
   (testing "should create schema_migrations table"
-    (is (not (verify-table-exists? "schema_migrations")))
+    (is (not (verify-table-exists? "foo_bar")))
     (proto/make-store config)
-    (is (verify-table-exists? "schema_migrations"))))
+    (is (verify-table-exists? "foo_bar"))))
 
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" "up"]
