@@ -31,16 +31,19 @@
   (sql/with-connection (assoc (:db config) :subname "//localhost/mysql")
     (sql/do-commands "DROP DATABASE IF EXISTS migratus;")
     (sql/do-commands "CREATE DATABASE migratus;"))
-  (sql/with-connection (:db config)
-    (f)))
+  (f))
 
 (use-fixtures :each setup-test-db)
 
+(defn verify-table-exists? [table-name]
+  (sql/with-connection (:db config)
+    (table-exists? table-name)))
+
 (deftest test-make-store
   (testing "should create schema_migrations table"
-    (is (not (table-exists? "schema_migrations")))
+    (is (not (verify-table-exists? "schema_migrations")))
     (proto/make-store config)
-    (is (table-exists? "schema_migrations"))))
+    (is (verify-table-exists? "schema_migrations"))))
 
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" "up"]
@@ -54,20 +57,20 @@
          (sort-by :id (find-migrations (io/file "test/migrations"))))))
 
 (deftest test-migrate
-  (is (not (table-exists? "foo")))
-  (is (not (table-exists? "bar")))
+  (is (not (verify-table-exists? "foo")))
+  (is (not (verify-table-exists? "bar")))
   (core/migrate config)
-  (is (table-exists? "foo"))
-  (is (table-exists? "bar"))
+  (is (verify-table-exists? "foo"))
+  (is (verify-table-exists? "bar"))
   (core/down config 20111202110600)
-  (is (not (table-exists? "foo")))
-  (is (table-exists? "bar"))
+  (is (not (verify-table-exists? "foo")))
+  (is (verify-table-exists? "bar"))
   (core/migrate config)
-  (is (table-exists? "foo"))
-  (is (table-exists? "bar"))
+  (is (verify-table-exists? "foo"))
+  (is (verify-table-exists? "bar"))
   (core/down config 20111202110600 20111202113000)
-  (is (not (table-exists? "foo")))
-  (is (not (table-exists? "bar")))
+  (is (not (verify-table-exists? "foo")))
+  (is (not (verify-table-exists? "bar")))
   (core/up config 20111202110600 20111202113000)
-  (is (table-exists? "foo"))
-  (is (table-exists? "bar")))
+  (is (verify-table-exists? "foo"))
+  (is (verify-table-exists? "bar")))
