@@ -38,8 +38,12 @@
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
+  (if-not (:backend config)
+    (throw (Exception. "Backend is not configured")))
+  (let [backend (symbol (str "migratus." (name (:backend config))))]
+    (require backend))
   (let [store (proto/make-store config)]
-    (migrate* (uncompleted-migrations store))))
+    (proto/run store #(migrate* (uncompleted-migrations store)))))
 
 (defn up
   "Bring up the migrations identified by ids.  Any migrations that are already
@@ -49,7 +53,7 @@
         completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
-    (migrate* migrations)))
+    (proto/run store #(migrate* migrations))))
 
 (defn down
   "Bring down the migrations identified by ids.  Any migrations that are not
@@ -63,7 +67,7 @@
         migrations (reverse (sort-by proto/id migrations))]
     (when (seq migrations)
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
-      (doseq [migration migrations]
-        (log/info "Down" (migration-name migration))
-        (proto/down migration))
+      (proto/run store #(doseq [migration migrations]
+                          (log/info "Down" (migration-name migration))
+                          (proto/down migration)))
       (log/info "Migrations complete"))))

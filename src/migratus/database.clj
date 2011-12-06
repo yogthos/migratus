@@ -85,7 +85,11 @@
     (for [{:keys [id name]} (find-migrations (:migration-dir config))]
       (Migration. id name
                   (slurp-file (:migration-dir config) id name "up")
-                  (slurp-file (:migration-dir config) id name "down")))))
+                  (slurp-file (:migration-dir config) id name "down"))))
+  (proto/run [this migration-fn]
+    (sql/with-connection (:db config)
+      (sql/transaction
+       (migration-fn)))))
 
 (defn table-exists? [table-name]
   (let [conn (sql/find-connection)]
@@ -100,9 +104,10 @@
 
 (defmethod proto/make-store :database
   [config]
-  (sql/transaction
-   (if-not (table-exists? schema-table-name)
-     (create-table)))
+  (sql/with-connection (:db config)
+    (sql/transaction
+     (if-not (table-exists? schema-table-name)
+       (create-table))))
   (if (empty? (:migration-dir config))
     (throw (Exception. "Migration directory is not configured")))
   (Database. config))

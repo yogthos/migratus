@@ -11,18 +11,25 @@
 ;;;; WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
-(ns migratus.protocols
-  (:refer-clojure :exclude [name]))
+(ns migratus.mock
+  (:require [migratus.protocols :as proto]))
 
-(defprotocol Migration
-  (id [this] "Id of this migration.")
-  (name [this] "Name of this migration")
-  (up [this] "Bring this migration up.")
-  (down [this] "Bring this migration down."))
+(defrecord MockMigration [id name ups downs]
+  proto/Migration
+  (proto/id [this]
+    id)
+  (proto/name [this]
+    name)
+  (proto/up [this]
+    (swap! ups conj id))
+  (proto/down [this]
+    (swap! downs conj id)))
 
-(defprotocol Store
-  (completed-ids [this] "Seq of ids of completed migrations.")
-  (migrations [this] "Seq of migrations (completed or not).")
-  (run [this migration-fn] "Run migration-fn against this store."))
-
-(defmulti make-store :backend)
+(defrecord MockStore [completed-ids migrations]
+  proto/Store
+  (proto/completed-ids [this]
+    completed-ids)
+  (proto/migrations [this]
+    migrations)
+  (proto/run [this migration-fn]
+    (migration-fn)))

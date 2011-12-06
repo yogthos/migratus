@@ -12,27 +12,11 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.test.core
-  (:require [migratus.protocols :as proto])
+  (:require [migratus.protocols :as proto]
+            [migratus.mock])
   (:use [clojure.test]
-        [migratus.core]))
-
-(defrecord MockMigration [id name ups downs]
-  proto/Migration
-  (proto/id [this]
-    id)
-  (proto/name [this]
-    name)
-  (proto/up [this]
-    (swap! ups conj id))
-  (proto/down [this]
-    (swap! downs conj id)))
-
-(defrecord MockStore [completed-ids migrations]
-  proto/Store
-  (proto/completed-ids [this]
-    completed-ids)
-  (proto/migrations [this]
-    migrations))
+        [migratus.core])
+  (:import (migratus.mock MockStore MockMigration)))
 
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. id name ups downs))

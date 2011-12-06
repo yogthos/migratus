@@ -4,5 +4,16 @@
                  [org.clojure/java.jdbc "0.1.1"]
                  [org.clojure/tools.logging "0.2.3"]
                  [robert/bruce "0.7.1"]]
-  :dev-dependencies [[log4j "1.2.16"]
-                     [mysql/mysql-connector-java "5.1.18"]])
+  :dev-dependencies [[org.clojure/java.jdbc "0.1.1"]
+                     [org.clojure/tools.logging "0.2.3"]
+                     [robert/bruce "0.7.1"]
+                     [log4j "1.2.16"]
+                     [mysql/mysql-connector-java "5.1.18"]]
+  :eval-in-project true
+  :migratus {:backend :database
+             :migration-dir "test/migrations/"
+             :db {:classname "com.mysql.jdbc.Driver"
+                  :subprotocol "mysql"
+                  :subname "//localhost/migratus"
+                  :user "root"
+                  :password ""}})
