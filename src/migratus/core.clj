@@ -35,16 +35,16 @@
         (up* migration))
       (log/info "Migrations complete"))))
 
-(defn require-plugin [plugin]
-  (let [plugin (symbol (str "migratus." (name plugin)))]
+(defn require-plugin [{:keys [store]}]
+  (if-not store
+    (throw (Exception. "Store is not configured")))
+  (let [plugin (symbol (str "migratus." (name store)))]
     (require plugin)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
-  (if-not (:store config)
-    (throw (Exception. "Store is not configured")))
-  (require-plugin (:store config))
+  (require-plugin config)
   (let [store (proto/make-store config)]
     (proto/run store #(migrate* (uncompleted-migrations store)))))
 
@@ -58,6 +58,7 @@
   "Bring up the migrations identified by ids.  Any migrations that are already
   complete will be skipped."
   [config & ids]
+  (require-plugin config)
   (let [store (proto/make-store config)]
     (proto/run store #(run-up config store ids))))
 
@@ -78,5 +79,6 @@
   "Bring down the migrations identified by ids.  Any migrations that are not
   completed will be skipped."
   [config & ids]
+  (require-plugin config)
   (let [store (proto/make-store config)]
     (proto/run store #(run-down config store ids))))

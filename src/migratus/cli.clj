@@ -45,5 +45,5 @@
 
 (defmethod proto/make-store :cli
   [{:keys [real-store] :as config}]
-  (require-plugin real-store)
+  (require-plugin (assoc config :store real-store))
   (CliStore. (proto/make-store (assoc config :store real-store))))
