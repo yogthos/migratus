@@ -1,5 +1,5 @@
 * Migratus
-  MIGRATE ALL THE THINGS!!
+  MIGRATE ALL THE THINGS!
 
   A general migration framework, with an implementation for database migrations.
 
