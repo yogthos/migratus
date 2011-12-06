@@ -1,4 +1,4 @@
-(defproject migratus "0.2.0-SNAPSHOT"
+(defproject migratus "0.2.0"
   :description "MIGRATE ALL THE THINGS!"
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.jdbc "0.1.1"]
