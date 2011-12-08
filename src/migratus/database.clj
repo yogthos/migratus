@@ -14,6 +14,7 @@
 (ns migratus.database
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
+            [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
   (:use [robert.bruce :only [try-try-again]]))
 
@@ -23,9 +24,11 @@
     (first results)))
 
 (defn mark-complete [table-name id]
+  (log/debug "marking" id "complete")
   (sql/insert-rows table-name [id]))
 
 (defn mark-not-complete [table-name id]
+  (log/debug "marking" id "not complete")
   (sql/delete-rows table-name ["id=?" id]))
 
 (defn up* [table-name id up]
@@ -49,27 +52,32 @@
   (proto/up [this]
     (if up
       (try-try-again up* table-name id up)
-      (Exception. (format "Up commands not found for %d" id))))
+      (throw (Exception. (format "Up commands not found for %d" id)))))
   (proto/down [this]
     (if down
       (try-try-again down* table-name id down)
-      (Exception. (format "Down commands not found for %d" id)))))
+      (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn parse-name [file-name]
-  (next (re-matches #".*(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
+  (next (re-matches #"^(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
 
 (defn create-name [id name direction]
   (str id "-" name "." direction ".sql"))
 
 (defn find-migrations [dir]
-  (set (for [f (filter (memfn isFile) (file-seq (io/file dir)))]
-         (if-let [[id name &_] (parse-name (.getName f))]
-           {:id (Long/parseLong id) :name name}))))
+  (->> (for [f (filter (memfn isFile) (file-seq (io/file dir)))
+             :let [file-name (.getName f)]]
+         (if-let [[id name &_] (parse-name file-name)]
+           {:id (Long/parseLong id) :name name}
+           (log/warn (str "'" file-name "'")
+                     "does not appear to be a valid migration")))
+       (remove nil?)
+       set))
 
 (defn slurp-file [migration-dir id name direction]
   (let [file-name (str id "-" name "." direction ".sql")
         f (io/file migration-dir file-name)]
-    (if (.exists f)
+    (when (.exists f)
       (slurp f))))
 
 (def default-table-name "schema_migrations")
@@ -100,6 +108,7 @@
          (.getTables (.getCatalog conn) nil table-name nil)))))
 
 (defn create-table [table-name]
+  (log/info "creating migration table" (str "'" table-name "'"))
   (sql/create-table table-name
                     ["id" "BIGINT" "UNIQUE" "NOT NULL"]))
 
@@ -108,8 +117,8 @@
   (let [table-name (:migration-table-name config default-table-name)]
     (sql/with-connection (:db config)
       (sql/transaction
-       (if-not (table-exists? table-name)
+       (when-not (table-exists? table-name)
          (create-table table-name)))))
-  (if (empty? (:migration-dir config))
+  (when (empty? (:migration-dir config))
     (throw (Exception. "Migration directory is not configured")))
   (Database. config))
