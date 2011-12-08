@@ -27,14 +27,17 @@ migrate  Bring up any migrations that are not completed.
 up       Bring up the migrations specified by their ids.  Skips any migrations
          that are already up.
 down     Bring down the migrations specified by their ids.  Skips any migrations
-         that are already down."
-  [project command & ids]
+         that are already down.
+
+If you run `lein migrate` without specifying a command, then the 'migrate'
+command will be executed."
+  [project & [command & ids]]
   (if-let [config (:migratus project)]
     (let [config (assoc config :store :cli :real-store (:store config))]
       (case command
-        "migrate" (if (empty? ids)
-                    (core/migrate config)
-                    (println "Unexpected arguments to 'migrate'"))
         "up" (apply core/up config (map #(Long/parseLong %) ids))
-        "down" (apply core/down config (map #(Long/parseLong %) ids))))
+        "down" (apply core/down config (map #(Long/parseLong %) ids))
+        (if (and (or (= command "migrate") (nil? command)) (empty? ids))
+          (core/migrate config)
+          (println "Unexpected arguments to 'migrate'"))))
     (println "Missing :migratus config in project.clj")))
