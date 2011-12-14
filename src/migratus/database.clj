@@ -17,7 +17,9 @@
             [clojure.java.jdbc.internal :as sqli]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
-  (:use [robert.bruce :only [try-try-again]]))
+  (:use [robert.bruce :only [try-try-again]])
+  (:import (java.io File)
+           (java.sql Connection)))
 
 (defn complete? [table-name id]
   (sql/with-query-results results
@@ -66,8 +68,9 @@
   (str id "-" name "." direction ".sql"))
 
 (defn find-migrations [dir]
-  (->> (for [f (filter (memfn isFile) (file-seq (io/file dir)))
-             :let [file-name (.getName f)]]
+  (->> (for [f (filter (fn [^File f]
+                         (.isFile f)) (file-seq (io/file dir)))
+             :let [file-name (.getName ^File f)]]
          (if-let [[id name &_] (parse-name file-name)]
            {:id (Long/parseLong id) :name name}
            (log/warn (str "'" file-name "'")
@@ -97,16 +100,19 @@
                   (slurp-file (:migration-dir config) id name "up")
                   (slurp-file (:migration-dir config) id name "down"))))
   (proto/begin [this]
-    (try
-      (let [conn (sqli/get-connection (:db config))]
+    (let [^Connection conn (try
+                             (sqli/get-connection (:db config))
+                             (catch Exception e
+                               (log/error e "Error creating DB connection")
+                               nil))]
+      (if conn
         (push-thread-bindings {#'sqli/*db*
                                (assoc sqli/*db*
                                  :connection conn
                                  :level 0
                                  :rollback (atom false))})
-        (.setAutoCommit conn false))
-      (catch Exception _
-        (push-thread-bindings {#'sqli/*db* sqli/*db*}))))
+        (push-thread-bindings {#'sqli/*db* sqli/*db*}))
+      (.setAutoCommit conn false)))
   (proto/end [this]
     (try
       (when-let [conn (sql/find-connection)]

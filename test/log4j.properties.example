@@ -7,12 +7,19 @@ log4j.appender.C = org.apache.log4j.ConsoleAppender
 log4j.appender.C.layout = org.apache.log4j.PatternLayout
 log4j.appender.C.layout.ConversionPattern = %-5p | %c | %m%n
 
+# file appender
+log4j.appender.F = org.apache.log4j.FileAppender
+log4j.appender.F.File = migratus.log
+log4j.appender.F.Append = true
+log4j.appender.F.layout = org.apache.log4j.PatternLayout
+log4j.appender.F.layout.ConversionPattern = %d | %-5p | %c | %m%n
+
 ###########
 # Loggers #
 ###########
 
 # default
-log4j.rootLogger = FATAL, C
+log4j.rootLogger = FATAL, F
 
 # MIGRATUS
 log4j.logger.migratus = TRACE

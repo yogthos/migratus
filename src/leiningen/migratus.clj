@@ -13,7 +13,10 @@
 ;;;; under the License.
 (ns leiningen.migratus
   (:require [migratus.core :as core]
-            [migratus.cli]))
+            [migratus.cli]
+            [clojure.tools.logging :as log]
+            [clojure.tools.logging.impl :as logi])
+  (:import (java.util.logging Logger Level)))
 
 (defn migratus
   "MIGRATE ALL THE THINGS!
@@ -32,6 +35,8 @@ down     Bring down the migrations specified by their ids.  Skips any migrations
 If you run `lein migrate` without specifying a command, then the 'migrate'
 command will be executed."
   [project & [command & ids]]
+  (if (= "java.util.logging" (logi/name log/*logger-factory*))
+    (.setLevel (Logger/getLogger "") Level/SEVERE))
   (if-let [config (:migratus project)]
     (let [config (assoc config :store :cli :real-store (:store config))]
       (case command
