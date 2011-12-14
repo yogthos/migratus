@@ -16,6 +16,15 @@
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]))
 
+(defn run [store f]
+  (try
+    (log/info "Starting migrations")
+    (proto/begin store)
+    (f)
+    (finally
+     (log/info "Ending migrations")
+     (proto/end store))))
+
 (defn- uncompleted-migrations [store]
   (let [completed? (set (proto/completed-ids store))]
     (remove (comp completed? proto/id) (proto/migrations store))))
@@ -32,8 +41,7 @@
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
-        (up* migration))
-      (log/info "Migrations complete"))))
+        (up* migration)))))
 
 (defn require-plugin [{:keys [store]}]
   (if-not store
@@ -46,7 +54,7 @@
   [config]
   (require-plugin config)
   (let [store (proto/make-store config)]
-    (proto/run store #(migrate* (uncompleted-migrations store)))))
+    (run store #(migrate* (uncompleted-migrations store)))))
 
 (defn- run-up [config store ids]
   (let [completed (set (proto/completed-ids store))
@@ -60,7 +68,7 @@
   [config & ids]
   (require-plugin config)
   (let [store (proto/make-store config)]
-    (proto/run store #(run-up config store ids))))
+    (run store #(run-up config store ids))))
 
 (defn- run-down [config store ids]
   (let [completed (set (proto/completed-ids store))
@@ -72,8 +80,7 @@
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
         (log/info "Down" (migration-name migration))
-        (proto/down migration))
-      (log/info "Migrations complete"))))
+        (proto/down migration)))))
 
 (defn down
   "Bring down the migrations identified by ids.  Any migrations that are not
@@ -81,4 +88,4 @@
   [config & ids]
   (require-plugin config)
   (let [store (proto/make-store config)]
-    (proto/run store #(run-down config store ids))))
+    (run store #(run-down config store ids))))

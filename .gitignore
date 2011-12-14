@@ -5,3 +5,4 @@ pom.xml
 .lein-failures
 .lein-deps-sum
 /test/log4j.properties
+*.log

@@ -37,11 +37,15 @@
     (let [migrations (proto/migrations store)]
       (if (seq migrations)
         (map #(CliMigration. %) migrations)
-        (println "No migrations found"))))
-  (proto/run [this migration-fn]
-    (println "Starting migrations")
-    (proto/run store migration-fn)
-    (println "Migrations complete")))
+        (do (println "No migrations found")
+            migrations))))
+  (proto/begin [this]
+    (println "Beginning migrations")
+    (proto/begin store))
+  (proto/end [this]
+    (let [r (proto/end store)]
+      (println "Migrations complete")
+      r)))
 
 (defmethod proto/make-store :cli
   [{:keys [real-store] :as config}]

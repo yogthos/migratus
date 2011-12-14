@@ -31,8 +31,8 @@
     completed-ids)
   (proto/migrations [this]
     migrations)
-  (proto/run [this migration-fn]
-    (migration-fn)))
+  (proto/begin [this])
+  (proto/end [this]))
 
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. id name ups downs))

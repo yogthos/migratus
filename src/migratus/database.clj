@@ -14,6 +14,7 @@
 (ns migratus.database
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
+            [clojure.java.jdbc.internal :as sqli]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
   (:use [robert.bruce :only [try-try-again]]))
@@ -95,10 +96,23 @@
       (Migration. (:migration-table-name config default-table-name) id name
                   (slurp-file (:migration-dir config) id name "up")
                   (slurp-file (:migration-dir config) id name "down"))))
-  (proto/run [this migration-fn]
-    (sql/with-connection (:db config)
-      (sql/transaction
-       (migration-fn)))))
+  (proto/begin [this]
+    (try
+      (let [conn (sqli/get-connection (:db config))]
+        (push-thread-bindings {#'sqli/*db*
+                               (assoc sqli/*db*
+                                 :connection conn
+                                 :level 0
+                                 :rollback (atom false))})
+        (.setAutoCommit conn false))
+      (catch Exception _
+        (push-thread-bindings {#'sqli/*db* sqli/*db*}))))
+  (proto/end [this]
+    (try
+      (when-let [conn (sql/find-connection)]
+        (.close conn))
+      (finally
+       (pop-thread-bindings)))))
 
 (defn table-exists? [table-name]
   (let [conn (sql/find-connection)]
