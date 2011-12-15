@@ -22,12 +22,12 @@
   migration independently, and runs all uncompleted migrations in sorted order.
 ** Quick Start
    - Add Migratus as a dependency and a dev dependency:
-     : :dependencies [[migratus "0.2.0"]]
-     : :dev-dependencies [[migratus "0.2.0"]]
+     : :dependencies [[migratus "0.3.0"]]
+     : :dev-dependencies [[migratus "0.3.0"]]
   
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
-     :            :migration-dir "src/migrations"
+     :            :migration-dir "migrations"
      :            :db {:classname "com.mysql.jdbc.Driver"
      :                 :subprotocol "mysql"
      :                 :subname "//localhost/migratus"
@@ -51,17 +51,17 @@
     For example:
 
     : {:store :database
-    :  :migration-dir "test/migrations/"
+    :  :migration-dir "migrations"
     :  :db {:classname "com.mysql.jdbc.Driver"
     :       :subprotocol "mysql"
     :       :subname "//localhost/migratus"
     :       :user "root"
     :       :password ""}}
 
-    The :migration-dir key specifies the directory in which to find SQL
-    migration files.  Each file should be named with the following pattern
-    "[id]-[name]-[direction].sql" where id is a unique integer id for the
-    migration, name is some human readable description of the migration, and
+    The :migration-dir key specifies the directory on the classpath in which to
+    find SQL migration files.  Each file should be named with the following
+    pattern "[id]-[name]-[direction].sql" where id is a unique integer id for
+    the migration, name is some human readable description of the migration, and
     direction is either 'up' or 'down'.
 
     If Migratus is trying to run either the up or down migration and it does not
@@ -83,12 +83,12 @@
 
    Migratus can also be used from leiningen if you add it as a dev dependency.
 
-   : :dev-dependencies [[migratus "0.1.0"]]
+   : :dev-dependencies [[migratus "0.3.0"]]
 
    And add a configuration :migratus key to your project.clj.
 
    : :migratus {:store :database
-   :            :migration-dir "test/migrations/"
+   :            :migration-dir "migrations"
    :            :db {:classname "com.mysql.jdbc.Driver"
    :                 :subprotocol "mysql"
    :                 :subname "//localhost/migratus"

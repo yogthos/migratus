@@ -20,7 +20,7 @@
         [migratus.database]))
 
 (def config {:store :database
-             :migration-dir "test/migrations/"
+             :migration-dir "migrations/"
              :migration-table-name "foo_bar"
              :db {:classname "com.mysql.jdbc.Driver"
                   :subprotocol "mysql"
@@ -61,9 +61,36 @@
          (parse-name "20111202110600-create-foo-table.down.sql"))))
 
 (deftest test-find-migrations
-  (is (= [{:id 20111202110600 :name "create-foo-table"}
-          {:id 20111202113000 :name "create-bar-table"}]
-         (sort-by :id (find-migrations (io/file "test/migrations"))))))
+  (is (= {"20111202113000"
+          {"down" {:id "20111202113000"
+                   :name "create-bar-table"
+                   :direction "down"
+                   :content "DROP TABLE IF EXISTS bar;\n"}
+           "up" {:id "20111202113000"
+                 :name "create-bar-table"
+                 :direction "up"
+                 :content "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n"}}
+          "20111202110600"
+          {"up" {:id "20111202110600"
+                 :name "create-foo-table"
+                 :direction "up"
+                 :content "CREATE TABLE IF NOT EXISTS foo(id bigint);\n"}
+           "down" {:id "20111202110600"
+                   :name "create-foo-table"
+                   :direction "down"
+                   :content "DROP TABLE IF EXISTS foo;\n"}}}
+         (find-migrations "migrations"))))
+
+(deftest test-find-jar-migrations
+  (is (= {"20111214173500"
+          {"down" {:id "20111214173500"
+                   :name "create-baz-table"
+                   :direction "down", :content "DROP TABLE IF EXISTS baz;\n"}
+           "up" {:id "20111214173500"
+                 :name "create-baz-table"
+                 :direction "up"
+                 :content "CREATE TABLE IF NOT EXISTS baz(id bigint);\n"}}}
+         (find-migrations "jar-migrations"))))
 
 (deftest test-migrate
   (is (not (verify-table-exists? "foo")))

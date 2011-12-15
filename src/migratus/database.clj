@@ -15,11 +15,13 @@
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [clojure.java.jdbc.internal :as sqli]
+            [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
   (:use [robert.bruce :only [try-try-again]])
-  (:import (java.io File)
-           (java.sql Connection)))
+  (:import (java.io File StringWriter)
+           (java.sql Connection)
+           (java.util.regex Pattern)))
 
 (defn complete? [table-name id]
   (sql/with-query-results results
@@ -67,16 +69,53 @@
 (defn create-name [id name direction]
   (str id "-" name "." direction ".sql"))
 
-(defn find-migrations [dir]
+(defn find-migration-dir [dir]
+  (first (filter #(.exists %)
+                 (map #(io/file % dir)
+                      (cp/classpath-directories)))))
+
+(defn find-migration-files [migration-dir]
   (->> (for [f (filter (fn [^File f]
-                         (.isFile f)) (file-seq (io/file dir)))
+                         (.isFile f)) (file-seq migration-dir))
              :let [file-name (.getName ^File f)]]
-         (if-let [[id name &_] (parse-name file-name)]
-           {:id (Long/parseLong id) :name name}
+         (if-let [[id name direction] (parse-name file-name)]
+           {id {direction {:id id :name name :direction direction
+                           :content (slurp f)}}}
            (log/warn (str "'" file-name "'")
                      "does not appear to be a valid migration")))
-       (remove nil?)
-       set))
+       (remove nil?)))
+
+(defn ensure-trailing-slash [dir]
+  (if (not= (last dir) \/)
+    (str dir "/")
+    dir))
+
+(defn find-migration-jar [dir]
+  (first (for [jar (cp/classpath-jarfiles)
+               :when (some #(.matches (.getName %)
+                                      (str "^" (Pattern/quote dir) ".*"))
+                           (enumeration-seq (.entries jar)))]
+           jar)))
+
+(defn find-migration-resources [dir jar]
+  (->> (for [entry (enumeration-seq (.entries jar))
+             :when (.matches (.getName entry)
+                             (str "^" (Pattern/quote dir) ".*"))
+             :let [entry-name (.replaceAll (.getName entry) dir "")]]
+         (if-let [[id name direction] (parse-name entry-name)]
+           (let [w (StringWriter.)]
+             (io/copy (.getInputStream jar entry) w)
+             {id {direction {:id id :name name :direction direction
+                             :content (.toString w)}}})))
+       (remove nil?)))
+
+(defn find-migrations [dir]
+  (->> (let [dir (ensure-trailing-slash dir)]
+         (if-let [migration-dir (find-migration-dir dir)]
+           (find-migration-files migration-dir)
+           (if-let [migration-jar (find-migration-jar dir)]
+             (find-migration-resources dir migration-jar))))
+       (apply (partial merge-with merge))))
 
 (defn slurp-file [migration-dir id name direction]
   (let [file-name (str id "-" name "." direction ".sql")
@@ -95,10 +134,15 @@
                                                      default-table-name))]
        (doall (map :id results)))))
   (proto/migrations [this]
-    (for [{:keys [id name]} (find-migrations (:migration-dir config))]
-      (Migration. (:migration-table-name config default-table-name) id name
-                  (slurp-file (:migration-dir config) id name "up")
-                  (slurp-file (:migration-dir config) id name "down"))))
+    (let [migrations (find-migrations (:migration-dir config))
+          table-name (:migration-table-name config default-table-name)]
+      (for [[id mig] migrations
+            :let [{:strs [up down]} mig]]
+        (Migration. table-name
+                    (Long/parseLong (or (:id up) (:id down)))
+                    (or (:name up) (:name down))
+                    (:content up)
+                    (:content down)))))
   (proto/begin [this]
     (let [^Connection conn (try
                              (sqli/get-connection (:db config))
