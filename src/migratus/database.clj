@@ -50,15 +50,15 @@
 
 (defrecord Migration [table-name id name up down]
   proto/Migration
-  (proto/id [this]
+  (id [this]
     id)
-  (proto/name [this]
+  (name [this]
     name)
-  (proto/up [this]
+  (up [this]
     (if up
       (try-try-again up* table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
-  (proto/down [this]
+  (down [this]
     (if down
       (try-try-again down* table-name id down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
@@ -127,13 +127,13 @@
 
 (defrecord Database [config]
   proto/Store
-  (proto/completed-ids [this]
+  (completed-ids [this]
     (sql/transaction
      (sql/with-query-results results
        [(str "select * from " (:migration-table-name config
                                                      default-table-name))]
        (doall (map :id results)))))
-  (proto/migrations [this]
+  (migrations [this]
     (let [migrations (find-migrations (:migration-dir config))
           table-name (:migration-table-name config default-table-name)]
       (for [[id mig] migrations
@@ -143,7 +143,7 @@
                     (or (:name up) (:name down))
                     (:content up)
                     (:content down)))))
-  (proto/begin [this]
+  (begin [this]
     (let [^Connection conn (try
                              (sqli/get-connection (:db config))
                              (catch Exception e
@@ -157,7 +157,7 @@
                                  :rollback (atom false))})
         (push-thread-bindings {#'sqli/*db* sqli/*db*}))
       (.setAutoCommit conn false)))
-  (proto/end [this]
+  (end [this]
     (try
       (when-let [conn (sql/find-connection)]
         (.close conn))

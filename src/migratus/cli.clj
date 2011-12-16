@@ -18,31 +18,31 @@
 ;; Wrapper implementations to print information during CLI invocations.
 (defrecord CliMigration [migration]
   proto/Migration
-  (proto/id [this]
+  (id [this]
     (proto/id migration))
-  (proto/name [this]
+  (name [this]
     (proto/name migration))
-  (proto/up [this]
+  (up [this]
     (println "Up" (migration-name migration))
     (proto/up migration))
-  (proto/down [this]
+  (down [this]
     (println "Down" (migration-name migration))
     (proto/down migration)))
 
 (defrecord CliStore [store]
   proto/Store
-  (proto/completed-ids [this]
+  (completed-ids [this]
     (proto/completed-ids store))
-  (proto/migrations [this]
+  (migrations [this]
     (let [migrations (proto/migrations store)]
       (if (seq migrations)
         (map #(CliMigration. %) migrations)
         (do (println "No migrations found")
             migrations))))
-  (proto/begin [this]
+  (begin [this]
     (println "Beginning migrations")
     (proto/begin store))
-  (proto/end [this]
+  (end [this]
     (let [r (proto/end store)]
       (println "Migrations complete")
       r)))

@@ -16,23 +16,23 @@
 
 (defrecord MockMigration [id name ups downs]
   proto/Migration
-  (proto/id [this]
+  (id [this]
     id)
-  (proto/name [this]
+  (name [this]
     name)
-  (proto/up [this]
+  (up [this]
     (swap! ups conj id))
-  (proto/down [this]
+  (down [this]
     (swap! downs conj id)))
 
 (defrecord MockStore [completed-ids migrations]
   proto/Store
-  (proto/completed-ids [this]
+  (completed-ids [this]
     completed-ids)
-  (proto/migrations [this]
+  (migrations [this]
     migrations)
-  (proto/begin [this])
-  (proto/end [this]))
+  (begin [this])
+  (end [this]))
 
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. id name ups downs))
