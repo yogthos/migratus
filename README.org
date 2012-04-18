@@ -58,6 +58,12 @@
     :       :user "root"
     :       :password ""}}
 
+    or:
+
+    : {:store :database
+    :  :migration-dir "migrations"
+    :  :db ~(get (System/getenv) "DATABASE_URL")}
+
     The :migration-dir key specifies the directory on the classpath in which to
     find SQL migration files.  Each file should be named with the following
     pattern "[id]-[name]-[direction].sql" where id is a unique integer id for
@@ -69,6 +75,7 @@
 
     See test/migrations in this repository for an example of how database
     migrations work.
+
 ** Usage
    Migratus can be used programmatically by calling one of the following
    functions:
@@ -81,19 +88,16 @@
 
    See the docstrings of each function for more details.
 
-   Migratus can also be used from leiningen if you add it as a dev dependency.
+   Migratus can also be used from leiningen if you add it (and a database driver) as a dev dependency.
 
-   : :dev-dependencies [[migratus "0.3.0"]]
+   : :dev-dependencies [[migratus "0.3.0"] 
+   :                    [postgresql/postgresql "9.1-901.jdbc4"]]
 
    And add a configuration :migratus key to your project.clj.
 
    : :migratus {:store :database
    :            :migration-dir "migrations"
-   :            :db {:classname "com.mysql.jdbc.Driver"
-   :                 :subprotocol "mysql"
-   :                 :subname "//localhost/migratus"
-   :                 :user "root"
-   :                 :password ""}}
+   :            :db "postgres://localhost/mydb"}
 
    You can then run the following tasks:
 
