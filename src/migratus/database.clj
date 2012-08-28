@@ -36,10 +36,16 @@
   (log/debug "marking" id "not complete")
   (sql/delete-rows table-name ["id=?" id]))
 
+(def sep (Pattern/compile "^--;;.*\n" Pattern/MULTILINE))
+
+(defn split-commands [up]
+  (.split sep up))
+
 (defn up* [table-name id up]
   (sql/transaction
    (when (not (complete? table-name id))
-     (sql/do-commands up)
+     (doseq [c (split-commands up)]
+       (sql/do-commands c))
      (mark-complete table-name id))))
 
 (defn down* [table-name id down]

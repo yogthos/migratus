@@ -78,7 +78,21 @@
            "down" {:id "20111202110600"
                    :name "create-foo-table"
                    :direction "down"
-                   :content "DROP TABLE IF EXISTS foo;\n"}}}
+                   :content "DROP TABLE IF EXISTS foo;\n"}}
+          "20120827170200"
+          {"up" {:id "20120827170200"
+                 :name "multiple-statements"
+                 :direction "up"
+                 :content (str "CREATE TABLE IF NOT EXISTS "
+                               "quux(id bigint, name varchar(255));\n"
+                               "--;;\n"
+                               "CREATE INDEX quux_name on quux(name);\n")}
+           "down" {:id "20120827170200"
+                   :name "multiple-statements"
+                   :direction "down"
+                   :content (str "DROP INDEX quux_name;\n"
+                                 "--;;\n"
+                                 "DROP TABLE IF EXISTS quux;\n")}}}
          (find-migrations "migrations"))))
 
 (deftest test-find-jar-migrations
