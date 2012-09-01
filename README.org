@@ -23,8 +23,8 @@
   migration independently, and runs all uncompleted migrations in sorted order.
 ** Quick Start
    - Add Migratus as a dependency and a dev dependency:
-     : :dependencies [[migratus "0.3.0"]]
-     : :dev-dependencies [[migratus "0.3.0"]]
+     : :dependencies [[migratus "0.4.0"]]
+     : :dev-dependencies [[migratus "0.4.0"]]
   
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
