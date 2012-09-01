@@ -1,3 +1,4 @@
+#+STARTUP: hidestars showall
 * Migratus
   MIGRATE ALL THE THINGS!
 
@@ -72,6 +73,17 @@
 
     If Migratus is trying to run either the up or down migration and it does not
     exist, then an Exception will be thrown.
+
+    If you would like to run multiple statements in your migration, then
+    separate them with '--;;'.  For example:
+
+    : CREATE TABLE IF NOT EXISTS quux(id bigint, name varchar(255));
+    : --;;
+    : CREATE INDEX quux_name on quux(name);
+
+    This is necessary because JDBC does not have a method that allows you to
+    send multiple SQL commands for execution.  Migratus will split your
+    commands, and send the each to the database inside of a transaction.
 
     See test/migrations in this repository for an example of how database
     migrations work.
