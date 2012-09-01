@@ -62,11 +62,13 @@
     name)
   (up [this]
     (if up
-      (try-try-again up* table-name id up)
+      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
+                     up* table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this]
     (if down
-      (try-try-again down* table-name id down)
+      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
+                     down* table-name id down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn parse-name [file-name]
