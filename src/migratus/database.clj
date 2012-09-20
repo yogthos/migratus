@@ -84,10 +84,10 @@
 (defn create-name [id name direction]
   (str id "-" name "." direction ".sql"))
 
-(defn find-migration-dir [dir]
+(defn find-migration-dir [dir project-root]
   (first (filter #(.exists %)
                  (map #(io/file % dir)
-                      (cp/classpath-directories)))))
+                      (cons project-root (cp/classpath-directories))))))
 
 (defn find-migration-files [migration-dir]
   (->> (for [f (filter (fn [^File f]
@@ -124,9 +124,9 @@
                              :content (.toString w)}}})))
        (remove nil?)))
 
-(defn find-migrations [dir]
+(defn find-migrations [dir project-root]
   (->> (let [dir (ensure-trailing-slash dir)]
-         (if-let [migration-dir (find-migration-dir dir)]
+         (if-let [migration-dir (find-migration-dir dir project-root)]
            (find-migration-files migration-dir)
            (if-let [migration-jar (find-migration-jar dir)]
              (find-migration-resources dir migration-jar))))
@@ -149,7 +149,7 @@
                                                      default-table-name))]
        (doall (map :id results)))))
   (migrations [this]
-    (let [migrations (find-migrations (:migration-dir config))
+    (let [migrations (find-migrations (:migration-dir config) (:root config))
           table-name (:migration-table-name config default-table-name)]
       (for [[id mig] migrations
             :let [{:strs [up down]} mig]]
