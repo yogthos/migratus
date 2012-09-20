@@ -14,18 +14,18 @@
   2. Migrations are considered for completion independently.
 
   In contrast, using a single global version for a store and incremented
-  integers for migration versions, it is possible for a higher numbered migration
-  to get merged to master and deployed before a lower numbered migration, in
-  which case the lower numbered migration would never get run, unless it is
-  renumbered.
+  integers for migration versions, it is possible for a higher numbered
+  migration to get merged to master and deployed before a lower numbered
+  migration, in which case the lower numbered migration would never get run,
+  unless it is renumbered.
 
   Migratus does not use a single global version for a store.  It considers each
   migration independently, and runs all uncompleted migrations in sorted order.
 ** Quick Start
    - Add Migratus as a dependency and a dev dependency:
-     : :dependencies [[migratus "0.4.0"]]
-     : :dev-dependencies [[migratus "0.4.0"]]
-  
+     : :dependencies [[migratus "0.4.1"]]
+     : :dev-dependencies [[migratus "0.4.1"]]
+
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
      :            :migration-dir "migrations"
@@ -34,11 +34,11 @@
      :                 :subname "//localhost/migratus"
      :                 :user "root"
      :                 :password ""}}
-  
+
    - Add the following code to
      "src/migrations/20111206154000-create-foo-table.up.sql"
      : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
-  
+
    - Run `lein migratus migrate`
 ** Configuration
    Migratus is configured via a configuration map that you pass in as its first
@@ -102,7 +102,7 @@
 
    Migratus can also be used from leiningen if you add it (and a database driver) as a dev dependency.
 
-   : :dev-dependencies [[migratus "0.3.0"] 
+   : :dev-dependencies [[migratus "0.4.1"]
    :                    [postgresql/postgresql "9.1-901.jdbc4"]]
 
    And add a configuration :migratus key to your project.clj.
