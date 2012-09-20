@@ -1,4 +1,4 @@
-(defproject migratus "0.4.0"
+(defproject migratus "0.4.1"
   :description "MIGRATE ALL THE THINGS!"
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.classpath "0.1.0"]
