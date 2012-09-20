@@ -1,3 +1,3 @@
-DROP INDEX quux_name;
+DROP TABLE quux2;
 --;;
-DROP TABLE IF EXISTS quux;
+DROP TABLE quux;

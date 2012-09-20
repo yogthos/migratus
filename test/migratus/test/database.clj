@@ -83,16 +83,16 @@
           {"up" {:id "20120827170200"
                  :name "multiple-statements"
                  :direction "up"
-                 :content (str "CREATE TABLE IF NOT EXISTS "
-                               "quux(id bigint, name varchar(255));\n"
-                               "--;;\n"
-                               "CREATE INDEX quux_name on quux(name);\n")}
+                 :content
+                 (str "CREATE TABLE quux(id bigint, name varchar(255));\n"
+                      "--;;\n"
+                      "CREATE TABLE quux2(id bigint, name varchar(255));\n")}
            "down" {:id "20120827170200"
                    :name "multiple-statements"
                    :direction "down"
-                   :content (str "DROP INDEX quux_name;\n"
+                   :content (str "DROP TABLE quux2;\n"
                                  "--;;\n"
-                                 "DROP TABLE IF EXISTS quux;\n")}}}
+                                 "DROP TABLE quux;\n")}}}
          (find-migrations "migrations"))))
 
 (deftest test-find-jar-migrations
@@ -109,18 +109,30 @@
 (deftest test-migrate
   (is (not (verify-table-exists? "foo")))
   (is (not (verify-table-exists? "bar")))
+  (is (not (verify-table-exists? "quux")))
+  (is (not (verify-table-exists? "quux2")))
   (core/migrate config)
   (is (verify-table-exists? "foo"))
   (is (verify-table-exists? "bar"))
+  (is (verify-table-exists? "quux"))
+  (is (verify-table-exists? "quux2"))
   (core/down config 20111202110600)
   (is (not (verify-table-exists? "foo")))
   (is (verify-table-exists? "bar"))
+  (is (verify-table-exists? "quux"))
+  (is (verify-table-exists? "quux2"))
   (core/migrate config)
   (is (verify-table-exists? "foo"))
   (is (verify-table-exists? "bar"))
-  (core/down config 20111202110600 20111202113000)
+  (is (verify-table-exists? "quux"))
+  (is (verify-table-exists? "quux2"))
+  (core/down config 20111202110600 20120827170200)
   (is (not (verify-table-exists? "foo")))
-  (is (not (verify-table-exists? "bar")))
-  (core/up config 20111202110600 20111202113000)
+  (is (verify-table-exists? "bar"))
+  (is (not (verify-table-exists? "quux")))
+  (is (not (verify-table-exists? "quux2")))
+  (core/up config 20111202110600 20120827170200)
   (is (verify-table-exists? "foo"))
-  (is (verify-table-exists? "bar")))
+  (is (verify-table-exists? "bar"))
+  (is (verify-table-exists? "quux"))
+  (is (verify-table-exists? "quux2")))

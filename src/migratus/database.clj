@@ -43,15 +43,22 @@
 
 (defn up* [table-name id up]
   (sql/transaction
-   (when (not (complete? table-name id))
-     (doseq [c (split-commands up)]
-       (sql/do-commands c))
+   (when-not (complete? table-name id)
+     (let [commands (split-commands up)]
+       (log/debug "found" (count commands) "up migrations")
+       (doseq [c commands]
+         (log/trace "executing" c)
+         (sql/do-commands c)))
      (mark-complete table-name id))))
 
 (defn down* [table-name id down]
   (sql/transaction
    (when (complete? table-name id)
-     (sql/do-commands down)
+     (let [commands (split-commands down)]
+       (log/debug "found" (count commands) "down migrations")
+       (doseq [c commands]
+         (log/trace "executing" c)
+         (sql/do-commands c)))
      (mark-not-complete table-name id))))
 
 (defrecord Migration [table-name id name up down]
