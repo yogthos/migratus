@@ -14,7 +14,6 @@
 (ns migratus.database
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
-            [clojure.java.jdbc.internal :as sqli]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
@@ -160,24 +159,24 @@
                     (:content down)))))
   (begin [this]
     (let [^Connection conn (try
-                             (sqli/get-connection (:db config))
+                             (#'sql/get-connection (:db config))
                              (catch Exception e
                                (log/error e "Error creating DB connection")
                                nil))]
       (if conn
-        (push-thread-bindings {#'sqli/*db*
-                               (assoc sqli/*db*
+        (push-thread-bindings {#'sql/*db*
+                               (assoc @#'sql/*db*
                                  :connection conn
                                  :level 0
                                  :rollback (atom false))})
-        (push-thread-bindings {#'sqli/*db* sqli/*db*}))
+        (push-thread-bindings {#'sql/*db* @#'sql/*db*}))
       (.setAutoCommit conn false)))
   (end [this]
     (try
       (when-let [conn (sql/find-connection)]
         (.close conn))
       (finally
-       (pop-thread-bindings)))))
+        (pop-thread-bindings)))))
 
 (defn table-exists? [table-name]
   (let [conn (sql/find-connection)]
