@@ -23,8 +23,8 @@
   migration independently, and runs all uncompleted migrations in sorted order.
 ** Quick Start
    - Add Migratus as a dependency and a dev dependency:
-     : :dependencies [[migratus "0.4.1"]]
-     : :dev-dependencies [[migratus "0.4.1"]]
+     : :dependencies [[migratus "0.5.0"]]
+     : :dev-dependencies [[migratus "0.5.0"]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
@@ -102,7 +102,7 @@
 
    Migratus can also be used from leiningen if you add it (and a database driver) as a dev dependency.
 
-   : :dev-dependencies [[migratus "0.4.1"]
+   : :dev-dependencies [[migratus "0.5.0"]
    :                    [postgresql/postgresql "9.1-901.jdbc4"]]
 
    And add a configuration :migratus key to your project.clj.
@@ -119,6 +119,6 @@
    | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
 ** License
-   : Copyright © 2011 Paul Stadig
+   : Copyright © 2012 Paul Stadig
    : 
    : Licensed under the Apache License, Version 2.0.
