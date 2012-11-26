@@ -12,10 +12,9 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns leiningen.migratus
-  (:require [migratus.core :as core]
-            [migratus.cli]
-            [clojure.tools.logging :as log]
-            [clojure.tools.logging.impl :as logi])
+  (:require [clojure.tools.logging :as log]
+            [clojure.tools.logging.impl :as logi]
+            [leiningen.core.eval :as eval])
   (:import (java.util.logging Logger Level)))
 
 (defn migratus
@@ -37,12 +36,20 @@ command will be executed."
   [project & [command & ids]]
   (if (= "java.util.logging" (logi/name log/*logger-factory*))
     (.setLevel (Logger/getLogger "") Level/SEVERE))
-  (if-let [config (:migratus project)]
-    (let [config (assoc config :store :cli :real-store (:store config))]
-      (case command
-        "up" (apply core/up config (map #(Long/parseLong %) ids))
-        "down" (apply core/down config (map #(Long/parseLong %) ids))
-        (if (and (or (= command "migrate") (nil? command)) (empty? ids))
-          (core/migrate config)
-          (println "Unexpected arguments to 'migrate'"))))
-    (println "Missing :migratus config in project.clj")))
+  (let [updated-project (update-in project [:dependencies]
+                                   conj ['migratus "0.4.1"])]
+    (if-let [config (:migratus project)]
+      (let [config (assoc config :store :cli :real-store (:store config))]
+        (case command
+          "up" (eval/eval-in-project updated-project
+                                     `(apply migratus.core/up ~config ~(map #(Long/parseLong %) ids))
+                                     '(require 'migratus.core))
+          "down" (eval/eval-in-project updated-project
+                                       `(apply migratus.core/down ~config ~(map #(Long/parseLong %) ids))
+                                       '(require 'migratus.core))
+          (if (and (or (= command "migrate") (nil? command)) (empty? ids))
+            (eval/eval-in-project updated-project
+                                  `(migratus.core/migrate ~config)
+                                  '(require 'migratus.core))
+            (println "Unexpected arguments to 'migrate'"))))
+      (println "Missing :migratus config in project.clj"))))
