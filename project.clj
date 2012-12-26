@@ -1,4 +1,4 @@
-(defproject migratus "0.5.0"
+(defproject migratus "0.6.0-SNAPSHOT"
   :description "MIGRATE ALL THE THINGS!"
   :aliases {"test!" ["do" "clean," "deps," "test"]}
   :dependencies [[org.clojure/clojure "1.2.1"]
