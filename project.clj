@@ -1,5 +1,9 @@
 (defproject migratus "0.6.0"
   :description "MIGRATE ALL THE THINGS!"
+  :url "http://github.com/pjstadig/migratus"
+  :license {:name "Apache License, Version 2.0"
+            :url "http://www.apache.org/licenses/LICENSE-2.0.html"
+            :distribution :repo}
   :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.classpath "0.1.0"]
