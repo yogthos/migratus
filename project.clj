@@ -1,6 +1,6 @@
 (defproject migratus "0.6.0-SNAPSHOT"
   :description "MIGRATE ALL THE THINGS!"
-  :aliases {"test!" ["do" "clean," "deps," "test"]}
+  :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.classpath "0.1.0"]
                  [org.clojure/java.jdbc "0.2.3"]
