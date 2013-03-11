@@ -14,7 +14,7 @@
 (ns migratus.test.core
   (:require [migratus.protocols :as proto]
             [migratus.mock])
-  (:use [clojure.test]
+  (:use [conjecture.core]
         [migratus.core])
   (:import (migratus.mock MockStore MockMigration)))
 

@@ -16,7 +16,7 @@
             [clojure.java.jdbc :as sql]
             [migratus.protocols :as proto]
             [migratus.core :as core])
-  (:use [clojure.test]
+  (:use [conjecture.core]
         [migratus.database]))
 
 (def config {:store :database
