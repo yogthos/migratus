@@ -77,9 +77,10 @@
 
     The :migration-dir key specifies the directory on the classpath in which to
     find SQL migration files.  Each file should be named with the following
-    pattern "[id]-[name].[direction].sql" where id is a unique integer id
-    (timestamp is recommended) for the migration, name is some human readable
-    description of the migration, and direction is either 'up' or 'down'.
+    pattern "[id]-[name].[direction].sql" where id is a unique 14 digit integer
+    id (ideally it should be a timestamp) for the migration, name is some human
+    readable description of the migration, and direction is either 'up' or
+    'down'.
 
     If Migratus is trying to run either the up or down migration and it does not
     exist, then an Exception will be thrown.
