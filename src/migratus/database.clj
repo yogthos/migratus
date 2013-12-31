@@ -13,7 +13,7 @@
 ;;;; under the License.
 (ns migratus.database
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
+            [clojure.java.jdbc.deprecated :as sql]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
