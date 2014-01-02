@@ -7,7 +7,7 @@
   :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[org.clojure/clojure "1.2.1"]
                  [org.clojure/java.classpath "0.1.0"]
-                 [org.clojure/java.jdbc "0.2.3"]
+                 [org.clojure/java.jdbc "0.3.0"]
                  [org.clojure/tools.logging "0.2.3"]
                  [robert/bruce "0.7.1"]]
   :dev-dependencies [[jar-migrations "1.0.0"]
