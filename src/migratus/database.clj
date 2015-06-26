@@ -36,9 +36,15 @@
   (sql/delete-rows table-name ["id=?" id]))
 
 (def sep (Pattern/compile "^--;;.*\n" Pattern/MULTILINE))
+(def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
 
-(defn split-commands [up]
-  (.split sep up))
+(defn sanitize [command]
+  (clojure.string/replace command sql-comment ""))
+
+(defn split-commands [commands]
+  (->> (.split sep commands)
+       (map sanitize)
+       (remove empty?)))
 
 (defn up* [table-name id up]
   (sql/transaction
