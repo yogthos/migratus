@@ -26,6 +26,7 @@
     (try
       (log/info "Starting migrations")
       (log/info "Using migrations found in" (str "'" (:migration-dir config) "'"))
+      (database/init-schema! config db)
       (command config {:connection db} ids)
       (finally
         (log/info "Ending migrations")
@@ -43,7 +44,6 @@
   (proto/up migration db))
 
 (defn- migrate* [config db]
-  (database/init-schema! config db)
   (let [migration-ids (uncompleted-migrations config db)
         migrations (sort-by proto/id migration-ids)]
     (when (seq migrations)
@@ -69,7 +69,6 @@
   (run config ids run-up))
 
 (defn- run-down [config db ids]
-  (database/init-schema! config db)
   (let [completed (database/completed-ids config db)
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
