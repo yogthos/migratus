@@ -56,7 +56,7 @@
   (let [store (proto/make-store config)]
     (run store #(migrate* (uncompleted-migrations store)))))
 
-(defn- run-up [config store ids]
+(defn- run-up [store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
@@ -68,9 +68,9 @@
   [config & ids]
   (require-plugin config)
   (let [store (proto/make-store config)]
-    (run store #(run-up config store ids))))
+    (run store #(run-up store ids))))
 
-(defn- run-down [config store ids]
+(defn- run-down [store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
@@ -88,4 +88,4 @@
   [config & ids]
   (require-plugin config)
   (let [store (proto/make-store config)]
-    (run store #(run-down config store ids))))
+    (run store #(run-down store ids))))

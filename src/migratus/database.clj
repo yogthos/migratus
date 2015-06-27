@@ -24,8 +24,8 @@
 
 (defn complete? [table-name id]
   (sql/with-query-results results
-    [(str "SELECT * from " table-name " WHERE id=?") id]
-    (first results)))
+                          [(str "SELECT * from " table-name " WHERE id=?") id]
+                          (first results)))
 
 (defn mark-complete [table-name id]
   (log/debug "marking" id "complete")
@@ -36,29 +36,38 @@
   (sql/delete-rows table-name ["id=?" id]))
 
 (def sep (Pattern/compile "^--;;.*\n" Pattern/MULTILINE))
+(def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
+(def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
-(defn split-commands [up]
-  (.split sep up))
+(defn sanitize [command]
+  (-> command
+      (clojure.string/replace sql-comment "")
+      (clojure.string/replace empty-line "")))
+
+(defn split-commands [commands]
+  (->> (.split sep commands)
+       (map sanitize)
+       (remove empty?)))
 
 (defn up* [table-name id up]
   (sql/transaction
-   (when-not (complete? table-name id)
-     (let [commands (split-commands up)]
-       (log/debug "found" (count commands) "up migrations")
-       (doseq [c commands]
-         (log/trace "executing" c)
-         (sql/do-commands c)))
-     (mark-complete table-name id))))
+    (when-not (complete? table-name id)
+      (let [commands (split-commands up)]
+        (log/debug "found" (count commands) "up migrations")
+        (doseq [c commands]
+          (log/trace "executing" c)
+          (sql/do-commands c)))
+      (mark-complete table-name id))))
 
 (defn down* [table-name id down]
   (sql/transaction
-   (when (complete? table-name id)
-     (let [commands (split-commands down)]
-       (log/debug "found" (count commands) "down migrations")
-       (doseq [c commands]
-         (log/trace "executing" c)
-         (sql/do-commands c)))
-     (mark-not-complete table-name id))))
+    (when (complete? table-name id)
+      (let [commands (split-commands down)]
+        (log/debug "found" (count commands) "down migrations")
+        (doseq [c commands]
+          (log/trace "executing" c)
+          (sql/do-commands c)))
+      (mark-not-complete table-name id))))
 
 (defrecord Migration [table-name id name up down]
   proto/Migration
@@ -143,10 +152,10 @@
   proto/Store
   (completed-ids [this]
     (sql/transaction
-     (sql/with-query-results results
-       [(str "select * from " (:migration-table-name config
-                                                     default-table-name))]
-       (doall (map :id results)))))
+      (sql/with-query-results results
+                              [(str "select * from " (:migration-table-name config
+                                                       default-table-name))]
+                              (doall (map :id results)))))
   (migrations [this]
     (let [migrations (find-migrations (:migration-dir config))
           table-name (:migration-table-name config default-table-name)]
@@ -181,9 +190,9 @@
 (defn table-exists? [table-name]
   (let [conn (sql/find-connection)]
     (sql/resultset-seq
-     (-> conn
-         .getMetaData
-         (.getTables (.getCatalog conn) nil table-name nil)))))
+      (-> conn
+          .getMetaData
+          (.getTables (.getCatalog conn) nil (.toUpperCase table-name) nil)))))
 
 (defn create-table [table-name]
   (log/info "creating migration table" (str "'" table-name "'"))
@@ -194,9 +203,9 @@
   [config]
   (let [table-name (:migration-table-name config default-table-name)]
     (sql/with-connection (:db config)
-      (sql/transaction
-       (when-not (table-exists? table-name)
-         (create-table table-name)))))
+                         (sql/transaction
+                           (when-not (table-exists? table-name)
+                             (create-table table-name)))))
   (when (empty? (:migration-dir config))
     (throw (Exception. "Migration directory is not configured")))
   (Database. config))
