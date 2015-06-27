@@ -27,7 +27,7 @@
 
 (defn mark-complete [db table-name id]
   (log/debug "marking" id "complete")
-  (sql/insert! db table-name [id]))
+  (sql/insert! db table-name {:id id}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
@@ -45,27 +45,30 @@
 (defn split-commands [commands]
   (->> (.split sep commands)
        (map sanitize)
+       (map sanitize)
        (remove empty?)))
 
 (defn up* [db table-name id up]
-  (sql/with-db-transaction [t-con db]
-                           (when-not (complete? t-con table-name id)
-                             (let [commands (split-commands up)]
-                               (log/debug "found" (count commands) "up migrations")
-                               (doseq [c commands]
-                                 (log/trace "executing" c)
-                                 (sql/db-do-commands db c)))
-                             (mark-complete t-con table-name id))))
+  (sql/with-db-transaction
+    [t-con db]
+    (when-not (complete? t-con table-name id)
+      (let [commands (split-commands up)]
+        (log/debug "found" (count commands) "up migrations")
+        (doseq [c commands]
+          (log/trace "executing" c)
+          (sql/db-do-commands db c)))
+      (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
-  (sql/with-db-transaction [t-con db]
-                           (when (complete? db table-name id)
-                             (let [commands (split-commands down)]
-                               (log/debug "found" (count commands) "down migrations")
-                               (doseq [c commands]
-                                 (log/trace "executing" c)
-                                 (sql/db-do-commands db c)))
-                             (mark-not-complete db table-name id))))
+  (sql/with-db-transaction
+    [t-con db]
+    (when (complete? db table-name id)
+      (let [commands (split-commands down)]
+        (log/debug "found" (count commands) "down migrations")
+        (doseq [c commands]
+          (log/trace "executing" c)
+          (sql/db-do-commands db c)))
+      (mark-not-complete db table-name id))))
 
 (defrecord Migration [table-name id name up down]
   proto/Migration
@@ -75,7 +78,8 @@
     name)
   (up [this db]
     (if up
-      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
+      (up* db table-name id up)
+      #_(try-try-again {:sleep 1000 :tries 3 :decay :exponential}
                      up* db table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this db]
@@ -88,9 +92,10 @@
   (next (re-matches #"^(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
 
 (defn find-migration-dir [dir]
-  (first (filter #(.exists %)
-                 (map #(io/file % dir)
-                      (cp/classpath-directories)))))
+  (->> (cp/classpath-directories)
+       (map #(io/file % dir))
+       (filter #(.exists %))
+       first))
 
 (defn find-migration-files [migration-dir]
   (->> (for [f (filter (fn [^File f]
@@ -147,15 +152,15 @@
 (defn connect [config]
   (let [^Connection conn
         (try
-          (#'sql/get-connection (:db config))
+          (sql/get-connection (:db config))
           (catch Exception e
             (log/error e (str "Error creating DB connection for " (:db config)))))]
     (.setAutoCommit conn false)
-    conn))
+    {:connection conn}))
 
-(defn disconnect [conn]
-  (when-not (.isClosed conn)
-    (.close conn)))
+(defn disconnect [{:keys [connection]}]
+  (when-not (.isClosed connection)
+    (.close connection)))
 
 (defn completed-ids [config db]
   (sql/with-db-transaction
@@ -225,5 +230,4 @@
         (when-not (table-exists? t-con table-name)
           (log/info "creating migration table" (str "'" table-name "'"))
           (sql/db-do-commands t-con
-            (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"]))
-          (println "table exists?" (table-exists? t-con table-name)))))))
+                              (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"])))))))

@@ -25,16 +25,16 @@
         config (set-migrations-dir config)]
     (try
       (log/info "Starting migrations")
-      (log/info "Using migrations found in" (str "'" (:migration-dir config) "'"))
-      (database/init-schema! config {:connection db})
-      (command config {:connection db} ids)
+      (log/info "Using migrations from" (str "'" (:migration-dir config) "'"))
+      (database/init-schema! config db)
+      (command config db ids)
       (finally
         (log/info "Ending migrations")
         (database/disconnect db)))))
 
-(defn- uncompleted-migrations [store db]
-  (let [completed? (set (proto/completed-ids store db))]
-    (remove (comp completed? proto/id) (proto/migrations store))))
+(defn- uncompleted-migrations [config db]
+  (let [completed? (database/completed-ids config db)]
+    (remove (comp completed? proto/id) (database/migrations config))))
 
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
@@ -43,9 +43,9 @@
   (log/info "Up" (migration-name migration))
   (proto/up migration db))
 
-(defn- migrate* [config db]
-  (let [migration-ids (uncompleted-migrations config db)
-        migrations (sort-by proto/id migration-ids)]
+(defn- migrate* [config db _]
+  (let [ids (uncompleted-migrations config db)
+        migrations (sort-by proto/id ids)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
@@ -53,14 +53,14 @@
 
 (defn migrate
   "Bring up any migrations that are not completed."
-  [config & ids]
-  (run config ids migrate*))
+  [config]
+  (run config nil migrate*))
 
-(defn- run-up [store db ids]
-  (let [completed (proto/completed-ids store db)
+(defn- run-up [config db ids]
+  (let [completed (database/completed-ids config db)
         ids (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id) (proto/migrations store))]
-    (migrate* migrations db)))
+        migrations (filter (comp ids proto/id) (database/migrations config))]
+    (migrate* migrations db ids)))
 
 (defn up
   "Bring up the migrations identified by ids.  Any migrations that are already
@@ -85,3 +85,22 @@
   completed will be skipped."
   [config & ids]
   (run config ids run-down))
+
+(defn- rollback* [config db _]
+  (println "found ids"
+           (->> (database/completed-ids config db)
+                sort
+                last
+                vector))
+  (run-down
+    config
+    db
+    (->> (database/completed-ids config db)
+         sort
+         last
+         vector)))
+
+(defn rollback
+  "Rollback the last migration"
+  [config]
+  (run config nil rollback*))
