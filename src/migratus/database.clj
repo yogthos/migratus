@@ -101,7 +101,9 @@
                          (.isFile f)) (file-seq migration-dir))
              :let [file-name (.getName ^File f)]]
          (if-let [[id name direction] (parse-name file-name)]
-           {id {direction {:id      id :name name :direction direction
+           {id {direction {:id      id
+                           :name name
+                           :direction direction
                            :content (slurp f)}}}
            (log/warn (str "'" file-name "'")
                      "does not appear to be a valid migration")))
@@ -127,7 +129,9 @@
          (if-let [[id name direction] (parse-name entry-name)]
            (let [w (StringWriter.)]
              (io/copy (.getInputStream jar entry) w)
-             {id {direction {:id      id :name name :direction direction
+             {id {direction {:id      id
+                             :name name
+                             :direction direction
                              :content (.toString w)}}})))
        (remove nil?)))
 
@@ -164,7 +168,7 @@
 (defn completed-ids [config db]
   (sql/with-db-transaction
     [t-con db]
-    (->> (sql/query t-con (str "select * from " (migration-table-name config)))
+    (->> (sql/query t-con (str "select id from " (migration-table-name config)))
          (map :id)
          set
          (doall))))

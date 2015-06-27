@@ -87,11 +87,6 @@
   (run config ids run-down))
 
 (defn- rollback* [config db _]
-  (println "found ids"
-           (->> (database/completed-ids config db)
-                sort
-                last
-                vector))
   (run-down
     config
     db
