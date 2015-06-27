@@ -78,8 +78,7 @@
     name)
   (up [this db]
     (if up
-      (up* db table-name id up)
-      #_(try-try-again {:sleep 1000 :tries 3 :decay :exponential}
+      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
                      up* db table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this db]
