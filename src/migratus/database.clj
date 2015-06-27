@@ -19,22 +19,20 @@
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
   (:use [robert.bruce :only [try-try-again]])
-  (:import (java.io File StringWriter)
-           (java.sql Connection)
-           (java.util.regex Pattern)))
+  (:import [java.io File StringWriter]
+           java.sql.Connection
+           java.util.regex.Pattern))
 
-(defn complete? [table-name id]
-  (sqld/with-query-results results
-                           [(str "SELECT * from " table-name " WHERE id=?") id]
-                           (first results)))
+(defn complete? [db table-name id]
+  (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
-(defn mark-complete [table-name id]
+(defn mark-complete [db table-name id]
   (log/debug "marking" id "complete")
-  (sqld/insert-rows table-name [id]))
+  (sql/insert! db table-name [id]))
 
-(defn mark-not-complete [table-name id]
+(defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
-  (sqld/delete-rows table-name ["id=?" id]))
+  (sql/delete! db table-name ["id=?" id]))
 
 (def sep (Pattern/compile "^--;;.*\n" Pattern/MULTILINE))
 (def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
@@ -50,25 +48,25 @@
        (map sanitize)
        (remove empty?)))
 
-(defn up* [table-name id up]
-  (sqld/transaction
-    (when-not (complete? table-name id)
-      (let [commands (split-commands up)]
-        (log/debug "found" (count commands) "up migrations")
-        (doseq [c commands]
-          (log/trace "executing" c)
-          (sqld/do-commands c)))
-      (mark-complete table-name id))))
+(defn up* [db table-name id up]
+  (sql/with-db-transaction [t-con db]
+                           (when-not (complete? t-con table-name id)
+                             (let [commands (split-commands up)]
+                               (log/debug "found" (count commands) "up migrations")
+                               (doseq [c commands]
+                                 (log/trace "executing" c)
+                                 (sql/db-do-commands db true c)))
+                             (mark-complete t-con table-name id))))
 
-(defn down* [table-name id down]
-  (sqld/transaction
-    (when (complete? table-name id)
-      (let [commands (split-commands down)]
-        (log/debug "found" (count commands) "down migrations")
-        (doseq [c commands]
-          (log/trace "executing" c)
-          (sqld/do-commands c)))
-      (mark-not-complete table-name id))))
+(defn down* [db table-name id down]
+  (sql/with-db-transaction [t-con db]
+                           (when (complete? db table-name id)
+                             (let [commands (split-commands down)]
+                               (log/debug "found" (count commands) "down migrations")
+                               (doseq [c commands]
+                                 (log/trace "executing" c)
+                                 (sqld/do-commands c)))
+                             (mark-not-complete db table-name id))))
 
 (defrecord Migration [table-name id name up down]
   proto/Migration
@@ -76,22 +74,19 @@
     id)
   (name [this]
     name)
-  (up [this]
+  (up [this db]
     (if up
       (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
-                     up* table-name id up)
+                     up* db table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
-  (down [this]
+  (down [this db]
     (if down
       (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
-                     down* table-name id down)
+                     down* db table-name id down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn parse-name [file-name]
   (next (re-matches #"^(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
-
-(defn create-name [id name direction]
-  (str id "-" name "." direction ".sql"))
 
 (defn find-migration-dir [dir]
   (first (filter #(.exists %)
@@ -141,55 +136,80 @@
              (find-migration-resources dir migration-jar))))
        (apply (partial merge-with merge))))
 
-(defn slurp-file [migration-dir id name direction]
-  (let [file-name (str id "-" name "." direction ".sql")
-        f (io/file migration-dir file-name)]
-    (when (.exists f)
-      (slurp f))))
+(defn migration-table-name [config]
+  (:migration-table-name config "schema_migrations"))
 
-(def default-table-name "schema_migrations")
+(defn parse-migration-id [id]
+  (try
+    (Long/parseLong id)
+    (catch Exception e
+      (log/error e (str "failed to parse migration id: " id)))))
 
-(defrecord Database [config]
+(defn connect [config]
+  (let [^Connection conn
+        (try
+          (#'sql/get-connection (:db config))
+          (catch Exception e
+            (log/error e (str "Error creating DB connection for " (:db config)))))]
+    (.setAutoCommit conn false)
+    conn))
+
+(defn disconnect [conn]
+  (when-not (.isClosed conn)
+    (.close conn)))
+
+(defn completed-ids [config db]
+  (sql/with-db-transaction
+    [t-con db]
+    (->> (sql/query t-con (str "select * from " (migration-table-name config)))
+         (map :id)
+         set
+         (doall))))
+
+(defn migrations [config]
+  (let [migrations (find-migrations (:migration-dir config))
+        table-name (migration-table-name config)]
+    (for [[id mig] migrations
+          :let [{:strs [up down]} mig]]
+      (Migration. table-name
+                  (parse-migration-id (or (:id up) (:id down)))
+                  (or (:name up) (:name down))
+                  (:content up)
+                  (:content down)))))
+
+;;;;;deprecate
+#_(defrecord Database [config]
   proto/Store
-  (completed-ids [this]
-    (sqld/transaction
-      (sqld/with-query-results results
-                               [(str "select * from " (:migration-table-name config
-                                                        default-table-name))]
-                               (doall (map :id results)))))
+  (completed-ids [this db]
+    (sql/with-db-transaction [t-con db]
+                             (->> (sql/query t-con (str "select * from " (migration-table-name config)))
+                                  (map :id)
+                                  set
+                                  (doall))))
   (migrations [this]
     (let [migrations (find-migrations (:migration-dir config))
-          table-name (:migration-table-name config default-table-name)]
+          table-name (migration-table-name config)]
       (for [[id mig] migrations
             :let [{:strs [up down]} mig]]
         (Migration. table-name
-                    (Long/parseLong (or (:id up) (:id down)))
+                    (parse-migration-id (or (:id up) (:id down)))
                     (or (:name up) (:name down))
                     (:content up)
                     (:content down)))))
   (begin [this]
     (let [^Connection conn (try
-                             (#'sqld/get-connection (:db config))
+                             (#'sql/get-connection (:db config))
                              (catch Exception e
-                               (log/error e "Error creating DB connection")
-                               nil))]
-      (if conn
-        (push-thread-bindings {#'sqld/*db*
-                               (assoc @#'sqld/*db*
-                                 :connection conn
-                                 :level 0
-                                 :rollback (atom false))})
-        (push-thread-bindings {#'sqld/*db* @#'sqld/*db*}))
-      (.setAutoCommit conn false)))
-  (end [this]
-    (try
-      (when-let [conn (sqld/find-connection)]
-        (.close conn))
-      (finally
-        (pop-thread-bindings)))))
+                               (log/error e (str "Error creating DB connection for " (:db config)))))]
+      (.setAutoCommit conn false)
+      conn))
+  (end [this conn]
+    (when-not (.isClosed conn)
+      (.close conn))))
+;;;
 
-(defn table-exists? [db table-name]
-  (let [conn (sql/get-connection db)]
+(defn table-exists? [conn table-name]
+  (let [conn (:connection conn)]
     (-> conn
         .getMetaData
         (.getTables (.getCatalog conn) nil (.toUpperCase table-name) nil)
@@ -197,17 +217,10 @@
         not-empty
         boolean)))
 
-(defn create-table [conn table-name]
-  (log/info "creating migration table" (str "'" table-name "'"))
-  (sql/db-do-commands conn
-    (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"])))
-
-(defmethod proto/make-store :database
-  [config]
-  (let [table-name (:migration-table-name config default-table-name)]
-    (sql/with-db-transaction [t-con (:db config)]
-                             (when-not (table-exists? t-con table-name)
-                               (create-table t-con table-name))))
-  (when (empty? (:migration-dir config))
-    (throw (Exception. "Migration directory is not configured")))
-  (Database. config))
+(defn init-schema! [config db]
+  (let [table-name (migration-table-name config)]
+    (sql/with-db-transaction
+      [t-con db]
+      (when-not (table-exists? t-con table-name)
+        (log/info "creating migration table" (str "'" table-name "'"))
+        (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"])))))
