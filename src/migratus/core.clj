@@ -63,8 +63,8 @@
     (migrate* migrations db ids)))
 
 (defn up
-  "Bring up the migrations identified by ids.  Any migrations that are already
-  complete will be skipped."
+  "Bring up the migrations identified by ids.
+  Any migrations that are already complete will be skipped."
   [config & ids]
   (run config ids run-up))
 
@@ -81,8 +81,8 @@
         (proto/down migration db)))))
 
 (defn down
-  "Bring down the migrations identified by ids.  Any migrations that are not
-  completed will be skipped."
+  "Bring down the migrations identified by ids.
+  Any migrations that are not completed will be skipped."
   [config & ids]
   (run config ids run-down))
 
@@ -96,6 +96,6 @@
          vector)))
 
 (defn rollback
-  "Rollback the last migration"
+  "Rollback the last migration that was successfully applied."
   [config]
   (run config nil rollback*))
