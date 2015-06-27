@@ -16,7 +16,7 @@
             [migratus.mock])
   (:use [clojure.test]
         [migratus.core])
-  (:import (migratus.mock MockStore MockMigration)))
+  (:import [migratus.mock MockStore MockMigration]))
 
 (defn migrations [ups downs]
   (for [n (range 4)]

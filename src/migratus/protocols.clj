@@ -17,17 +17,17 @@
 (defprotocol Migration
   (id [this] "Id of this migration.")
   (name [this] "Name of this migration")
-  (up [this db] "Bring this migration up.")
-  (down [this db] "Bring this migration down."))
+  (up [this] "Bring this migration up.")
+  (down [this] "Bring this migration down."))
 
 (defprotocol Store
-  (completed-ids [this db]
+  (completed-ids [this]
     "Seq of ids of completed migrations.")
   (migrations [this]
     "Seq of migrations (completed or not).")
-  (begin [this]
+  (connect [this]
     "Opens resources necessary to run migrations against the store.")
-  (end [this db]
+  (disconnect [this]
     "Frees resources necessary to run migrations against the store."))
 
 (defmulti make-store :store)

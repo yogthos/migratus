@@ -15,82 +15,82 @@
   (:require [clojure.set :as set]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]
-            [migratus.database :as database]))
+            migratus.database))
 
-(defn set-migrations-dir [config]
-  (update-in config [:migration-dir] #(or % "migrations")))
 
-(defn run [config ids command]
-  (let [db (database/connect config)
-        config (set-migrations-dir config)]
-    (try
-      (log/info "Starting migrations")
-      (log/info "Using migrations from" (str "'" (:migration-dir config) "'"))
-      (database/init-schema! config db)
-      (command config db ids)
-      (finally
-        (log/info "Ending migrations")
-        (database/disconnect db)))))
+(defn run [store ids command]
+  (try
+    (log/info "Starting migrations")
+    (proto/connect store)
+    (command store ids)
+    (finally
+      (log/info "Ending migrations")
+      (proto/disconnect store))))
 
-(defn- uncompleted-migrations [config db]
-  (let [completed? (database/completed-ids config db)]
-    (remove (comp completed? proto/id) (database/migrations config))))
+(defn require-plugin [{:keys [store]}]
+  (if-not store
+    (throw (Exception. "Store is not configured")))
+  (let [plugin (symbol (str "migratus." (name store)))]
+    (require plugin)))
+
+(defn- uncompleted-migrations [store]
+  (let [completed? (proto/completed-ids store)]
+    (remove (comp completed? proto/id) (proto/migrations store))))
 
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
 
-(defn- up* [migration db]
+(defn- up* [migration]
   (log/info "Up" (migration-name migration))
-  (proto/up migration db))
+  (proto/up migration))
 
-(defn- migrate* [config db _]
-  (let [ids (uncompleted-migrations config db)
+(defn- migrate* [store _]
+  (let [ids (uncompleted-migrations store)
         migrations (sort-by proto/id ids)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
-        (up* migration db)))))
+        (up* migration)))))
 
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
-  (run config nil migrate*))
+  (run (proto/make-store config) nil migrate*))
 
-(defn- run-up [config db ids]
-  (let [completed (database/completed-ids config db)
+(defn- run-up [store ids]
+  (let [completed (proto/completed-ids store)
         ids (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id) (database/migrations config))]
-    (migrate* migrations db ids)))
+        migrations (filter (comp ids proto/id) (proto/migrations store))]
+    (migrate* migrations ids)))
 
 (defn up
   "Bring up the migrations identified by ids.
   Any migrations that are already complete will be skipped."
   [config & ids]
-  (run config ids run-up))
+  (run (proto/make-store config) ids run-up))
 
-(defn- run-down [config db ids]
-  (let [completed (database/completed-ids config db)
+(defn- run-down [store ids]
+  (let [completed (proto/completed-ids store)
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
-                           (database/migrations config))
+                           (proto/migrations store))
         migrations (reverse (sort-by proto/id migrations))]
     (when (seq migrations)
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
         (log/info "Down" (migration-name migration))
-        (proto/down migration db)))))
+        (proto/down migration)))))
 
 (defn down
   "Bring down the migrations identified by ids.
   Any migrations that are not completed will be skipped."
   [config & ids]
-  (run config ids run-down))
+  (run (proto/make-store config) ids run-down))
 
-(defn- rollback* [config db _]
+(defn- rollback* [store _]
   (run-down
-    config
-    db
-    (->> (database/completed-ids config db)
+    store
+    (->> (proto/completed-ids store)
          sort
          last
          vector)))
@@ -98,4 +98,4 @@
 (defn rollback
   "Rollback the last migration that was successfully applied."
   [config]
-  (run config nil rollback*))
+  (run (proto/make-store config) nil rollback*))
