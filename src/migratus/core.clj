@@ -26,7 +26,7 @@
     (try
       (log/info "Starting migrations")
       (log/info "Using migrations found in" (str "'" (:migration-dir config) "'"))
-      (database/init-schema! config db)
+      (database/init-schema! config {:connection db})
       (command config {:connection db} ids)
       (finally
         (log/info "Ending migrations")

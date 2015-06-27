@@ -13,7 +13,6 @@
 ;;;; under the License.
 (ns migratus.database
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc.deprecated :as sqld]
             [clojure.java.jdbc :as sql]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
@@ -55,7 +54,7 @@
                                (log/debug "found" (count commands) "up migrations")
                                (doseq [c commands]
                                  (log/trace "executing" c)
-                                 (sql/db-do-commands db true c)))
+                                 (sql/db-do-commands db c)))
                              (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
@@ -65,7 +64,7 @@
                                (log/debug "found" (count commands) "down migrations")
                                (doseq [c commands]
                                  (log/trace "executing" c)
-                                 (sqld/do-commands c)))
+                                 (sql/db-do-commands db c)))
                              (mark-not-complete db table-name id))))
 
 (defrecord Migration [table-name id name up down]
@@ -221,6 +220,10 @@
   (let [table-name (migration-table-name config)]
     (sql/with-db-transaction
       [t-con db]
-      (when-not (table-exists? t-con table-name)
-        (log/info "creating migration table" (str "'" table-name "'"))
-        (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"])))))
+      (sql/db-do-commands
+        t-con
+        (when-not (table-exists? t-con table-name)
+          (log/info "creating migration table" (str "'" table-name "'"))
+          (sql/db-do-commands t-con
+            (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"]))
+          (println "table exists?" (table-exists? t-con table-name)))))))
