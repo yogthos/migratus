@@ -45,7 +45,7 @@
     (.close (:connection db))
     result))
 
-(defn run-test [store & commands]
+(defn test-with-store [store & commands]
   (try
     (proto/connect store)
     (doseq [cmd commands]
@@ -59,14 +59,14 @@
   (testing "should create default table name"
     (is (not (verify-table-exists?
                (dissoc config :migration-table-name) default-migrations-table)))
-    (run-test
+    (test-with-store
       (proto/make-store (dissoc config :migration-table-name))
       (fn [config]
         (is (verify-table-exists? config default-migrations-table)))))
   (reset-db)
   (testing "should create schema_migrations table"
     (is (not (verify-table-exists? config "foo_bar")))
-    (run-test
+    (test-with-store
       (proto/make-store config)
       (fn [config]
         (is (verify-table-exists? config "foo_bar"))))))
