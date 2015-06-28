@@ -27,7 +27,7 @@
 ** Quick Start (Leiningen 2.x)
    - Add Migratus as a dependency and (if you so desire) add migratus-lein as a
      plugin:
-     : :dependencies [[migratus "0.7.0"]]
+     : :dependencies [[migratus "0.8.0"]]
      : :plugins [[migratus-lein "0.1.0"]]
 
    - Add the following key and value to your project.clj:
@@ -43,16 +43,19 @@
      "src/migrations/20111206154000-create-foo-table.up.sql"
      : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
 
-   - Run `lein migratus migrate`
-** Quick Start (Leiningen 1.x)
-   The latest versions of Migratus are not compatible with Leiningen 1.x, because
-   of changes in how plugins operate.  If you are using Leiningen 1.x, then you
-   must use Migratus 0.5.0, and add it as both a dependency and a dev dependency
-   like so:
-   : :dependencies [[migratus "0.5.0"]]
-   : :dev-dependencies [[migratus "0.5.0"]]
+   - Add the following code to
+     "src/migrations/20111206154000-create-foo-table.down.sql"
+     : DROP TABLE IF EXISTS foo;
 
+   - Run `lein migratus migrate`
+   
+   ** TODO
+   To rollback the last migration that was applied run
+   
+   - Run `lein migratus rollback`
+   
    Then follow the rest of the above instructions.
+   
 ** Configuration
    Migratus is configured via a configuration map that you pass in as its first
    parameter.  The :store key describes the type of store against which
