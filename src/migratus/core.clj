@@ -44,13 +44,17 @@
   (log/info "Up" (migration-name migration))
   (proto/up migration))
 
-(defn- migrate* [store _]
-  (let [ids (uncompleted-migrations store)
-        migrations (sort-by proto/id ids)]
+(defn- migrate-up* [migrations]
+  (let [migrations (sort-by proto/id migrations)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
         (up* migration)))))
+
+(defn- migrate* [store _]
+  (let [ids (uncompleted-migrations store)
+        migrations (sort-by proto/id ids)]
+    (migrate-up* migrations)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
@@ -61,7 +65,7 @@
   (let [completed (proto/completed-ids store)
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
-    (migrate* migrations ids)))
+    (migrate-up* migrations)))
 
 (defn up
   "Bring up the migrations identified by ids.

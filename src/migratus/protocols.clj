@@ -21,6 +21,7 @@
   (down [this] "Bring this migration down."))
 
 (defprotocol Store
+  (config [this])
   (completed-ids [this]
     "Seq of ids of completed migrations.")
   (migrations [this]

@@ -126,8 +126,10 @@
              (find-migration-resources dir migration-jar))))
        (apply (partial merge-with merge))))
 
+(def default-migrations-table "schema_migrations")
+
 (defn migration-table-name [config]
-  (:migration-table-name config "schema_migrations"))
+  (:migration-table-name config default-migrations-table))
 
 (defn parse-migration-id [id]
   (try
@@ -206,6 +208,7 @@
 
 (defrecord Database [config]
   proto/Store
+  (config [this] config)
   (completed-ids [this]
     (completed-ids* @(:connection config) (migration-table-name config)))
   (migrations [this]

@@ -25,18 +25,18 @@
   (down [this]
     (swap! downs conj id)))
 
-#_(defrecord MockStore [completed-ids migrations]
+(defrecord MockStore [completed-ids migrations]
   proto/Store
   (completed-ids [this]
     completed-ids)
   (migrations [this]
     migrations)
-  (begin [this])
-  (end [this]))
+  (connect [this])
+  (disconnect [this]))
 
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. nil id name ups downs))
 
-#_(defmethod proto/make-store :mock
+(defmethod proto/make-store :mock
   [{:keys [completed-ids migrations]}]
   (MockStore. completed-ids (map make-migration migrations)))

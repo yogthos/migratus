@@ -12,4 +12,4 @@
                  [robert/bruce "0.7.1"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [log4j "1.2.17"]
-                                  [mysql/mysql-connector-java "5.1.35"]]}})
+                                  [com.h2database/h2 "1.4.187"]]}})
