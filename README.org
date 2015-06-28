@@ -24,10 +24,37 @@
 
   Migratus does not use a single global version for a store.  It considers each
   migration independently, and runs all uncompleted migrations in sorted order.
+  
+** Quick Start
+
+- Add Migratus as a dependency to your =project.clj=
+: :dependencies [[migratus "0.8.0"]]
+
+     : (your-ns
+     :  (:require [migratus.core :as migratus]))
+     
+     : (def config {:store                :database
+     :              :migration-dir        "migrations/"
+     :              :migration-table-name "foo_bar"
+     :              :db {:classname   "org.h2.Driver"
+     :                   :subprotocol "h2"
+     :                   :subname     "site.db"}})
+     :
+     : ;apply pending migrations
+     : (migratus/migrate config)
+     :
+     :;rollback the last migration applied
+     : (migratus/rollback config)
+     :
+     :;bring up migrations matching the ids
+     :(migratus/up config 20111202110600 20120827170200)
+     :
+     :;bring down migrations matching the ids
+     :(migratus/down config 20111202110600 20120827170200)
+     
+  
 ** Quick Start (Leiningen 2.x)
-   - Add Migratus as a dependency and (if you so desire) add migratus-lein as a
-     plugin:
-     : :dependencies [[migratus "0.8.0"]]
+   - Add migratus-lein as a plugin in addition to the Migratus dependency:
      : :plugins [[migratus-lein "0.1.0"]]
 
    - Add the following key and value to your project.clj:
@@ -47,12 +74,12 @@
      "src/migrations/20111206154000-create-foo-table.down.sql"
      : DROP TABLE IF EXISTS foo;
 
-   - Run `lein migratus migrate`
+   - Run =lein migratus migrate=
    
    ** TODO
    To rollback the last migration that was applied run
    
-   - Run `lein migratus rollback`
+   - Run =lein migratus rollback=
    
    Then follow the rest of the above instructions.
    
