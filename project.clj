@@ -1,4 +1,4 @@
-(defproject migratus "0.7.1"
+(defproject migratus "0.8.0"
   :description "MIGRATE ALL THE THINGS!"
   :url "http://github.com/pjstadig/migratus"
   :license {:name "Apache License, Version 2.0"
