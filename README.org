@@ -27,6 +27,15 @@
   
 ** Quick Start
 
+   - Add the following code to
+     "resources/migrations/20111206154000-create-foo-table.up.sql"
+     : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
+
+   - Add the following code to
+     "resources/migrations/20111206154000-create-foo-table.down.sql"
+     : DROP TABLE IF EXISTS foo;
+
+
 - Add Migratus as a dependency to your =project.clj=
 : :dependencies [[migratus "0.8.0"]]
 
@@ -47,10 +56,10 @@
      : (migratus/rollback config)
      
      : ;bring up migrations matching the ids
-     : (migratus/up config 20111202110600 20120827170200)
+     : (migratus/up config 20111206154000)
      
      : ;bring down migrations matching the ids
-     : (migratus/down config 20111202110600 20120827170200)
+     : (migratus/down config 20111206154000)
      
   
 ** Quick Start (Leiningen 2.x)
@@ -66,18 +75,11 @@
      :                 :user "root"
      :                 :password ""}}
 
-   - Add the following code to
-     "src/migrations/20111206154000-create-foo-table.up.sql"
-     : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
-
-   - Add the following code to
-     "src/migrations/20111206154000-create-foo-table.down.sql"
-     : DROP TABLE IF EXISTS foo;
-
+  To apply pending migrations:
+  
    - Run =lein migratus migrate=
    
-   ** TODO
-   To rollback the last migration that was applied run
+   To rollback the last migration that was applied run:
    
    - Run =lein migratus rollback=
    
