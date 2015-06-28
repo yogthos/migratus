@@ -1,6 +1,9 @@
 #+STARTUP: hidestars showall
 * Migratus
   MIGRATE ALL THE THINGS!
+  
+  [[http://travis-ci.org/yogthos/migratus][https://travis-ci.org/yogthos/migratus.svg?branch=master]]
+
 
   A general migration framework, with an implementation for database migrations.
 
