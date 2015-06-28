@@ -39,18 +39,18 @@
      :              :db {:classname   "org.h2.Driver"
      :                   :subprotocol "h2"
      :                   :subname     "site.db"}})
-     :
+     
      : ;apply pending migrations
      : (migratus/migrate config)
-     :
-     :;rollback the last migration applied
+     
+     : ;rollback the last migration applied
      : (migratus/rollback config)
-     :
-     :;bring up migrations matching the ids
-     :(migratus/up config 20111202110600 20120827170200)
-     :
-     :;bring down migrations matching the ids
-     :(migratus/down config 20111202110600 20120827170200)
+     
+     : ;bring up migrations matching the ids
+     : (migratus/up config 20111202110600 20120827170200)
+     
+     : ;bring down migrations matching the ids
+     : (migratus/down config 20111202110600 20120827170200)
      
   
 ** Quick Start (Leiningen 2.x)
