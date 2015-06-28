@@ -28,18 +28,20 @@
 ** Quick Start
 
    - Add the following code to
-     "resources/migrations/20111206154000-create-foo-table.up.sql"
+     =resources/migrations/20111206154000-create-foo-table.up.sql=
      : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
 
    - Add the following code to
-     "resources/migrations/20111206154000-create-foo-table.down.sql"
+     =resources/migrations/20111206154000-create-foo-table.down.sql=
      : DROP TABLE IF EXISTS foo;
 
 
 - Add Migratus as a dependency to your =project.clj=
-: :dependencies [[migratus "0.8.0"]]
+    : :dependencies [[migratus "0.8.0"]]
 
-     : (your-ns
+Next, create a namespace to manage the migrations:
+
+     : (my-migrations
      :  (:require [migratus.core :as migratus]))
      
      : (def config {:store                :database
