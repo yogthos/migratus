@@ -34,7 +34,7 @@
     (require plugin)))
 
 (defn- uncompleted-migrations [store]
-  (let [completed? (proto/completed-ids store)]
+  (let [completed? (set (proto/completed-ids store))]
     (remove (comp completed? proto/id) (proto/migrations store))))
 
 (defn migration-name [migration]
@@ -52,8 +52,7 @@
         (up* migration)))))
 
 (defn- migrate* [store _]
-  (let [ids (uncompleted-migrations store)
-        migrations (sort-by proto/id ids)]
+  (let [migrations (->> store uncompleted-migrations (sort-by proto/id))]
     (migrate-up* migrations)))
 
 (defn migrate
@@ -74,7 +73,7 @@
   (run (proto/make-store config) ids run-up))
 
 (defn- run-down [store ids]
-  (let [completed (proto/completed-ids store)
+  (let [completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
                            (proto/migrations store))

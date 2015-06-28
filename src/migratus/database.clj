@@ -173,7 +173,6 @@
     [t-con db]
     (->> (sql/query t-con (str "select id from " table-name))
          (map :id)
-         set
          (doall))))
 
 (defn migrations* [db migration-dir table-name]
