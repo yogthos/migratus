@@ -32,7 +32,7 @@
      : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
 
    - Add the following code to
-     =resources/migrations/20111206154000-drop-foo-table.down.sql=
+     =resources/migrations/20111206154000-create-foo-table.down.sql=
      : DROP TABLE IF EXISTS foo;
 
 
