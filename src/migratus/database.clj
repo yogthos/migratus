@@ -71,7 +71,7 @@
       (mark-not-complete db table-name id))))
 
 (defn parse-name [file-name]
-  (next (re-matches #"^(\d{14})-([^\.]+)\.(up|down)\.sql$" file-name)))
+  (next (re-matches #"^(\d+)-([^\.]+)\.(up|down)\.sql$" file-name)))
 
 (defn find-migration-dir [dir]
   (->> (cp/classpath-directories)
