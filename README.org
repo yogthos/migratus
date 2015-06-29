@@ -15,6 +15,9 @@
   1. Migration ids are not assumed to be incremented integers.  It is
      recommended that they be timestamps (e.g. '20111202091200').
   2. Migrations are considered for completion independently.
+  
+  Using a 14 digit timestamp will accomodate migrations granularity to a second,
+  reducing the chance of collisions for a distributed team.
 
   In contrast, using a single global version for a store and incremented
   integers for migration versions, it is possible for a higher numbered
@@ -114,7 +117,7 @@ Next, create a namespace to manage the migrations:
 
     The :migration-dir key specifies the directory on the classpath in which to
     find SQL migration files.  Each file should be named with the following
-    pattern "[id]-[name].[direction].sql" where id is a unique 14 digit integer
+    pattern "[id]-[name].[direction].sql" where id is a unique integer
     id (ideally it should be a timestamp) for the migration, name is some human
     readable description of the migration, and direction is either 'up' or
     'down'.
