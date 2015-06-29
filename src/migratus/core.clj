@@ -14,16 +14,26 @@
 (ns migratus.core
   (:require [clojure.set :as set]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto]))
+            [migratus.protocols :as proto]
+            migratus.database))
 
-(defn run [store f]
+
+(defn run [store ids command]
   (try
     (log/info "Starting migrations")
-    (proto/begin store)
-    (f)
+    (proto/connect store)
+    (command store ids)
+    (catch java.sql.BatchUpdateException e
+           (throw (.getNextException e)))
     (finally
-     (log/info "Ending migrations")
-     (proto/end store))))
+      (log/info "Ending migrations")
+      (proto/disconnect store))))
+
+(defn require-plugin [{:keys [store]}]
+  (if-not store
+    (throw (Exception. "Store is not configured")))
+  (let [plugin (symbol (str "migratus." (name store)))]
+    (require plugin)))
 
 (defn- uncompleted-migrations [store]
   (let [completed? (set (proto/completed-ids store))]
@@ -36,41 +46,35 @@
   (log/info "Up" (migration-name migration))
   (proto/up migration))
 
-(defn- migrate* [migrations]
+(defn- migrate-up* [migrations]
   (let [migrations (sort-by proto/id migrations)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
         (up* migration)))))
 
-(defn require-plugin [{:keys [store]}]
-  (if-not store
-    (throw (Exception. "Store is not configured")))
-  (let [plugin (symbol (str "migratus." (name store)))]
-    (require plugin)))
+(defn- migrate* [store _]
+  (let [migrations (->> store uncompleted-migrations (sort-by proto/id))]
+    (migrate-up* migrations)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
-  (require-plugin config)
-  (let [store (proto/make-store config)]
-    (run store #(migrate* (uncompleted-migrations store)))))
+  (run (proto/make-store config) nil migrate*))
 
-(defn- run-up [config store ids]
-  (let [completed (set (proto/completed-ids store))
+(defn- run-up [store ids]
+  (let [completed (proto/completed-ids store)
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
-    (migrate* migrations)))
+    (migrate-up* migrations)))
 
 (defn up
-  "Bring up the migrations identified by ids.  Any migrations that are already
-  complete will be skipped."
+  "Bring up the migrations identified by ids.
+  Any migrations that are already complete will be skipped."
   [config & ids]
-  (require-plugin config)
-  (let [store (proto/make-store config)]
-    (run store #(run-up config store ids))))
+  (run (proto/make-store config) ids run-up))
 
-(defn- run-down [config store ids]
+(defn- run-down [store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
@@ -83,9 +87,20 @@
         (proto/down migration)))))
 
 (defn down
-  "Bring down the migrations identified by ids.  Any migrations that are not
-  completed will be skipped."
+  "Bring down the migrations identified by ids.
+  Any migrations that are not completed will be skipped."
   [config & ids]
-  (require-plugin config)
-  (let [store (proto/make-store config)]
-    (run store #(run-down config store ids))))
+  (run (proto/make-store config) ids run-down))
+
+(defn- rollback* [store _]
+  (run-down
+    store
+    (->> (proto/completed-ids store)
+         sort
+         last
+         vector)))
+
+(defn rollback
+  "Rollback the last migration that was successfully applied."
+  [config]
+  (run (proto/make-store config) nil rollback*))

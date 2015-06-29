@@ -14,7 +14,7 @@
 (ns migratus.mock
   (:require [migratus.protocols :as proto]))
 
-(defrecord MockMigration [id name ups downs]
+(defrecord MockMigration [db id name ups downs]
   proto/Migration
   (id [this]
     id)
@@ -31,11 +31,11 @@
     completed-ids)
   (migrations [this]
     migrations)
-  (begin [this])
-  (end [this]))
+  (connect [this])
+  (disconnect [this]))
 
 (defn make-migration [{:keys [id name ups downs]}]
-  (MockMigration. id name ups downs))
+  (MockMigration. nil id name ups downs))
 
 (defmethod proto/make-store :mock
   [{:keys [completed-ids migrations]}]

@@ -1,6 +1,9 @@
 #+STARTUP: hidestars showall
 * Migratus
   MIGRATE ALL THE THINGS!
+  
+  [[http://travis-ci.org/yogthos/migratus][https://travis-ci.org/yogthos/migratus.svg?branch=master]]
+
 
   A general migration framework, with an implementation for database migrations.
 
@@ -12,6 +15,9 @@
   1. Migration ids are not assumed to be incremented integers.  It is
      recommended that they be timestamps (e.g. '20111202091200').
   2. Migrations are considered for completion independently.
+  
+  Using a 14 digit timestamp will accomodate migrations granularity to a second,
+  reducing the chance of collisions for a distributed team.
 
   In contrast, using a single global version for a store and incremented
   integers for migration versions, it is possible for a higher numbered
@@ -21,10 +27,48 @@
 
   Migratus does not use a single global version for a store.  It considers each
   migration independently, and runs all uncompleted migrations in sorted order.
+  
+** Quick Start
+
+   - Add the following code to
+     =resources/migrations/20111206154000-create-foo-table.up.sql=
+     : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
+
+   - Add the following code to
+     =resources/migrations/20111206154000-create-foo-table.down.sql=
+     : DROP TABLE IF EXISTS foo;
+
+
+- Add Migratus as a dependency to your =project.clj=
+    : :dependencies [[migratus "0.8.0"]]
+
+Next, create a namespace to manage the migrations:
+
+     : (my-migrations
+     :  (:require [migratus.core :as migratus]))
+     
+     : (def config {:store                :database
+     :              :migration-dir        "migrations/"
+     :              :migration-table-name "foo_bar"
+     :              :db {:classname   "org.h2.Driver"
+     :                   :subprotocol "h2"
+     :                   :subname     "site.db"}})
+     
+     : ;apply pending migrations
+     : (migratus/migrate config)
+     
+     : ;rollback the last migration applied
+     : (migratus/rollback config)
+     
+     : ;bring up migrations matching the ids
+     : (migratus/up config 20111206154000)
+     
+     : ;bring down migrations matching the ids
+     : (migratus/down config 20111206154000)
+     
+  
 ** Quick Start (Leiningen 2.x)
-   - Add Migratus as a dependency and (if you so desire) add migratus-lein as a
-     plugin:
-     : :dependencies [[migratus "0.7.0"]]
+   - Add migratus-lein as a plugin in addition to the Migratus dependency:
      : :plugins [[migratus-lein "0.1.0"]]
 
    - Add the following key and value to your project.clj:
@@ -36,20 +80,16 @@
      :                 :user "root"
      :                 :password ""}}
 
-   - Add the following code to
-     "src/migrations/20111206154000-create-foo-table.up.sql"
-     : CREATE TABLE IF NOT EXISTS foo(id BIGINT);
-
-   - Run `lein migratus migrate`
-** Quick Start (Leiningen 1.x)
-   The latest versions of Migratus are not compatible with Leiningen 1.x, because
-   of changes in how plugins operate.  If you are using Leiningen 1.x, then you
-   must use Migratus 0.5.0, and add it as both a dependency and a dev dependency
-   like so:
-   : :dependencies [[migratus "0.5.0"]]
-   : :dev-dependencies [[migratus "0.5.0"]]
-
+  To apply pending migrations:
+  
+   - Run =lein migratus migrate=
+   
+   To rollback the last migration that was applied run:
+   
+   - Run =lein migratus rollback=
+   
    Then follow the rest of the above instructions.
+   
 ** Configuration
    Migratus is configured via a configuration map that you pass in as its first
    parameter.  The :store key describes the type of store against which
@@ -77,7 +117,7 @@
 
     The :migration-dir key specifies the directory on the classpath in which to
     find SQL migration files.  Each file should be named with the following
-    pattern "[id]-[name].[direction].sql" where id is a unique 14 digit integer
+    pattern "[id]-[name].[direction].sql" where id is a unique integer
     id (ideally it should be a timestamp) for the migration, name is some human
     readable description of the migration, and direction is either 'up' or
     'down'.
@@ -129,6 +169,7 @@
    | Task                     | Description                                                                                |
    |--------------------------+--------------------------------------------------------------------------------------------|
    | lein migratus migrate    | Run 'up' for any migrations that have not been run.                                        |
+   | lein migratus rollback   | Run 'down' for the last migration that was run.                                            |
    | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
 ** License

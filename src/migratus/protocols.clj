@@ -21,13 +21,14 @@
   (down [this] "Bring this migration down."))
 
 (defprotocol Store
+  (config [this])
   (completed-ids [this]
     "Seq of ids of completed migrations.")
   (migrations [this]
     "Seq of migrations (completed or not).")
-  (begin [this]
+  (connect [this]
     "Opens resources necessary to run migrations against the store.")
-  (end [this]
+  (disconnect [this]
     "Frees resources necessary to run migrations against the store."))
 
 (defmulti make-store :store)
