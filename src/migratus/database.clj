@@ -185,14 +185,19 @@
                 (:content up)
                 (:content down))))
 
+(defn find-table [conn table-name]
+  (-> conn
+      .getMetaData
+      (.getTables (.getCatalog conn) nil table-name nil)
+      sql/result-set-seq
+      not-empty
+      boolean))
+
 (defn table-exists? [conn table-name]
   (let [conn (:connection conn)]
-    (-> conn
-        .getMetaData
-        (.getTables (.getCatalog conn) nil (.toUpperCase table-name) nil)
-        sql/result-set-seq
-        not-empty
-        boolean)))
+    (or
+      (find-table conn table-name)
+      (find-table conn (.toUpperCase table-name)))))
 
 (defn init-schema! [db table-name]
   (sql/with-db-transaction
