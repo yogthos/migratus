@@ -4,6 +4,7 @@
   
   [[http://travis-ci.org/yogthos/migratus][https://travis-ci.org/yogthos/migratus.svg?branch=master]]
 
+[[http://clojars.org/migratus][http://clojars.org/migratus/latest-version.svg]]
 
   A general migration framework, with an implementation for database migrations.
 
