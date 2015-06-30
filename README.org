@@ -127,7 +127,7 @@ Next, create a namespace to manage the migrations:
     exist, then an Exception will be thrown.
 
     If you would like to run multiple statements in your migration, then
-    separate them with '--;;'.  For example:
+    separate them with =--;;=.  For example:
 
     : CREATE TABLE IF NOT EXISTS quux(id bigint, name varchar(255));
     : --;;
