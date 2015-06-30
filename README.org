@@ -70,7 +70,7 @@ Next, create a namespace to manage the migrations:
   
 ** Quick Start (Leiningen 2.x)
    - Add migratus-lein as a plugin in addition to the Migratus dependency:
-     : :plugins [[migratus-lein "0.1.0"]]
+     : :plugins [[migratus-lein "0.1.1"]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
