@@ -16,8 +16,8 @@
             [clojure.java.jdbc :as sql]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto])
-  (:use [robert.bruce :only [try-try-again]])
+            [migratus.protocols :as proto]
+            [robert.bruce :refer [try-try-again]])
   (:import [java.io File StringWriter]
            java.sql.Connection
            java.util.regex.Pattern))
