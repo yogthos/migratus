@@ -100,10 +100,13 @@
           {"up"   {:id        "20120827170200"
                    :name      "multiple-statements"
                    :direction "up"
-                   :content
-                              (str "CREATE TABLE quux(id bigint, name varchar(255));\n"
-                                   "--;;\n"
-                                   "CREATE TABLE quux2(id bigint, name varchar(255));\n")}
+                   :content    (str "-- this is the first statement\n\n"
+                                    "CREATE TABLE\nquux\n"
+                                    "(id bigint,\n"
+                                    " name varchar(255));\n\n"
+                                    "--;;\n"
+                                    "-- comment for the second statement\n\n"
+                                    "CREATE TABLE quux2(id bigint, name varchar(255));\n")}
            "down" {:id        "20120827170200"
                    :name      "multiple-statements"
                    :direction "down"
