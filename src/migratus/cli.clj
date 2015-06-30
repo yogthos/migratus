@@ -12,8 +12,8 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.cli
-  (:require [migratus.protocols :as proto])
-  (:use [migratus.core :only [migration-name require-plugin]]))
+  (:require [migratus.protocols :as proto]
+            [migratus.core :refer [migration-name require-plugin]]))
 
 ;; Wrapper implementations to print information during CLI invocations.
 (defrecord CliMigration [migration]

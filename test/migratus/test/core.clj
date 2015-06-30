@@ -13,9 +13,10 @@
 ;;;; under the License.
 (ns migratus.test.core
   (:require [migratus.protocols :as proto]
-            [migratus.mock])
-  (:use [clojure.test]
-        [migratus.core])
+            migratus.mock
+            [clojure.test :refer :all]
+            [migratus.core :refer :all]
+            migratus.logger)
   (:import [migratus.mock MockStore MockMigration]))
 
 (defn migrations [ups downs]
