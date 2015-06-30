@@ -172,6 +172,7 @@ Next, create a namespace to manage the migrations:
    | lein migratus rollback   | Run 'down' for the last migration that was run.                                            |
    | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
+
 ** License
    : Copyright © 2012 Paul Stadig
    : 
