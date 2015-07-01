@@ -70,7 +70,7 @@ Next, create a namespace to manage the migrations:
      Migratus also provides a convenience function for creating migration files:
   
      : ;bring down migrations matching the ids
-     : (migratus/create config "creat-user")
+     : (migratus/create config "create-user")
      
 This will result with up/down migration files being created prefixed with the current timestamp, e.g:
 
