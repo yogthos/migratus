@@ -17,7 +17,10 @@
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]
-            [robert.bruce :refer [try-try-again]])
+            [robert.bruce :refer [try-try-again]]
+            clj-time.format
+            clj-time.local
+            [camel-snake-kebab.core :as camel-snake-kebab])
   (:import [java.io File StringWriter]
            java.sql.Connection
            java.util.regex.Pattern))
@@ -219,6 +222,14 @@
     (migrations* @(:connection config)
                  (:migration-dir config)
                  (migration-table-name config)))
+  (create [this name]
+    (let [migration-dir (find-migration-dir (:migration-dir config))
+          date-time (clj-time.format/unparse (clj-time.format/formatter "yyyyMMddHHmmss ") (clj-time.local/local-now))
+          migration-name (camel-snake-kebab/->kebab-case (str date-time name))
+          migration-up-name (str migration-name ".up.sql")
+          migration-down-name (str migration-name ".down.sql")]
+      (.createNewFile (java.io.File. migration-dir migration-up-name))
+      (.createNewFile (java.io.File. migration-dir migration-down-name))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
     (init-schema! @(:connection config) (migration-table-name config)))
