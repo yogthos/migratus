@@ -39,11 +39,11 @@
         (map #(CliMigration. %) migrations)
         (do (println "No migrations found")
             migrations))))
-  (begin [this]
+  (connect [this]
     (println "Beginning migrations")
-    (proto/begin store))
-  (end [this]
-    (let [r (proto/end store)]
+    (proto/connect store))
+  (disconnect [this]
+    (let [r (proto/disconnect store)]
       (println "Migrations complete")
       r)))
 
