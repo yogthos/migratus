@@ -70,7 +70,7 @@ Next, create a namespace to manage the migrations:
   
 ** Quick Start (Leiningen 2.x)
    - Add migratus-lein as a plugin in addition to the Migratus dependency:
-     : :plugins [[migratus-lein "0.1.0"]]
+     : :plugins [[migratus-lein "0.1.1"]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
@@ -127,7 +127,7 @@ Next, create a namespace to manage the migrations:
     exist, then an Exception will be thrown.
 
     If you would like to run multiple statements in your migration, then
-    separate them with '--;;'.  For example:
+    separate them with =--;;=.  For example:
 
     : CREATE TABLE IF NOT EXISTS quux(id bigint, name varchar(255));
     : --;;
@@ -143,11 +143,12 @@ Next, create a namespace to manage the migrations:
    Migratus can be used programmatically by calling one of the following
    functions:
 
-   | Function              | Description                                                                               |
-   |-----------------------+-------------------------------------------------------------------------------------------|
-   | migratus.core/migrate | Run 'up' for any migrations that have not been run.                                       |
-   | migratus.core/up      | Run 'up' for the specified migration ids. Will skip any migration that is already up.     |
-   | migratus.core/down    | Run 'down' for the specified migration ids. Will skip any migration that is already down. |
+   | Function               | Description                                                                               |
+   |------------------------+-------------------------------------------------------------------------------------------|
+   | migratus.core/migrate  | Run 'up' for any migrations that have not been run.                                       |
+   | migratus.core/rollback | Run 'down' for the last migration that was run.                                           |
+   | migratus.core/up       | Run 'up' for the specified migration ids. Will skip any migration that is already up.     |
+   | migratus.core/down     | Run 'down' for the specified migration ids. Will skip any migration that is already down. |
 
    See the docstrings of each function for more details.
 
