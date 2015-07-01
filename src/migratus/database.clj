@@ -18,12 +18,12 @@
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]
             [robert.bruce :refer [try-try-again]]
-            clj-time.format
-            clj-time.local
             [camel-snake-kebab.core :as camel-snake-kebab])
   (:import [java.io File StringWriter]
+           java.util.Date
            java.sql.Connection
-           java.util.regex.Pattern))
+           java.util.regex.Pattern
+           java.text.SimpleDateFormat))
 
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
@@ -212,6 +212,9 @@
         (sql/db-do-commands t-con
                             (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"]))))))
 
+(defn- timestamp []
+  (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
+    (.format fmt (Date.))))
 
 (defrecord Database [config]
   proto/Store
@@ -224,12 +227,11 @@
                  (migration-table-name config)))
   (create [this name]
     (let [migration-dir (find-migration-dir (:migration-dir config))
-          date-time (clj-time.format/unparse (clj-time.format/formatter "yyyyMMddHHmmss ") (clj-time.local/local-now))
-          migration-name (camel-snake-kebab/->kebab-case (str date-time name))
+          migration-name (camel-snake-kebab/->kebab-case (str (timestamp) name))
           migration-up-name (str migration-name ".up.sql")
           migration-down-name (str migration-name ".down.sql")]
-      (.createNewFile (java.io.File. migration-dir migration-up-name))
-      (.createNewFile (java.io.File. migration-dir migration-down-name))))
+      (.createNewFile (File. migration-dir migration-up-name))
+      (.createNewFile (File. migration-dir migration-down-name))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
     (init-schema! @(:connection config) (migration-table-name config)))
