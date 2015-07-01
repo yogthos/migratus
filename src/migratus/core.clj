@@ -104,3 +104,8 @@
   "Rollback the last migration that was successfully applied."
   [config]
   (run (proto/make-store config) nil rollback*))
+
+(defn create
+  "Create a new migration with the current date"
+  [config & [name]]
+  (proto/create (proto/make-store config) name))
