@@ -24,7 +24,7 @@
     (proto/connect store)
     (command store ids)
     (catch java.sql.BatchUpdateException e
-           (throw (.getNextException e)))
+      (throw (or (.getNextException e) e)))
     (finally
       (log/info "Ending migrations")
       (proto/disconnect store))))
