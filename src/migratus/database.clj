@@ -48,14 +48,14 @@
 (defn split-commands [commands]
   (->> (.split sep commands)
        (map sanitize)
-       (map sanitize)
-       (remove empty?)))
+       (remove empty?)
+       (not-empty)))
 
 (defn up* [db table-name id up]
   (sql/with-db-transaction
     [t-con db]
     (when-not (complete? t-con table-name id)
-      (let [commands (split-commands up)]
+      (when-let [commands (split-commands up)]
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
           (log/trace "executing" c)
@@ -66,7 +66,7 @@
   (sql/with-db-transaction
     [t-con db]
     (when (complete? db table-name id)
-      (let [commands (split-commands down)]
+      (when-let [commands (split-commands down)]
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
