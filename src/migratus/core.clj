@@ -63,7 +63,7 @@
   (run (proto/make-store config) nil migrate*))
 
 (defn- run-up [store ids]
-  (let [completed (proto/completed-ids store)
+  (let [completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
     (migrate-up* migrations)))
