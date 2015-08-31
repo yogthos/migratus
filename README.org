@@ -53,7 +53,7 @@
     commands, and send the each to the database inside of a transaction.
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.0"]]
+    : :dependencies [[migratus "0.8.2"]]
 
 Next, create a namespace to manage the migrations:
 
@@ -91,7 +91,7 @@ This will result with up/down migration files being created prefixed with the cu
 
 ** Quick Start (Leiningen 2.x)
    - Add migratus-lein as a plugin in addition to the Migratus dependency:
-     : :plugins [[migratus-lein "0.1.1"]]
+     : :plugins [[migratus-lein "0.1.5"]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
@@ -165,7 +165,7 @@ This will result with up/down migration files being created prefixed with the cu
 
    Migratus can also be used from leiningen if you add it as a plugin dependency.
 
-   : :plugins [[migratus-lein "0.1.0"]]
+   : :plugins [[migratus-lein "0.1.5"]]
 
    And add a configuration :migratus key to your project.clj.
 
