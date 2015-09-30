@@ -17,7 +17,7 @@
      recommended that they be timestamps (e.g. '20111202091200').
   2. Migrations are considered for completion independently.
 
-  Using a 14 digit timestamp will accomodate migrations granularity to a second,
+  Using a 14 digit timestamp will accommodate migrations granularity to a second,
   reducing the chance of collisions for a distributed team.
 
   In contrast, using a single global version for a store and incremented
