@@ -36,7 +36,7 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-(def sep (Pattern/compile "^--;;.*\n" Pattern/MULTILINE))
+(def sep (Pattern/compile "^--;;.*\r?\n" Pattern/MULTILINE))
 (def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
 (def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
