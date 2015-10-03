@@ -59,7 +59,7 @@
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-commands db c)))
+          (sql/db-do-prepared db c)))
       (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
