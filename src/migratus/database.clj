@@ -70,7 +70,7 @@
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-commands db c)))
+          (sql/db-do-prepared db c)))
       (mark-not-complete db table-name id))))
 
 (defn parse-name [file-name]
