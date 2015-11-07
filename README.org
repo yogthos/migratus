@@ -55,6 +55,14 @@
 - Add Migratus as a dependency to your =project.clj=
     : :dependencies [[migratus "0.8.4"]]
 
+
+    There are hidden dependencies on slf4j inside migratus, so
+	to avoid errors or silent failures you'll need to also add
+	: [org.slf4j/slf4j-log4j12 "1.7.9"]
+
+	or if you're using Timbre
+	: [com.fzakaria/slf4j-timbre "0.2"]
+
 Next, create a namespace to manage the migrations:
 
      : (my-migrations
