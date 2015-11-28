@@ -17,7 +17,6 @@
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]
-            [robert.bruce :refer [try-try-again]]
             [camel-snake-kebab.core :as camel-snake-kebab])
   (:import [java.io File StringWriter]
            java.util.Date
@@ -148,13 +147,11 @@
     name)
   (up [this]
     (if up
-      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
-                     up* db table-name id up)
+      (up* db table-name id up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this]
     (if down
-      (try-try-again {:sleep 1000 :tries 3 :decay :exponential}
-                     down* db table-name id down)
+      (down* db table-name id down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
