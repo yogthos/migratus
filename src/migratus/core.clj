@@ -109,3 +109,9 @@
   "Create a new migration with the current date"
   [config & [name]]
   (proto/create (proto/make-store config) name))
+
+
+(defn destroy
+    "Destroy migration"
+    [config & [name]]
+    (proto/destroy (proto/make-store config) name))

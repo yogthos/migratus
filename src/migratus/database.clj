@@ -216,6 +216,10 @@
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
     (.format fmt (Date.))))
 
+(defn destroy* [files]
+    (doseq [f files]
+        (.delete f)))
+
 (defrecord Database [config]
   proto/Store
   (config [this] config)
@@ -232,6 +236,13 @@
           migration-down-name (str migration-name ".down.sql")]
       (.createNewFile (File. migration-dir migration-up-name))
       (.createNewFile (File. migration-dir migration-down-name))))
+  (destroy [this name]
+      (let [migration-dir (find-migration-dir (:migration-dir config))
+            migration-name (camel-snake-kebab/->kebab-case name)
+            pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
+            migrations (file-seq migration-dir)]
+            (if-let [files (filter #(re-find pattern (.getName %)) migrations)]
+                (destroy* files))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
     (init-schema! @(:connection config) (migration-table-name config)))
