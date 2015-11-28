@@ -69,3 +69,23 @@
       (down config 2)
       (is (empty? @ups))
       (is (empty? @downs)))))
+
+(defn- migration-exists? [name]
+    (let [migrations (file-seq (migratus.database/find-migration-dir "migrations"))
+          names (map #(.getName %) migrations)]
+          (filter #(.contains % name) names)))
+
+(deftest test-create-and-destroy
+    (let [config {:store :database
+                  :migrations migrations}
+          migration "create-user"
+          migration-up  "create-user.up.sql"
+          migration-down "create-user.down.sql"]
+        (testing "should create two migrations"
+            (create config migration)
+            (is (migration-exists? migration-up))
+            (is (migration-exists? migration-down)))
+        (testing "should create two migrations"
+            (destroy config migration)
+            (not (migration-exists? migration-up))
+            (not (migration-exists? migration-down)))))

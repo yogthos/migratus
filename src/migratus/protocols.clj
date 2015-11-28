@@ -28,6 +28,8 @@
     "Seq of migrations (completed or not).")
   (create [this name]
     "Create a new migration")
+  (destroy [this name]
+    "Destroy migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]
