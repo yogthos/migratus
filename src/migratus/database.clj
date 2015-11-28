@@ -241,7 +241,7 @@
             migration-name (camel-snake-kebab/->kebab-case name)
             pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
             migrations (file-seq migration-dir)]
-            (if-let [files (filter #(re-find pattern (.getName %)) migrations)]
+            (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
                 (destroy* files))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
