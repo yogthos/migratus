@@ -50,10 +50,15 @@
 
     This is necessary because JDBC does not have a method that allows you to
     send multiple SQL commands for execution.  Migratus will split your
-    commands, and send the each to the database inside of a transaction.
+    commands, and attempt to execute them inside of a transaction.
+
+    Note that some databases, such as MySQL, do not support transactional DDL
+    commands. If you're working with such a database then it will not be able
+    to rollback all the DDL statements that were applied in case a statement
+    fails.
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.4"]]
+    : :dependencies [[migratus "0.8.8"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
@@ -87,9 +92,10 @@ Next, create a namespace to manage the migrations:
      : ;bring down migrations matching the ids
      : (migratus/down config 20111206154000)
 
+*** Generate migration files
+
      Migratus also provides a convenience function for creating migration files:
 
-     : ;bring down migrations matching the ids
      : (migratus/create config "create-user")
 
 This will result with up/down migration files being created prefixed with the current timestamp, e.g:
