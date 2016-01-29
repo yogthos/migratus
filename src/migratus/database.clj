@@ -190,6 +190,7 @@
       .getMetaData
       (.getTables (.getCatalog conn) nil table-name nil)
       sql/result-set-seq
+      doall
       not-empty
       boolean))
 
