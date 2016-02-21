@@ -58,7 +58,7 @@
     fails.
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.8"]]
+    : :dependencies [[migratus "0.8.10"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
