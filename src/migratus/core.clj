@@ -100,10 +100,20 @@
          last
          vector)))
 
+(defn- reset* [store]
+  (run-down store (->> proto/completed-ids store))
+  (migrate))
+
 (defn rollback
   "Rollback the last migration that was successfully applied."
   [config]
   (run (proto/make-store config) nil rollback*))
+
+(defn reset
+  "Reset the database by down-ing all migrations successfully
+  applied, then up-ing all migratinos."
+  [config]
+  (run (proto/make-store config) nil reset*))
 
 (defn create
   "Create a new migration with the current date"
