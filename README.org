@@ -58,7 +58,7 @@
     fails.
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.10"]]
+    : :dependencies [[migratus "0.8.11"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
@@ -204,6 +204,7 @@ Migratus provides a Leiningen plugin:
    | lein migratus rollback   | Run 'down' for the last migration that was run.                                            |
    | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
+   | lein migratus reset      | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
 
 ** License
    : Copyright © 2012 Paul Stadig

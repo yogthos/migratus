@@ -100,7 +100,7 @@
          last
          vector)))
 
-(defn- reset* [store]
+(defn- reset* [store _]
   (run-down store (->> proto/completed-ids store))
   (migrate))
 
