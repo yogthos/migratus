@@ -85,7 +85,7 @@
             (create config migration)
             (is (migration-exists? migration-up))
             (is (migration-exists? migration-down)))
-        (testing "should create two migrations"
+        (testing "should delete two migrations"
             (destroy config migration)
-            (not (migration-exists? migration-up))
-            (not (migration-exists? migration-down)))))
+            (is (empty? (migration-exists? migration-up)))
+            (is (empty? (migration-exists? migration-down))))))
