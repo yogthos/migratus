@@ -16,7 +16,8 @@
             migratus.mock
             [clojure.test :refer :all]
             [migratus.core :refer :all]
-            migratus.logger)
+            migratus.logger
+            [clojure.java.io :as io])
   (:import [migratus.mock MockStore MockMigration]))
 
 (defn migrations [ups downs]
@@ -89,3 +90,27 @@
             (destroy config migration)
             (is (empty? (migration-exists? migration-up)))
             (is (empty? (migration-exists? migration-down))))))
+
+(deftest test-create-missing-directory
+  (let [migration-dir "doesnt_exist"
+        config {:store :database
+                :migrations migrations
+                :migration-dir migration-dir}
+        migration "create-user"
+        migration-up  "create-user.up.sql"
+        migration-down  "create-user.down.sql"]
+    ;; Make sure the directory doesn't exist before we start the test
+    (when (.exists (io/file "resources" migration-dir))
+      (io/delete-file (io/file "resources" migration-dir)))
+
+    (testing "when migration dir doesn't exist, it is created"
+      (is (nil? (migratus.database/find-migration-dir migration-dir)))
+      (create config migration)
+      (is (not (nil? (migratus.database/find-migration-dir migration-dir))))
+      (is (migration-exists? migration-up))
+      (is (migration-exists? migration-down)))
+
+    ;; Clean up after ourselves
+    (when (.exists (io/file "resources" migration-dir))
+      (destroy config migration)
+      (io/delete-file (io/file "resources" migration-dir)))))
