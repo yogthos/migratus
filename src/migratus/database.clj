@@ -58,7 +58,10 @@
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-prepared db c)))
+          (try
+            (sql/db-do-prepared db c)
+            (catch Throwable t
+              (log/error t "failed to execute command:\n" c "\n")))))
       (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
