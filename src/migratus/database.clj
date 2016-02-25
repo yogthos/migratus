@@ -58,7 +58,10 @@
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-prepared db c)))
+          (try
+            (sql/db-do-prepared db c)
+            (catch Throwable t
+              (log/error t "failed to execute command:\n" c "\n")))))
       (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
@@ -80,6 +83,19 @@
        (map #(io/file % dir))
        (filter #(.exists %))
        first))
+
+(def default-migration-parent
+  "resources/")
+
+(defn find-or-create-migration-dir [dir]
+  (if-let [migration-dir (find-migration-dir dir)]
+    migration-dir
+
+    ;; Couldn't find the migration dir, create it
+    (let [new-migration-dir (io/file default-migration-parent dir)]
+      (io/make-parents new-migration-dir ".")
+      new-migration-dir)))
+
 
 (defn find-migration-files [migration-dir]
   (->> (for [f (filter (fn [^File f]
@@ -228,7 +244,7 @@
                  (:migration-dir config)
                  (migration-table-name config)))
   (create [this name]
-    (let [migration-dir (find-migration-dir (:migration-dir config))
+    (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
           migration-name (camel-snake-kebab/->kebab-case (str (timestamp) name))
           migration-up-name (str migration-name ".up.sql")
           migration-down-name (str migration-name ".down.sql")]
