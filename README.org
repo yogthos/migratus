@@ -70,7 +70,7 @@
 
 Next, create a namespace to manage the migrations:
 
-     : (my-migrations
+     : (ns my-migrations
      :  (:require [migratus.core :as migratus]))
 
      : (def config {:store                :database
