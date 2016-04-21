@@ -219,12 +219,10 @@
 (defn init-schema! [db table-name]
   (sql/with-db-transaction
     [t-con db]
-    (sql/db-do-commands
-      t-con
-      (when-not (table-exists? t-con table-name)
-        (log/info "creating migration table" (str "'" table-name "'"))
-        (sql/db-do-commands t-con
-                            (sql/create-table-ddl table-name ["id" "BIGINT" "UNIQUE" "NOT NULL"]))))))
+    (when-not (table-exists? t-con table-name)
+      (log/info "creating migration table" (str "'" table-name "'"))
+      (sql/db-do-commands t-con
+                          (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]])))))
 
 (defn- timestamp []
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
