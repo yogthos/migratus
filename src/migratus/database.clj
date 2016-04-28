@@ -61,7 +61,8 @@
           (try
             (sql/db-do-prepared db c)
             (catch Throwable t
-              (log/error t "failed to execute command:\n" c "\n")))))
+              (log/error t "failed to execute command:\n" c "\n")
+              (throw t)))))
       (mark-complete t-con table-name id))))
 
 (defn down* [db table-name id down]
