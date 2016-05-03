@@ -19,10 +19,11 @@
             [migratus.protocols :as proto]
             [camel-snake-kebab.core :as camel-snake-kebab])
   (:import [java.io File StringWriter]
-           java.util.Date
            java.sql.Connection
-           java.util.regex.Pattern
-           java.text.SimpleDateFormat))
+           java.text.SimpleDateFormat
+           java.util.Date
+           [java.util.jar JarEntry JarFile]
+           java.util.regex.Pattern))
 
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
@@ -82,7 +83,7 @@
 (defn find-migration-dir [dir]
   (->> (cp/classpath-directories)
        (map #(io/file % dir))
-       (filter #(.exists %))
+       (filter #(.exists ^File %))
        first))
 
 (def default-migration-parent
@@ -118,19 +119,19 @@
 
 (defn find-migration-jar [dir]
   (first (for [jar (cp/classpath-jarfiles)
-               :when (some #(.matches (.getName %)
+               :when (some #(.matches (.getName ^JarEntry %)
                                       (str "^" (Pattern/quote dir) ".*"))
-                           (enumeration-seq (.entries jar)))]
+                           (enumeration-seq (.entries ^JarFile jar)))]
            jar)))
 
 (defn find-migration-resources [dir jar]
   (->> (for [entry (enumeration-seq (.entries jar))
-             :when (.matches (.getName entry)
+             :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".*"))
-             :let [entry-name (.replaceAll (.getName entry) dir "")]]
+             :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")]]
          (if-let [[id name direction] (parse-name entry-name)]
            (let [w (StringWriter.)]
-             (io/copy (.getInputStream jar entry) w)
+             (io/copy (.getInputStream ^JarFile jar entry) w)
              {id {direction {:id        id
                              :name      name
                              :direction direction
