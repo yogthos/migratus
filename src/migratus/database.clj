@@ -16,14 +16,27 @@
             [clojure.java.jdbc :as sql]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto]
-            [camel-snake-kebab.core :as camel-snake-kebab])
+            [migratus.protocols :as proto])
   (:import [java.io File StringWriter]
            java.sql.Connection
            java.text.SimpleDateFormat
            java.util.Date
            [java.util.jar JarEntry JarFile]
            java.util.regex.Pattern))
+
+(defn ->kebab-case [s]
+  (-> (reduce
+        (fn [s c]
+          (if (and
+                (not-empty s)
+                (Character/isLowerCase (last s))
+                (Character/isUpperCase c))
+            (str s "-" c)
+            (str s c)))
+        "" s)
+      (clojure.string/replace #"[\s]+" "-")
+      (.replaceAll "_" "-")
+      (.toLowerCase)))
 
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
@@ -245,14 +258,14 @@
                  (migration-table-name config)))
   (create [this name]
     (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
-          migration-name (camel-snake-kebab/->kebab-case (str (timestamp) name))
+          migration-name (->kebab-case (str (timestamp) name))
           migration-up-name (str migration-name ".up.sql")
           migration-down-name (str migration-name ".down.sql")]
       (.createNewFile (File. migration-dir migration-up-name))
       (.createNewFile (File. migration-dir migration-down-name))))
   (destroy [this name]
       (let [migration-dir (find-migration-dir (:migration-dir config))
-            migration-name (camel-snake-kebab/->kebab-case name)
+            migration-name (->kebab-case name)
             pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
             migrations (file-seq migration-dir)]
             (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
