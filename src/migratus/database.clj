@@ -76,8 +76,8 @@
             (sql/db-do-prepared db c)
             (catch Throwable t
               (log/error t "failed to execute command:\n" c "\n")
-              (throw t)))))
-      (mark-complete t-con table-name id))))
+              (throw t))))
+        (mark-complete t-con table-name id)))))
 
 (defn down* [db table-name id down]
   (sql/with-db-transaction
@@ -244,8 +244,8 @@
     (.format fmt (Date.))))
 
 (defn destroy* [files]
-    (doseq [f files]
-        (.delete f)))
+  (doseq [f files]
+    (.delete f)))
 
 (defrecord Database [config]
   proto/Store
@@ -264,12 +264,12 @@
       (.createNewFile (File. migration-dir migration-up-name))
       (.createNewFile (File. migration-dir migration-down-name))))
   (destroy [this name]
-      (let [migration-dir (find-migration-dir (:migration-dir config))
-            migration-name (->kebab-case name)
-            pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
-            migrations (file-seq migration-dir)]
-            (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
-                (destroy* files))))
+    (let [migration-dir (find-migration-dir (:migration-dir config))
+          migration-name (->kebab-case name)
+          pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
+          migrations (file-seq migration-dir)]
+      (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
+        (destroy* files))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
     (init-schema! @(:connection config) (migration-table-name config)))
