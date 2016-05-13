@@ -219,7 +219,7 @@
 (defn find-table [conn table-name]
   (-> conn
       .getMetaData
-      (.getTables (.getCatalog conn) nil table-name nil)
+      (.getTables (.getCatalog conn) (.getSchema conn) table-name nil)
       sql/result-set-seq
       doall
       not-empty
