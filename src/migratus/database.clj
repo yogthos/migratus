@@ -216,10 +216,16 @@
                 (:content up)
                 (:content down))))
 
+(defn method-exists? [obj method-name]
+  (->> (.getClass obj)
+       (.getDeclaredMethods)
+       (map #(.getName %))
+       (some #{method-name})))
+
 (defn find-table [conn table-name]
   (-> conn
       .getMetaData
-      (.getTables (.getCatalog conn) nil table-name nil)
+      (.getTables (.getCatalog conn) (if (method-exists? conn "getSchema") (.getSchema conn) nil) table-name nil)
       sql/result-set-seq
       doall
       not-empty
