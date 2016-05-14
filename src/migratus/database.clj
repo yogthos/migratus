@@ -77,7 +77,8 @@
             (catch Throwable t
               (log/error t "failed to execute command:\n" c "\n")
               (throw t))))
-        (mark-complete t-con table-name id)))))
+        (mark-complete t-con table-name id)
+        true))))
 
 (defn down* [db table-name id down]
   (sql/with-db-transaction
@@ -87,8 +88,9 @@
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-prepared db c)))
-      (mark-not-complete db table-name id))))
+          (sql/db-do-prepared db c))
+        (mark-not-complete db table-name id)
+        true))))
 
 (defn parse-name [file-name]
   (next (re-matches #"^(\d+)-([^\.]+)\.(up|down)\.sql$" file-name)))
