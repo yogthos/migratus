@@ -169,6 +169,13 @@ Migratus provides a Leiningen plugin:
     See test/migrations in this repository for an example of how database
     migrations work.
 
+*** Modify sql fn
+If you want to do some processing of the sql before it gets executed, you can
+provide a `:modify-sql-fn` in the config data structure to do so. This is
+intended for use with http://2ndquadrant.com/en/resources/pglogical/ and similar
+systems, where DDL statements need to be executed via an extension-provided
+function.
+
 ** Usage
    Migratus can be used programmatically by calling one of the following
    functions:

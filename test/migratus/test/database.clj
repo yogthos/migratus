@@ -157,3 +157,19 @@
   (is (verify-table-exists? config "bar"))
   (is (verify-table-exists? config "quux"))
   (is (verify-table-exists? config "quux2")))
+
+(defn comment-out-bar-statements [sql]
+  (if (re-find #"bar" sql)
+    (str "-- " sql)
+    sql))
+
+(deftest test-migrate-with-modify-sql-fn
+  (is (not (verify-table-exists? config "foo")))
+  (is (not (verify-table-exists? config "bar")))
+  (is (not (verify-table-exists? config "quux")))
+  (is (not (verify-table-exists? config "quux2")))
+  (core/migrate (assoc config :modify-sql-fn comment-out-bar-statements))
+  (is (verify-table-exists? config "foo"))
+  (is (not (verify-table-exists? config "bar")))
+  (is (verify-table-exists? config "quux"))
+  (is (verify-table-exists? config "quux2")))
