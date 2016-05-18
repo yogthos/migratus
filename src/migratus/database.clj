@@ -240,13 +240,14 @@
       (find-table conn table-name)
       (find-table conn (.toUpperCase table-name)))))
 
-(defn init-schema! [db table-name]
+(defn init-schema! [db table-name modify-sql-fn]
   (sql/with-db-transaction
     [t-con db]
     (when-not (table-exists? t-con table-name)
       (log/info "creating migration table" (str "'" table-name "'"))
       (sql/db-do-commands t-con
-                          (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]])))))
+                          (modify-sql-fn
+                           (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]]))))))
 
 (defn- timestamp []
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
@@ -282,7 +283,7 @@
         (destroy* files))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
-    (init-schema! @(:connection config) (migration-table-name config)))
+    (init-schema! @(:connection config) (migration-table-name config) (get config :modify-sql-fn identity)))
   (disconnect [this]
     (disconnect* @(:connection config))
     (reset! (:connection config) nil)))

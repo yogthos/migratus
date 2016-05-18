@@ -159,7 +159,7 @@
   (is (verify-table-exists? config "quux2")))
 
 (defn comment-out-bar-statements [sql]
-  (if (re-find #"bar" sql)
+  (if (re-find #"CREATE TABLE IF NOT EXISTS bar" sql)
     (str "-- " sql)
     sql))
 
@@ -173,3 +173,14 @@
   (is (not (verify-table-exists? config "bar")))
   (is (verify-table-exists? config "quux"))
   (is (verify-table-exists? config "quux2")))
+
+(deftest test-migration-table-creation-is-hooked
+  (let [hook-called (atom false)]
+    (core/migrate
+     (assoc config
+            :migration-table-name "schema_migrations"
+            :modify-sql-fn (fn [sql]
+                             (when (re-find #"CREATE TABLE schema_migrations" sql)
+                               (reset! hook-called true))
+                             sql)))
+    (is @hook-called)))
