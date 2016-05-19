@@ -64,11 +64,11 @@
        (remove empty?)
        (not-empty)))
 
-(defn up* [db table-name id up]
+(defn up* [db table-name id up modify-sql-fn]
   (sql/with-db-transaction
     [t-con db]
     (when-not (complete? t-con table-name id)
-      (when-let [commands (split-commands up)]
+      (when-let [commands (map modify-sql-fn (split-commands up))]
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
           (log/trace "executing" c)
@@ -80,11 +80,11 @@
         (mark-complete t-con table-name id)
         true))))
 
-(defn down* [db table-name id down]
+(defn down* [db table-name id down modify-sql-fn]
   (sql/with-db-transaction
     [t-con db]
     (when (complete? db table-name id)
-      (when-let [commands (split-commands down)]
+      (when-let [commands (map modify-sql-fn (split-commands down))]
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
@@ -172,7 +172,7 @@
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(defrecord Migration [db table-name id name up down]
+(defrecord Migration [db table-name id name up down modify-sql-fn]
   proto/Migration
   (id [this]
     id)
@@ -180,11 +180,11 @@
     name)
   (up [this]
     (if up
-      (up* db table-name id up)
+      (up* db table-name id up modify-sql-fn)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this]
     (if down
-      (down* db table-name id down)
+      (down* db table-name id down modify-sql-fn)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
@@ -208,7 +208,7 @@
          (map :id)
          (doall))))
 
-(defn migrations* [db migration-dir table-name]
+(defn migrations* [db migration-dir table-name modify-sql-fn]
   (for [[id mig] (find-migrations migration-dir)
         :let [{:strs [up down]} mig]]
     (Migration. db
@@ -216,7 +216,8 @@
                 (parse-migration-id (or (:id up) (:id down)))
                 (or (:name up) (:name down))
                 (:content up)
-                (:content down))))
+                (:content down)
+                modify-sql-fn)))
 
 (defn method-exists? [obj method-name]
   (->> (.getClass obj)
@@ -239,13 +240,14 @@
       (find-table conn table-name)
       (find-table conn (.toUpperCase table-name)))))
 
-(defn init-schema! [db table-name]
+(defn init-schema! [db table-name modify-sql-fn]
   (sql/with-db-transaction
     [t-con db]
     (when-not (table-exists? t-con table-name)
       (log/info "creating migration table" (str "'" table-name "'"))
       (sql/db-do-commands t-con
-                          (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]])))))
+                          (modify-sql-fn
+                           (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]]))))))
 
 (defn- timestamp []
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
@@ -263,7 +265,8 @@
   (migrations [this]
     (migrations* @(:connection config)
                  (:migration-dir config)
-                 (migration-table-name config)))
+                 (migration-table-name config)
+                 (get config :modify-sql-fn identity)))
   (create [this name]
     (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
           migration-name (->kebab-case (str (timestamp) name))
@@ -280,7 +283,7 @@
         (destroy* files))))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
-    (init-schema! @(:connection config) (migration-table-name config)))
+    (init-schema! @(:connection config) (migration-table-name config) (get config :modify-sql-fn identity)))
   (disconnect [this]
     (disconnect* @(:connection config))
     (reset! (:connection config) nil)))
