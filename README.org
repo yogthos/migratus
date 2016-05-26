@@ -57,6 +57,15 @@
     to rollback all the DDL statements that were applied in case a statement
     fails.
 
+*** Running Functions in Migrations
+
+    Functions inside migrations have to be wrapped using =DO= and =END= blocks:
+    
+    : DO $func$
+    :   BEGIN
+    :   PERFORM schema_name.function_name('foo', 10);
+    : END;$func$;
+
 - Add Migratus as a dependency to your =project.clj=
     : :dependencies [[migratus "0.8.11"]]
 
