@@ -66,6 +66,8 @@
     :   PERFORM schema_name.function_name('foo', 10);
     : END;$func$;
 
+*** Setup
+
 - Add Migratus as a dependency to your =project.clj=
     : :dependencies [[migratus "0.8.11"]]
 
