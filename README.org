@@ -59,7 +59,7 @@
 
 *** Running Functions in Migrations
 
-    Functions inside migrations have to be wrapped using =DO= and =END= blocks,
+    Functions inside migrations may need to be additionally wrapped,
     a PostgreSQL example would look as follows:
     
     : DO $func$
