@@ -194,6 +194,7 @@ function.
 
    | Function               | Description                                                                               |
    |------------------------+-------------------------------------------------------------------------------------------|
+   | migratus.core/create   | Create a new migration with the current date. 
    | migratus.core/migrate  | Run 'up' for any migrations that have not been run.                                       |
    | migratus.core/rollback | Run 'down' for the last migration that was run.                                           |
    | migratus.core/up       | Run 'up' for the specified migration ids. Will skip any migration that is already up.     |
@@ -217,13 +218,14 @@ function.
 
    You can then run the following tasks:
 
-   | Task                     | Description                                                                                |
-   |--------------------------+--------------------------------------------------------------------------------------------|
-   | lein migratus migrate    | Run 'up' for any migrations that have not been run.                                        |
-   | lein migratus rollback   | Run 'down' for the last migration that was run.                                            |
-   | lein migratus up & ids   | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
-   | lein migratus down & ids | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
-   | lein migratus reset      | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
+   | Task                        | Description                                                                                |
+   |-----------------------------+--------------------------------------------------------------------------------------------|
+   | lein migratus create <name> | Create a new migration with the current date.                                              |
+   | lein migratus migrate       | Run 'up' for any migrations that have not been run.                                        |
+   | lein migratus rollback      | Run 'down' for the last migration that was run.                                            |
+   | lein migratus up & ids      | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
+   | lein migratus down & ids    | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
+   | lein migratus reset         | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
 
 ** License
    : Copyright © 2016 Paul Stadig, Dmitri Sotnikov
