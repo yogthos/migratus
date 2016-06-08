@@ -225,10 +225,15 @@
        (map #(.getName %))
        (some #{method-name})))
 
+(defn get-schema [conn]
+  (try
+    (if (method-exists? conn "getSchema") (.getSchema conn) nil)
+    (catch java.sql.SQLFeatureNotSupportedException _)))
+
 (defn find-table [conn table-name]
   (-> conn
       .getMetaData
-      (.getTables (.getCatalog conn) (if (method-exists? conn "getSchema") (.getSchema conn) nil) table-name nil)
+      (.getTables (.getCatalog conn) (get-schema conn)  table-name nil)
       sql/result-set-seq
       doall
       not-empty
