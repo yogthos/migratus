@@ -74,7 +74,7 @@
 (defn- migration-exists? [name]
     (let [migrations (file-seq (migratus.database/find-migration-dir "migrations"))
           names (map #(.getName %) migrations)]
-          (filter #(.contains % name) names)))
+        (filter #(.contains % name) names)))
 
 (deftest test-create-and-destroy
     (let [config {:store :database
