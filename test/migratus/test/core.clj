@@ -114,3 +114,14 @@
     (when (.exists (io/file "resources" migration-dir))
       (destroy config migration)
       (io/delete-file (io/file "resources" migration-dir)))))
+
+(deftest test-pending-list
+  (let [ups (atom [])
+        downs (atom [])
+        migrations (migrations ups downs)
+        config {:store :mock
+                :completed-ids [1]
+                :migrations migrations}]
+    (testing "should return the list of pending migrations"
+      (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"
+             (migratus.core/pending-list config))))))
