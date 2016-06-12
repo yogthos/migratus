@@ -120,8 +120,17 @@
   [config & [name]]
   (proto/create (proto/make-store config) name))
 
-
 (defn destroy
     "Destroy migration"
     [config & [name]]
     (proto/destroy (proto/make-store config) name))
+
+(defn pending-list
+  "List pending migrations"
+  [config]
+  (let [migrations-name (map proto/name
+                          (uncompleted-migrations (proto/make-store config)))
+        migrations-count (count migrations-name)]
+    (str "You have " migrations-count " pending migrations:\n"
+         (clojure.string/join "\n" migrations-name))))
+
