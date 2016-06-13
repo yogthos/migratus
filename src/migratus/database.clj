@@ -230,14 +230,22 @@
     (if (method-exists? conn "getSchema") (.getSchema conn) nil)
     (catch java.sql.SQLFeatureNotSupportedException _)))
 
-(defn find-table [conn table-name]
-  (-> conn
-      .getMetaData
-      (.getTables (.getCatalog conn) (get-schema conn)  table-name nil)
-      sql/result-set-seq
-      doall
-      not-empty
-      boolean))
+(defn lookup-tables
+  [conn schema table-name]
+  (let [metadata (.getMetaData conn)
+        catalog  (.getCatalog conn)]
+    (-> (.getTables metadata catalog schema table-name nil)
+        sql/result-set-seq
+        doall
+        not-empty)))
+
+(defn find-table
+  "attempt to look up the table using the current schema
+   fallback to lookup without the schema"
+  [conn table-name]
+  (or
+    (lookup-tables conn (get-schema conn) table-name)
+    (lookup-tables conn nil table-name)))
 
 (defn table-exists? [conn table-name]
   (let [conn (:connection conn)]
