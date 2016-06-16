@@ -70,7 +70,7 @@
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.11"]]
+    : :dependencies [[migratus "0.8.25"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
@@ -122,7 +122,7 @@ Migratus provides a Leiningen plugin:
 [[http://clojars.org/migratus-lein][http://clojars.org/migratus-lein/latest-version.svg]]
 
    - Add migratus-lein as a plugin in addition to the Migratus dependency:
-     : :plugins [[migratus-lein "0.1.7"]]
+     : :plugins [[migratus-lein "0.3.7"]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
