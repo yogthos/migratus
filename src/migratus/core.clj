@@ -50,8 +50,11 @@
   (let [migrations (sort-by proto/id migrations)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
-      (doseq [migration migrations]
-        (up* migration)))))
+      (loop [[migration & more] migrations]
+        (when migration
+          (if (up* migration)
+            (recur more)
+            (log/error "Stopping:" (migration-name migration) "failed to migrate")))))))
 
 (defn- migrate* [store _]
   (let [migrations (->> store uncompleted-migrations (sort-by proto/id))]
