@@ -131,8 +131,10 @@
 (defn pending-list
   "List pending migrations"
   [config]
-  (let [migrations-name (map proto/name
-                          (uncompleted-migrations (proto/make-store config)))
+  (let [migrations-name (->> (doto (proto/make-store config)
+                               (proto/connect))
+                             (uncompleted-migrations)
+                             (map proto/name))
         migrations-count (count migrations-name)]
     (str "You have " migrations-count " pending migrations:\n"
          (clojure.string/join "\n" migrations-name))))
