@@ -139,3 +139,18 @@
     (str "You have " migrations-count " pending migrations:\n"
          (clojure.string/join "\n" migrations-name))))
 
+(defn migrate-until-just-before
+  "Run all migrations preceding migration-id. This is useful when testing that a
+  migration behaves as expected on fixture data. This only considers uncompleted
+  migrations, and will not migrate down."
+  [config migration-id]
+  (let [store (proto/make-store config)]
+    (try
+      (proto/connect store)
+      (->> (uncompleted-migrations store)
+           (map proto/id)
+           distinct
+           sort
+           (take-while #(< % migration-id))
+           (apply up config))
+      (finally (proto/disconnect store)))))
