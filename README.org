@@ -3,6 +3,7 @@
   MIGRATE ALL THE THINGS!
 
   [[http://travis-ci.org/yogthos/migratus][https://travis-ci.org/yogthos/migratus.svg?branch=master]]
+  [[https://jarkeeper.com/yogthos/migratus][https://jarkeeper.com/yogthos/migratus/downloads.svg]]
 
 [[http://clojars.org/migratus][http://clojars.org/migratus/latest-version.svg]]
 
