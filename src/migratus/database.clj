@@ -73,7 +73,7 @@
         (doseq [c commands]
           (log/trace "executing" c)
           (try
-            (sql/db-do-prepared db c)
+            (sql/db-do-prepared t-con c)
             (catch Throwable t
               (log/error t "failed to execute command:\n" c "\n")
               (throw t))))
@@ -88,7 +88,7 @@
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
-          (sql/db-do-prepared db c))
+          (sql/db-do-prepared t-con c))
         (mark-not-complete db table-name id)
         true))))
 
@@ -101,8 +101,9 @@
        (filter #(.exists ^File %))
        first))
 
-(def default-migration-parent
-  "resources/")
+(def default-migration-parent "resources/")
+
+(def default-init-script-name "init.sql")
 
 (defn find-or-create-migration-dir [dir]
   (if-let [migration-dir (find-migration-dir dir)]
@@ -114,17 +115,18 @@
       new-migration-dir)))
 
 
-(defn find-migration-files [migration-dir]
-  (->> (for [f (filter (fn [^File f]
-                         (.isFile f)) (file-seq migration-dir))
+(defn find-migration-files [migration-dir init-script-name]
+  (->> (for [f (filter (fn [^File f] (.isFile f))
+                       (file-seq migration-dir))
              :let [file-name (.getName ^File f)]]
          (if-let [[id name direction] (parse-name file-name)]
            {id {direction {:id        id
                            :name      name
                            :direction direction
                            :content   (slurp f)}}}
-           (log/warn (str "'" file-name "'")
-                     "does not appear to be a valid migration")))
+           (when (not= (.getName f) init-script-name)
+             (log/warn (str "'" file-name "'")
+                       "does not appear to be a valid migration"))))
        (remove nil?)))
 
 (defn ensure-trailing-slash [dir]
@@ -139,7 +141,7 @@
                            (enumeration-seq (.entries ^JarFile jar)))]
            jar)))
 
-(defn find-migration-resources [dir jar]
+(defn find-migration-resources [dir jar init-script-name]
   (->> (for [entry (enumeration-seq (.entries jar))
              :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".*"))
@@ -150,16 +152,37 @@
              {id {direction {:id        id
                              :name      name
                              :direction direction
-                             :content   (.toString w)}}})))
+                             :content   (.toString w)}}})
+           (when (not= entry-name init-script-name)
+             (log/warn (str "'" entry-name "'")
+                       "does not appear to be a valid migration"))))
        (remove nil?)))
 
-(defn find-migrations [dir]
-  (->> (let [dir (ensure-trailing-slash dir)]
+(defn find-migrations [dir & [init-script-name]]
+  (->> (let [init-script (or init-script-name default-init-script-name)
+             dir (ensure-trailing-slash dir)]
          (if-let [migration-dir (find-migration-dir dir)]
-           (find-migration-files migration-dir)
+           (find-migration-files migration-dir init-script)
            (if-let [migration-jar (find-migration-jar dir)]
-             (find-migration-resources dir migration-jar))))
+             (find-migration-resources dir migration-jar init-script))))
        (apply (partial merge-with merge))))
+
+(defn find-init-script-file [migration-dir init-script-name]
+  (first
+    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+            (file-seq migration-dir))))
+
+(defn find-init-script-resource [migration-dir jar init-script-name]
+  (first
+    (filter (fn [^JarEntry entry] (= (.getName ^JarEntry entry) init-script-name))
+            (enumeration-seq (.entries jar)))))
+
+(defn find-init-script [dir init-script-name]
+  (let [dir (ensure-trailing-slash dir)]
+    (if-let [migration-dir (find-migration-dir dir)]
+      (find-init-script-file migration-dir init-script-name)
+      (if-let [migration-jar (find-migration-jar dir)]
+        (find-init-script-resource dir migration-jar init-script-name)))))
 
 (def default-migrations-table "schema_migrations")
 
@@ -208,8 +231,8 @@
          (map :id)
          (doall))))
 
-(defn migrations* [db migration-dir table-name modify-sql-fn]
-  (for [[id mig] (find-migrations migration-dir)
+(defn migrations* [db migration-dir table-name init-script-name modify-sql-fn]
+  (for [[id mig] (find-migrations migration-dir init-script-name)
         :let [{:strs [up down]} mig]]
     (Migration. db
                 table-name
@@ -262,6 +285,19 @@
                           (modify-sql-fn
                            (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]]))))))
 
+(defn init-db! [db migration-dir init-script-name modify-sql-fn]
+  (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]
+    (sql/with-db-transaction
+      [t-con db]
+      (try
+        (log/info "running initialization script '" init-script-name "'")
+        (log/trace "\n" init-script "\n")
+        (sql/db-do-prepared t-con (modify-sql-fn init-script))
+        (catch Throwable t
+          (log/error t "failed to initialize the database with:\n" init-script "\n")
+          (throw t))))
+    (log/error "could not locate the initialization script '" init-script-name "'")))
+
 (defn- timestamp []
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
     (.format fmt (Date.))))
@@ -273,12 +309,18 @@
 (defrecord Database [config]
   proto/Store
   (config [this] config)
+  (init [this]
+    (init-db! @(:connection config)
+              (:migration-dir config)
+              (get config :init-script default-init-script-name)
+              (get config :modify-sql-fn identity)))
   (completed-ids [this]
     (completed-ids* @(:connection config) (migration-table-name config)))
   (migrations [this]
     (migrations* @(:connection config)
                  (:migration-dir config)
                  (migration-table-name config)
+                 (get config :init-script default-init-script-name)
                  (get config :modify-sql-fn identity)))
   (create [this name]
     (let [migration-dir (find-or-create-migration-dir (:migration-dir config))

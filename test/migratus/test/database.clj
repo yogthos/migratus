@@ -72,6 +72,14 @@
       (fn [config]
         (is (verify-table-exists? config "foo_bar"))))))
 
+(deftest test-init
+  (testing "db init"
+    (reset-db)
+    (let [store (proto/make-store config)]
+      (proto/connect store)
+      (proto/init store)
+      (proto/disconnect store))))
+
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" "up"]
          (parse-name "20111202110600-create-foo-table.up.sql")))

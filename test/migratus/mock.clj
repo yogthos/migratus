@@ -27,6 +27,7 @@
 
 (defrecord MockStore [completed-ids migrations]
   proto/Store
+  (init [this])
   (completed-ids [this]
     completed-ids)
   (migrations [this]

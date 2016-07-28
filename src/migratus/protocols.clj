@@ -22,6 +22,8 @@
 
 (defprotocol Store
   (config [this])
+  (init [this]
+    "Initialize the data store.")
   (completed-ids [this]
     "Seq of ids of completed migrations.")
   (migrations [this]

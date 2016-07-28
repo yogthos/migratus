@@ -118,6 +118,11 @@
   (run (proto/make-store config) nil reset*)
   (migrate config))
 
+(defn init
+  "Initialize the data store"
+  [config & [name]]
+  (proto/init (proto/make-store config)))
+
 (defn create
   "Create a new migration with the current date"
   [config & [name]]
