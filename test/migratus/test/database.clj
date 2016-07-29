@@ -76,9 +76,7 @@
   (testing "db init"
     (reset-db)
     (let [store (proto/make-store config)]
-      (proto/connect store)
-      (proto/init store)
-      (proto/disconnect store))))
+      (proto/init store))))
 
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" "up"]

@@ -283,7 +283,7 @@
       (log/info "creating migration table" (str "'" table-name "'"))
       (sql/db-do-commands t-con
                           (modify-sql-fn
-                           (sql/create-table-ddl table-name [["id" "BIGINT" "UNIQUE" "NOT NULL"]]))))))
+                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]]))))))
 
 (defn init-db! [db migration-dir init-script-name modify-sql-fn]
   (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]
@@ -310,10 +310,14 @@
   proto/Store
   (config [this] config)
   (init [this]
-    (init-db! @(:connection config)
-              (:migration-dir config)
-              (get config :init-script default-init-script-name)
-              (get config :modify-sql-fn identity)))
+    (let [conn (connect* (:db config))]
+      (try
+        (init-db! conn
+                  (:migration-dir config)
+                  (get config :init-script default-init-script-name)
+                  (get config :modify-sql-fn identity))
+        (finally
+          (disconnect* conn)))))
   (completed-ids [this]
     (completed-ids* @(:connection config) (migration-table-name config)))
   (migrations [this]
