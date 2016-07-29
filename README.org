@@ -71,7 +71,7 @@
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.27"]]
+    : :dependencies [[migratus "0.8.28"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
@@ -79,7 +79,7 @@
 	: [org.slf4j/slf4j-log4j12 "1.7.9"]
 
 	or if you're using Timbre
-	: [com.fzakaria/slf4j-timbre "0.2"]
+	: [com.fzakaria/slf4j-timbre "0.3.2"]
 
 Next, create a namespace to manage the migrations:
 
@@ -88,10 +88,14 @@ Next, create a namespace to manage the migrations:
 
      : (def config {:store                :database
      :              :migration-dir        "migrations/"
+     :              :init-script          "init.sql"
      :              :migration-table-name "foo_bar"
      :              :db {:classname   "org.h2.Driver"
      :                   :subprotocol "h2"
      :                   :subname     "site.db"}})
+
+     : ;initialize the database using the 'init.sql' script
+     : (migratus/init config)
 
      : ;apply pending migrations
      : (migratus/migrate config)
@@ -195,6 +199,7 @@ function.
 
    | Function                                | Description                                                                                                 |
    |-----------------------------------------+-------------------------------------------------------------------------------------------------------------|
+   | migratus.core/init                      | Runs a script to nitialize the database, e.g: create a new schema.                                          |
    | migratus.core/create                    | Create a new migration with the current date.                                                               |
    | migratus.core/migrate                   | Run 'up' for any migrations that have not been run.                                                         |
    | migratus.core/rollback                  | Run 'down' for the last migration that was run.                                                             |
@@ -207,7 +212,7 @@ function.
 
    Migratus can also be used from leiningen if you add it as a plugin dependency.
 
-   : :plugins [[migratus-lein "0.4.0"]]
+   : :plugins [[migratus-lein "0.4.1"]]
 
    And add a configuration :migratus key to your project.clj.
 
@@ -223,6 +228,7 @@ function.
 
    | Task                        | Description                                                                                |
    |-----------------------------+--------------------------------------------------------------------------------------------|
+   | lein migratus init          | Run the 'init' function to initialize the database.                                        |
    | lein migratus create <name> | Create a new migration with the current date.                                              |
    | lein migratus migrate       | Run 'up' for any migrations that have not been run.                                        |
    | lein migratus rollback      | Run 'down' for the last migration that was run.                                            |
