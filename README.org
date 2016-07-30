@@ -126,10 +126,9 @@ This will result with up/down migration files being created prefixed with the cu
 
 Migratus provides a Leiningen plugin:
 
-[[http://clojars.org/migratus-lein][http://clojars.org/migratus-lein/latest-version.svg]]
-
    - Add migratus-lein as a plugin in addition to the Migratus dependency:
-     : :plugins [[migratus-lein "0.3.7"]]
+
+   [[http://clojars.org/migratus-lein][http://clojars.org/migratus-lein/latest-version.svg]]
 
    - Add the following key and value to your project.clj:
      : :migratus {:store :database
