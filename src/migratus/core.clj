@@ -35,7 +35,7 @@
   (let [plugin (symbol (str "migratus." (name store)))]
     (require plugin)))
 
-(defn- uncompleted-migrations [store]
+(defn uncompleted-migrations [store]
   (let [completed? (set (proto/completed-ids store))]
     (remove (comp completed? proto/id) (proto/migrations store))))
 
