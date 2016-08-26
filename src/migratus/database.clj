@@ -92,8 +92,10 @@
         (mark-not-complete db table-name id)
         true))))
 
+(def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
+
 (defn parse-name [file-name]
-  (next (re-matches #"^(\d+)-([^\.]+)\.(up|down)\.sql$" file-name)))
+  (next (re-matches migration-file-pattern file-name)))
 
 (defn find-migration-dir [dir]
   (->> (cp/classpath-directories)
@@ -114,6 +116,10 @@
       (io/make-parents new-migration-dir ".")
       new-migration-dir)))
 
+(defn warn-on-invalid-migration [file-name]
+  (log/warn (str "skipping: '" file-name "'")
+            "migrations must match pattern:"
+            (str migration-file-pattern)))
 
 (defn find-migration-files [migration-dir init-script-name]
   (->> (for [f (filter (fn [^File f] (.isFile f))
@@ -125,8 +131,7 @@
                            :direction direction
                            :content   (slurp f)}}}
            (when (not= (.getName f) init-script-name)
-             (log/warn (str "'" file-name "'")
-                       "does not appear to be a valid migration"))))
+             (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
 (defn ensure-trailing-slash [dir]
@@ -154,8 +159,7 @@
                              :direction direction
                              :content   (.toString w)}}})
            (when (not= entry-name init-script-name)
-             (log/warn (str "'" entry-name "'")
-                       "does not appear to be a valid migration"))))
+             (warn-on-invalid-migration entry-name))))
        (remove nil?)))
 
 (defn find-migrations [dir & [init-script-name]]
