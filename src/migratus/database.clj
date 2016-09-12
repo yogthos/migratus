@@ -142,14 +142,14 @@
 (defn find-migration-jar [dir]
   (first (for [jar (cp/classpath-jarfiles)
                :when (some #(.matches (.getName ^JarEntry %)
-                                      (str "^" (Pattern/quote dir) ".*"))
+                                      (str "^" (Pattern/quote dir) ".+"))
                            (enumeration-seq (.entries ^JarFile jar)))]
            jar)))
 
 (defn find-migration-resources [dir jar init-script-name]
   (->> (for [entry (enumeration-seq (.entries jar))
              :when (.matches (.getName ^JarEntry entry)
-                             (str "^" (Pattern/quote dir) ".*"))
+                             (str "^" (Pattern/quote dir) ".+"))
              :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")]]
          (if-let [[id name direction] (parse-name entry-name)]
            (let [w (StringWriter.)]
