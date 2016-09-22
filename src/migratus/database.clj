@@ -83,13 +83,13 @@
 (defn down* [db table-name id down modify-sql-fn]
   (sql/with-db-transaction
     [t-con db]
-    (when (complete? db table-name id)
+    (when (complete? t-con table-name id)
       (when-let [commands (map modify-sql-fn (split-commands down))]
         (log/debug "found" (count commands) "down migrations")
         (doseq [c commands]
           (log/trace "executing" c)
           (sql/db-do-prepared t-con c))
-        (mark-not-complete db table-name id)
+        (mark-not-complete t-con table-name id)
         true))))
 
 (def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
