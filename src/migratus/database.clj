@@ -18,7 +18,7 @@
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto])
   (:import [java.io File StringWriter]
-           java.sql.Connection
+           [java.sql Connection SQLException]
            java.text.SimpleDateFormat
            java.util.Date
            [java.util.jar JarEntry JarFile]
@@ -246,45 +246,35 @@
                 (:content down)
                 modify-sql-fn)))
 
-(defn method-exists? [obj method-name]
-  (->> (.getClass obj)
-       (.getDeclaredMethods)
-       (map #(.getName %))
-       (some #{method-name})))
-
-(defn get-schema [conn]
-  (try
-    (if (method-exists? conn "getSchema") (.getSchema conn) nil)
-    (catch java.sql.SQLFeatureNotSupportedException _)))
-
-(defn lookup-tables
-  [conn schema table-name]
-  (let [metadata (.getMetaData conn)
-        catalog  (.getCatalog conn)]
-    (-> (.getTables metadata catalog schema table-name nil)
-        sql/result-set-seq
-        doall
-        not-empty)))
-
-(defn find-table
-  "attempt to look up the table using the current schema
-   fallback to lookup without the schema"
-  [conn table-name]
-  (or
-    (lookup-tables conn (get-schema conn) table-name)
-    (lookup-tables conn nil table-name)))
-
-(defn table-exists? [conn table-name]
-  (let [conn (:connection conn)]
-    (or
-      (find-table conn table-name)
-      (find-table conn (.toUpperCase table-name)))))
-
-(defn init-schema! [db table-name modify-sql-fn]
+(defn- table-exists?
+  "Checks whether the migrations table exists, by attempting to select from
+  it. Note that this appears to be the only truly portable way to determine
+  whether the table exists in a schema which the `db` configuration will find
+  via a `SELECT FROM` or `INSERT INTO` the table. (In particular, note that
+  attempting to find the table in the database meta-data as exposed by the JDBC
+  driver does *not* tell you whether the table is on the current schema search
+  path.)"
+  [db table-name]
   (sql/with-db-transaction
     [t-con db]
-    (when-not (table-exists? t-con table-name)
-      (log/info "creating migration table" (str "'" table-name "'"))
+    (try
+      (sql/query t-con [(str "SELECT 1 FROM " table-name)])
+      true
+      (catch SQLException _
+        false))))
+
+(defn init-schema! [db table-name modify-sql-fn]
+  ;; Note: the table-exists? *has* to be done in its own top-level
+  ;; transaction. It can't be run in the same transaction as other code, because
+  ;; if the table doesn't exist, then the error it raises internally in
+  ;; detecting that will (on Postgres, at least) mark the transaction as
+  ;; rollback only. That is, the act of detecting that it is necessary to create
+  ;; the table renders the current transaction unusable for that purpose. I
+  ;; blame Heisenberg.
+  (when-not (table-exists? db table-name)
+    (log/info "creating migration table" (str "'" table-name "'"))
+    (sql/with-db-transaction
+      [t-con db]
       (sql/db-do-commands t-con
                           (modify-sql-fn
                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]]))))))
