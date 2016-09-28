@@ -246,7 +246,7 @@
                 (:content down)
                 modify-sql-fn)))
 
-(defn- table-exists?
+(defn table-exists?
   "Checks whether the migrations table exists, by attempting to select from
   it. Note that this appears to be the only truly portable way to determine
   whether the table exists in a schema which the `db` configuration will find
