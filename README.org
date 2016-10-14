@@ -229,13 +229,13 @@ function.
 
    | Task                        | Description                                                                                |
    |-----------------------------+--------------------------------------------------------------------------------------------|
-   | lein migratus init          | Run the 'init' function to initialize the database.                                        |
    | lein migratus create <name> | Create a new migration with the current date.                                              |
    | lein migratus migrate       | Run 'up' for any migrations that have not been run.                                        |
    | lein migratus rollback      | Run 'down' for the last migration that was run.                                            |
    | lein migratus up & ids      | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
    | lein migratus down & ids    | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
    | lein migratus reset         | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
+   | lein migratus pending       | Run 'pending-list' to get all pending migrations.                                          |
 
 ** License
    : Copyright © 2016 Paul Stadig, Dmitri Sotnikov
