@@ -42,8 +42,11 @@
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
 (defn mark-complete [db table-name id]
-  (log/debug "marking" id "complete")
-  (sql/insert! db table-name {:id id}))
+  (boolean
+   (try
+     (log/debug "marking" id "complete")
+     (sql/insert! db table-name {:id id})
+     (catch Exception _))))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
@@ -65,9 +68,9 @@
        (not-empty)))
 
 (defn up* [db table-name id up modify-sql-fn]
-  (sql/with-db-transaction
-    [t-con db]
-    (when-not (complete? t-con table-name id)
+  (when (mark-complete db table-name id)
+    (sql/with-db-transaction
+      [t-con db]
       (when-let [commands (map modify-sql-fn (split-commands up))]
         (log/debug "found" (count commands) "up migrations")
         (doseq [c commands]
@@ -76,8 +79,8 @@
             (sql/db-do-prepared t-con c)
             (catch Throwable t
               (log/error t "failed to execute command:\n" c "\n")
+              (mark-not-complete db table-name id)
               (throw t))))
-        (mark-complete t-con table-name id)
         true))))
 
 (defn down* [db table-name id down modify-sql-fn]
