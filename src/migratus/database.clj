@@ -88,27 +88,33 @@
     (try
       (sql/with-db-transaction
         [t-con db]
-        (when-let [commands (map modify-sql-fn (split-commands up))]
-          (log/debug "found" (count commands) "up migrations")
-          (doseq [c commands]
-            (execute-command t-con table-name c id))
-          (mark-complete t-con table-name id))
-        :success)
+        (when-not (complete? t-con table-name id)
+          (when-let [commands (map modify-sql-fn (split-commands up))]
+            (log/debug "found" (count commands) "up migrations")
+            (doseq [c commands]
+              (execute-command t-con table-name c id))
+            (mark-complete t-con table-name id)
+            :success)))
       (finally
         (mark-unreserved db table-name)))
     :ignore))
 
 (defn down* [db table-name id down modify-sql-fn]
-  (sql/with-db-transaction
-    [t-con db]
-    (when (complete? t-con table-name id)
-      (when-let [commands (map modify-sql-fn (split-commands down))]
-        (log/debug "found" (count commands) "down migrations")
-        (doseq [c commands]
-          (log/trace "executing" c)
-          (sql/db-do-prepared t-con c))
-        (mark-not-complete t-con table-name id)
-        true))))
+  (if (mark-reserved db table-name)
+    (try
+      (sql/with-db-transaction
+        [t-con db]
+        (when (complete? t-con table-name id)
+          (when-let [commands (map modify-sql-fn (split-commands down))]
+            (log/debug "found" (count commands) "down migrations")
+            (doseq [c commands]
+              (log/trace "executing" c)
+              (sql/db-do-prepared t-con c))
+            (mark-not-complete t-con table-name id)
+            :success)))
+      (finally
+        (mark-unreserved db table-name)))
+    :ignore))
 
 (def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
 
