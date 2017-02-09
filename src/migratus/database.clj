@@ -38,15 +38,23 @@
       (.replaceAll "_" "-")
       (.toLowerCase)))
 
+(def reserved-id -1)
+
+(defn mark-reserved [db table-name]
+  (boolean
+   (try
+     (sql/insert! db table-name {:id reserved-id})
+     (catch Exception _))))
+
+(defn mark-unreserved [db table-name]
+  (sql/delete! db table-name ["id=?" reserved-id]))
+
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
 (defn mark-complete [db table-name id]
-  (boolean
-   (try
-     (log/debug "marking" id "complete")
-     (sql/insert! db table-name {:id id})
-     (catch Exception _))))
+  (log/debug "marking" id "complete")
+  (sql/insert! db table-name {:id id}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
@@ -67,21 +75,28 @@
        (remove empty?)
        (not-empty)))
 
+(defn execute-command [t-con table-name c id]
+  (log/trace "executing" c)
+  (try
+    (sql/db-do-prepared t-con c)
+    (catch Throwable t
+      (log/error t "failed to execute command:\n" c "\n")
+      (throw t))))
+
 (defn up* [db table-name id up modify-sql-fn]
-  (when (mark-complete db table-name id)
-    (sql/with-db-transaction
-      [t-con db]
-      (when-let [commands (map modify-sql-fn (split-commands up))]
-        (log/debug "found" (count commands) "up migrations")
-        (doseq [c commands]
-          (log/trace "executing" c)
-          (try
-            (sql/db-do-prepared t-con c)
-            (catch Throwable t
-              (log/error t "failed to execute command:\n" c "\n")
-              (mark-not-complete db table-name id)
-              (throw t))))
-        true))))
+  (if (mark-reserved db table-name)
+    (try
+      (sql/with-db-transaction
+        [t-con db]
+        (when-let [commands (map modify-sql-fn (split-commands up))]
+          (log/debug "found" (count commands) "up migrations")
+          (doseq [c commands]
+            (execute-command t-con table-name c id))
+          (mark-complete t-con table-name id))
+        :success)
+      (finally
+        (mark-unreserved db table-name)))
+    :ignore))
 
 (defn down* [db table-name id down modify-sql-fn]
   (sql/with-db-transaction
@@ -234,7 +249,7 @@
 (defn completed-ids* [db table-name]
   (sql/with-db-transaction
     [t-con db]
-    (->> (sql/query t-con (str "select id from " table-name))
+    (->> (sql/query t-con (str "select id from " table-name " where id != " reserved-id))
          (map :id)
          (doall))))
 

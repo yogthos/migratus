@@ -21,7 +21,8 @@
   (name [this]
     name)
   (up [this]
-    (swap! ups conj id))
+    (swap! ups conj id)
+    :success)
   (down [this]
     (swap! downs conj id)))
 

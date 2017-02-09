@@ -52,8 +52,9 @@
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (loop [[migration & more] migrations]
         (when migration
-          (if (up* migration)
-            (recur more)
+          (case (up* migration)
+            :success (recur more)
+            :ignore (log/info "Migration reserved by another instance. Ignoring.")
             (log/error "Stopping:" (migration-name migration) "failed to migrate")))))))
 
 (defn- migrate* [store _]
