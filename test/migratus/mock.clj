@@ -21,9 +21,11 @@
   (name [this]
     name)
   (up [this]
-    (swap! ups conj id))
+    (swap! ups conj id)
+    :success)
   (down [this]
-    (swap! downs conj id)))
+    (swap! downs conj id)
+    :success))
 
 (defrecord MockStore [completed-ids migrations]
   proto/Store

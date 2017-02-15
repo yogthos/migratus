@@ -206,3 +206,27 @@
   (is (verify-table-exists? config "bar"))
   (is (verify-table-exists? config "quux"))
   (is (verify-table-exists? config "quux2")))
+
+(deftest test-migration-ignored-when-already-reserved
+  (test-with-store
+   (proto/make-store config)
+   (fn [{:keys [db migration-table-name] :as config}]
+     (testing "can only reserve once"
+       (is (mark-reserved db migration-table-name))
+       (is (not (mark-reserved db migration-table-name))))
+     (testing "migrations don't run when locked"
+       (is (not (verify-table-exists? config "foo")))
+       (core/migrate config)
+       (is (not (verify-table-exists? config "foo"))))
+     (testing "migrations run once lock is freed"
+       (mark-unreserved db migration-table-name)
+       (core/migrate config)
+       (is (verify-table-exists? config "foo")))
+     (testing "rollback migration isn't run when locked"
+       (is (mark-reserved db migration-table-name))
+       (core/down config 20111202110600)
+       (is (verify-table-exists? config "foo")))
+     (testing "rollback migration run once lock is freed"
+       (mark-unreserved db migration-table-name)
+       (core/down config 20111202110600)
+       (is (not (verify-table-exists? config "foo")))))))
