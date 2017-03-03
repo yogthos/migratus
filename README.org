@@ -70,6 +70,14 @@
     :   PERFORM schema_name.function_name('foo', 10);
     : END;$func$;
 
+*** Supporting "use" statements
+
+	To run migrations against several different databases
+	(in MySQL, or "schemas" in Postgres, etc.), with embedded "use" statements
+	in your migrations, specify the database in your migration-table-name in the
+	connections, i.e. "database_name.table_name" not "table_name"
+
+	
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
