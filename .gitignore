@@ -5,6 +5,8 @@ pom.xml
 /target/
 .lein-failures
 .lein-deps-sum
+.lein-repl-history
+.nrepl-port
 /test/log4j.properties
 *.log
 .idea
