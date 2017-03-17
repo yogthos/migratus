@@ -75,7 +75,7 @@
        (remove empty?)
        (not-empty)))
 
-(defn execute-command [t-con table-name c id]
+(defn execute-command [t-con c id]
   (log/trace "executing" c)
   (try
     (sql/db-do-prepared t-con c)
@@ -92,7 +92,7 @@
           (when-let [commands (map modify-sql-fn (split-commands up))]
             (log/debug "found" (count commands) "up migrations")
             (doseq [c commands]
-              (execute-command t-con table-name c id))
+              (execute-command t-con c id))
             (mark-complete t-con table-name id)
             :success)))
       (finally
