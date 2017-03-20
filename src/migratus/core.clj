@@ -17,7 +17,6 @@
             [migratus.protocols :as proto]
             migratus.database))
 
-
 (defn run [store ids command]
   (try
     (log/info "Starting migrations")
@@ -42,24 +41,24 @@
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
 
-(defn- up* [migration]
+(defn- up* [store migration]
   (log/info "Up" (migration-name migration))
-  (proto/up migration))
+  (proto/migrate-up store migration))
 
-(defn- migrate-up* [migrations]
+(defn- migrate-up* [store migrations]
   (let [migrations (sort-by proto/id migrations)]
     (when (seq migrations)
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (loop [[migration & more] migrations]
         (when migration
-          (case (up* migration)
+          (case (up* store migration)
             :success (recur more)
             :ignore (log/info "Migration reserved by another instance. Ignoring.")
             (log/error "Stopping:" (migration-name migration) "failed to migrate")))))))
 
 (defn- migrate* [store _]
   (let [migrations (->> store uncompleted-migrations (sort-by proto/id))]
-    (migrate-up* migrations)))
+    (migrate-up* store migrations)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
@@ -70,7 +69,7 @@
   (let [completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (proto/migrations store))]
-    (migrate-up* migrations)))
+    (migrate-up* store migrations)))
 
 (defn up
   "Bring up the migrations identified by ids.
@@ -88,7 +87,7 @@
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
       (doseq [migration migrations]
         (log/info "Down" (migration-name migration))
-        (proto/down migration)))))
+        (proto/migrate-down store migration)))))
 
 (defn down
   "Bring down the migrations identified by ids.

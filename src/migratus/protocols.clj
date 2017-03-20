@@ -17,8 +17,8 @@
 (defprotocol Migration
   (id [this] "Id of this migration.")
   (name [this] "Name of this migration")
-  (up [this] "Bring this migration up.")
-  (down [this] "Bring this migration down."))
+  (up [this config] "Bring this migration up.")
+  (down [this config] "Bring this migration down."))
 
 (defprotocol Store
   (config [this])
@@ -30,6 +30,10 @@
     "Seq of migrations (completed or not).")
   (create [this name]
     "Create a new migration")
+  (migrate-up [this migration]
+    "Run and record an up migration")
+  (migrate-down [this migration]
+    "Run and record a down migration")
   (destroy [this name]
     "Destroy migration")
   (connect [this]

@@ -20,10 +20,10 @@
     id)
   (name [this]
     name)
-  (up [this]
+  (up [this config]
     (swap! ups conj id)
     :success)
-  (down [this]
+  (down [this config]
     (swap! downs conj id)
     :success))
 
@@ -34,6 +34,10 @@
     completed-ids)
   (migrations [this]
     migrations)
+  (migrate-up [this migration]
+    (proto/up migration {}))
+  (migrate-down [this migration]
+    (proto/down migration {}))
   (connect [this])
   (disconnect [this]))
 

@@ -38,6 +38,11 @@
       (.replaceAll "_" "-")
       (.toLowerCase)))
 
+(def default-migrations-table "schema_migrations")
+
+(defn migration-table-name [config]
+  (:migration-table-name config default-migrations-table))
+
 (def reserved-id -1)
 
 (defn mark-reserved [db table-name]
@@ -75,7 +80,7 @@
        (remove empty?)
        (not-empty)))
 
-(defn execute-command [t-con c id]
+(defn execute-command [t-con c]
   (log/trace "executing" c)
   (try
     (sql/db-do-prepared t-con c)
@@ -83,38 +88,45 @@
       (log/error t "failed to execute command:\n" c "\n")
       (throw t))))
 
-(defn up* [db table-name id up modify-sql-fn]
-  (if (mark-reserved db table-name)
-    (try
-      (sql/with-db-transaction
-        [t-con db]
-        (when-not (complete? t-con table-name id)
-          (when-let [commands (map modify-sql-fn (split-commands up))]
-            (log/debug "found" (count commands) "up migrations")
-            (doseq [c commands]
-              (execute-command t-con c id))
-            (mark-complete t-con table-name id)
-            :success)))
-      (finally
-        (mark-unreserved db table-name)))
-    :ignore))
+(defn run-sql [{:keys [conn db modify-sql-fn]} sql direction]
+  (sql/with-db-transaction
+    [t-con (or conn db)]
+    (when-let [commands (map (or modify-sql-fn identity) (split-commands sql))]
+      (log/debug "found" (count commands) (name direction) "migrations")
+      (doseq [c commands]
+        (execute-command t-con c)))))
 
-(defn down* [db table-name id down modify-sql-fn]
-  (if (mark-reserved db table-name)
-    (try
-      (sql/with-db-transaction
-        [t-con db]
-        (when (complete? t-con table-name id)
-          (when-let [commands (map modify-sql-fn (split-commands down))]
-            (log/debug "found" (count commands) "down migrations")
-            (doseq [c commands]
-              (log/trace "executing" c)
-              (sql/db-do-prepared t-con c))
+(defn migrate-up* [config migration]
+  (let [id (proto/id migration)
+        table-name (migration-table-name config)
+        db @(:connection config)]
+    (if (mark-reserved db table-name)
+      (try
+        (sql/with-db-transaction
+          [t-con db]
+          (when-not (complete? t-con table-name id)
+            (proto/up migration config)
+            (mark-complete t-con table-name id)
+            :success))
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
+
+(defn migrate-down* [config migration]
+  (let [id (proto/id migration)
+        table-name (migration-table-name config)
+        db @(:connection config)]
+    (if (mark-reserved db table-name)
+      (try
+        (sql/with-db-transaction
+          [t-con db]
+          (when (complete? t-con table-name id)
+            (proto/down migration config)
             (mark-not-complete t-con table-name id)
-            :success)))
-      (finally
-        (mark-unreserved db table-name)))
-    :ignore))
+            :success))
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
 
 (def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
 
@@ -216,30 +228,25 @@
       (if-let [migration-jar (find-migration-jar dir)]
         (find-init-script-resource dir migration-jar init-script-name)))))
 
-(def default-migrations-table "schema_migrations")
-
-(defn migration-table-name [config]
-  (:migration-table-name config default-migrations-table))
-
 (defn parse-migration-id [id]
   (try
     (Long/parseLong id)
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(defrecord Migration [db table-name id name up down modify-sql-fn]
+(defrecord Migration [id name up down]
   proto/Migration
   (id [this]
     id)
   (name [this]
     name)
-  (up [this]
+  (up [this config]
     (if up
-      (up* db table-name id up modify-sql-fn)
+      (run-sql config up :up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
-  (down [this]
+  (down [this config]
     (if down
-      (down* db table-name id down modify-sql-fn)
+      (run-sql config down :down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
@@ -263,16 +270,13 @@
          (map :id)
          (doall))))
 
-(defn migrations* [db migration-dir table-name init-script-name modify-sql-fn]
+(defn migrations* [migration-dir init-script-name]
   (for [[id mig] (find-migrations migration-dir init-script-name)
         :let [{:strs [up down]} mig]]
-    (Migration. db
-                table-name
-                (parse-migration-id (or (:id up) (:id down)))
+    (Migration. (parse-migration-id (or (:id up) (:id down)))
                 (or (:name up) (:name down))
                 (:content up)
-                (:content down)
-                modify-sql-fn)))
+                (:content down))))
 
 (defn table-exists?
   "Checks whether the migrations table exists, by attempting to select from
@@ -343,11 +347,8 @@
   (completed-ids [this]
     (completed-ids* @(:connection config) (migration-table-name config)))
   (migrations [this]
-    (migrations* @(:connection config)
-                 (:migration-dir config)
-                 (migration-table-name config)
-                 (get config :init-script default-init-script-name)
-                 (get config :modify-sql-fn identity)))
+    (migrations* (:migration-dir config)
+                 (get config :init-script default-init-script-name)))
   (create [this name]
     (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
           migration-name (->kebab-case (str (timestamp) name))
@@ -362,6 +363,10 @@
           migrations (file-seq migration-dir)]
       (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
         (destroy* files))))
+  (migrate-up [this migration]
+    (migrate-up* config migration))
+  (migrate-down [this migration]
+    (migrate-down* config migration))
   (connect [this]
     (reset! (:connection config) (connect* (:db config)))
     (init-schema! @(:connection config) (migration-table-name config) (get config :modify-sql-fn identity)))
