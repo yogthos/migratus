@@ -225,14 +225,6 @@
          (map :id)
          (doall))))
 
-(defn migrations* [migration-dir init-script-name]
-  (for [[id mig] (find-migrations migration-dir init-script-name)
-        :let [{:strs [up down]} mig]]
-    (sql-mig/->SqlMigration (parse-migration-id (or (:id up) (:id down)))
-                            (or (:name up) (:name down))
-                            (:content up)
-                            (:content down))))
-
 (defn table-exists?
   "Checks whether the migrations table exists, by attempting to select from
   it. Note that this appears to be the only truly portable way to determine
@@ -283,9 +275,34 @@
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
     (.format fmt (Date.))))
 
-(defn destroy* [files]
-  (doseq [f files]
-    (.delete f)))
+(defn get-migration-dir [config]
+  ;; TODO - find a better home for me.
+  (get config :migration-dir "migrations"))
+
+(defn list-migrations [config]
+  (for [[id mig] (find-migrations (get-migration-dir config)
+                                  (get config :init-script default-init-script-name))
+        :let [{:strs [up down]} mig]]
+    (sql-mig/->SqlMigration (parse-migration-id (or (:id up) (:id down)))
+                            (or (:name up) (:name down))
+                            (:content up)
+                            (:content down))))
+
+(defn create [config name]
+  (let [migration-dir (find-or-create-migration-dir (get-migration-dir config))
+        migration-name (->kebab-case (str (timestamp) name))
+        migration-up-name (str migration-name ".up.sql")
+        migration-down-name (str migration-name ".down.sql")]
+    (.createNewFile (File. migration-dir migration-up-name))
+    (.createNewFile (File. migration-dir migration-down-name))))
+
+(defn destroy [config name]
+  (let [migration-dir (find-migration-dir (get-migration-dir config))
+        migration-name (->kebab-case name)
+        pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
+        migrations (file-seq migration-dir)]
+    (doseq [f (filter #(re-find pattern (.getName %)) migrations)]
+      (.delete f))))
 
 (defrecord Database [config]
   proto/Store
@@ -301,23 +318,6 @@
           (disconnect* conn)))))
   (completed-ids [this]
     (completed-ids* @(:connection config) (migration-table-name config)))
-  (migrations [this]
-    (migrations* (:migration-dir config)
-                 (get config :init-script default-init-script-name)))
-  (create [this name]
-    (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
-          migration-name (->kebab-case (str (timestamp) name))
-          migration-up-name (str migration-name ".up.sql")
-          migration-down-name (str migration-name ".down.sql")]
-      (.createNewFile (File. migration-dir migration-up-name))
-      (.createNewFile (File. migration-dir migration-down-name))))
-  (destroy [this name]
-    (let [migration-dir (find-migration-dir (:migration-dir config))
-          migration-name (->kebab-case name)
-          pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
-          migrations (file-seq migration-dir)]
-      (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
-        (destroy* files))))
   (migrate-up [this migration]
     (migrate-up* config migration))
   (migrate-down [this migration]

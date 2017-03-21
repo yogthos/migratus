@@ -26,16 +26,10 @@
     "Initialize the data store.")
   (completed-ids [this]
     "Seq of ids of completed migrations.")
-  (migrations [this]
-    "Seq of migrations (completed or not).")
-  (create [this name]
-    "Create a new migration")
   (migrate-up [this migration]
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
-  (destroy [this name]
-    "Destroy migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]

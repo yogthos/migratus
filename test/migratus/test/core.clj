@@ -13,63 +13,62 @@
 ;;;; under the License.
 (ns migratus.test.core
   (:require [migratus.protocols :as proto]
-            migratus.mock
+            [migratus.mock :as mock]
             [clojure.test :refer :all]
             [migratus.core :refer :all]
+            migratus.database
             migratus.logger
             [clojure.java.io :as io])
   (:import [migratus.mock MockStore MockMigration]))
 
 (defn migrations [ups downs]
   (for [n (range 4)]
-    {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs}))
+    (mock/make-migration
+     {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs})))
 
 (deftest test-migrate
   (let [ups (atom [])
         downs (atom [])
-        migrations (migrations ups downs)
         config {:store :mock
-                :completed-ids [1 3]
-                :migrations (reverse migrations)}]
-    (migrate config)
+                :completed-ids [1 3]}]
+    (with-redefs [migratus.database/list-migrations (constantly (migrations ups downs))]
+      (migrate config))
     (is (= [2 4] @ups))
     (is (empty? @downs))))
 
 (deftest test-up
   (let [ups (atom [])
         downs (atom [])
-        migrations (migrations ups downs)
         config {:store :mock
-                :completed-ids [1 3]
-                :migrations migrations}]
-    (testing "should bring up an uncompleted migration"
-      (up config 4 2)
-      (is (= [2 4] @ups))
-      (is (empty? @downs)))
-    (reset! ups [])
-    (reset! downs [])
-    (testing "should do nothing for a completed migration"
-      (up config 1)
-      (is (empty? @ups))
-      (is (empty? @downs)))))
+                :completed-ids [1 3]}]
+    (with-redefs [migratus.database/list-migrations (constantly (migrations ups downs))]
+      (testing "should bring up an uncompleted migration"
+        (up config 4 2)
+        (is (= [2 4] @ups))
+        (is (empty? @downs)))
+      (reset! ups [])
+      (reset! downs [])
+      (testing "should do nothing for a completed migration"
+        (up config 1)
+        (is (empty? @ups))
+        (is (empty? @downs))))))
 
 (deftest test-down
   (let [ups (atom [])
         downs (atom [])
-        migrations (migrations ups downs)
         config {:store :mock
-                :completed-ids [1 3]
-                :migrations migrations}]
-    (testing "should bring down a completed migration"
-      (down config 1 3)
-      (is (empty? @ups))
-      (is (= [3 1] @downs)))
-    (reset! ups [])
-    (reset! downs [])
-    (testing "should do nothing for an uncompleted migration"
-      (down config 2)
-      (is (empty? @ups))
-      (is (empty? @downs)))))
+                :completed-ids [1 3]}]
+    (with-redefs [migratus.database/list-migrations (constantly (migrations ups downs))]
+      (testing "should bring down a completed migration"
+        (down config 1 3)
+        (is (empty? @ups))
+        (is (= [3 1] @downs)))
+      (reset! ups [])
+      (reset! downs [])
+      (testing "should do nothing for an uncompleted migration"
+        (down config 2)
+        (is (empty? @ups))
+        (is (empty? @downs))))))
 
 (defn- migration-exists? [name]
     (let [migrations (file-seq (migratus.database/find-migration-dir "migrations"))
@@ -77,8 +76,7 @@
         (filter #(.contains % name) names)))
 
 (deftest test-create-and-destroy
-    (let [config {:store :database
-                  :migrations migrations}
+    (let [config {:store :database}
           migration "create-user"
           migration-up  "create-user.up.sql"
           migration-down "create-user.down.sql"]
@@ -94,7 +92,6 @@
 (deftest test-create-missing-directory
   (let [migration-dir "doesnt_exist"
         config {:store :database
-                :migrations migrations
                 :migration-dir migration-dir}
         migration "create-user"
         migration-up  "create-user.up.sql"
@@ -118,10 +115,9 @@
 (deftest test-pending-list
   (let [ups (atom [])
         downs (atom [])
-        migrations (migrations ups downs)
         config {:store :mock
-                :completed-ids [1]
-                :migrations migrations}]
-    (testing "should return the list of pending migrations"
-      (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"
-             (migratus.core/pending-list config))))))
+                :completed-ids [1]}]
+    (with-redefs [migratus.database/list-migrations (constantly (migrations ups downs))]
+      (testing "should return the list of pending migrations"
+        (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"
+               (migratus.core/pending-list config)))))))

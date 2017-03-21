@@ -34,9 +34,9 @@
   (let [plugin (symbol (str "migratus." (name store)))]
     (require plugin)))
 
-(defn uncompleted-migrations [store]
+(defn uncompleted-migrations [config store]
   (let [completed? (set (proto/completed-ids store))]
-    (remove (comp completed? proto/id) (proto/migrations store))))
+    (remove (comp completed? proto/id) (migratus.database/list-migrations config))))
 
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
@@ -56,32 +56,34 @@
             :ignore (log/info "Migration reserved by another instance. Ignoring.")
             (log/error "Stopping:" (migration-name migration) "failed to migrate")))))))
 
-(defn- migrate* [store _]
-  (let [migrations (->> store uncompleted-migrations (sort-by proto/id))]
+(defn- migrate* [config store _]
+  (let [migrations (->> store
+                        (uncompleted-migrations config)
+                        (sort-by proto/id))]
     (migrate-up* store migrations)))
 
 (defn migrate
   "Bring up any migrations that are not completed."
   [config]
-  (run (proto/make-store config) nil migrate*))
+  (run (proto/make-store config) nil (partial migrate* config)))
 
-(defn- run-up [store ids]
+(defn- run-up [config store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id) (proto/migrations store))]
+        migrations (filter (comp ids proto/id) (migratus.database/list-migrations config))]
     (migrate-up* store migrations)))
 
 (defn up
   "Bring up the migrations identified by ids.
   Any migrations that are already complete will be skipped."
   [config & ids]
-  (run (proto/make-store config) ids run-up))
+  (run (proto/make-store config) ids (partial run-up config)))
 
-(defn- run-down [store ids]
+(defn- run-down [config store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
-                           (proto/migrations store))
+                           (migratus.database/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
     (when (seq migrations)
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
@@ -93,29 +95,30 @@
   "Bring down the migrations identified by ids.
   Any migrations that are not completed will be skipped."
   [config & ids]
-  (run (proto/make-store config) ids run-down))
+  (run (proto/make-store config) ids (partial run-down config)))
 
-(defn- rollback* [store _]
+(defn- rollback* [config store _]
   (run-down
-    store
-    (->> (proto/completed-ids store)
-         sort
-         last
-         vector)))
+   config
+   store
+   (->> (proto/completed-ids store)
+        sort
+        last
+        vector)))
 
-(defn- reset* [store _]
-  (run-down store (->> (proto/completed-ids store) sort)))
+(defn- reset* [config store _]
+  (run-down config store (->> (proto/completed-ids store) sort)))
 
 (defn rollback
   "Rollback the last migration that was successfully applied."
   [config]
-  (run (proto/make-store config) nil rollback*))
+  (run (proto/make-store config) nil (partial rollback* config)))
 
 (defn reset
   "Reset the database by down-ing all migrations successfully
   applied, then up-ing all migratinos."
   [config]
-  (run (proto/make-store config) nil reset*)
+  (run (proto/make-store config) nil (partial reset* config))
   (migrate config))
 
 (defn init
@@ -126,19 +129,19 @@
 (defn create
   "Create a new migration with the current date"
   [config & [name]]
-  (proto/create (proto/make-store config) name))
+  (migratus.database/create config name))
 
 (defn destroy
-    "Destroy migration"
-    [config & [name]]
-    (proto/destroy (proto/make-store config) name))
+  "Destroy migration"
+  [config & [name]]
+  (migratus.database/destroy config name))
 
 (defn pending-list
   "List pending migrations"
   [config]
   (let [migrations-name (->> (doto (proto/make-store config)
                                (proto/connect))
-                             (uncompleted-migrations)
+                             (uncompleted-migrations config)
                              (map proto/name))
         migrations-count (count migrations-name)]
     (str "You have " migrations-count " pending migrations:\n"
@@ -152,7 +155,7 @@
   (let [store (proto/make-store config)]
     (try
       (proto/connect store)
-      (->> (uncompleted-migrations store)
+      (->> (uncompleted-migrations config store)
            (map proto/id)
            distinct
            sort

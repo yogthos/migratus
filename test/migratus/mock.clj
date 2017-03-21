@@ -27,13 +27,11 @@
     (swap! downs conj id)
     :success))
 
-(defrecord MockStore [completed-ids migrations]
+(defrecord MockStore [completed-ids]
   proto/Store
   (init [this])
   (completed-ids [this]
     completed-ids)
-  (migrations [this]
-    migrations)
   (migrate-up [this migration]
     (proto/up migration {}))
   (migrate-down [this migration]
@@ -45,5 +43,5 @@
   (MockMigration. nil id name ups downs))
 
 (defmethod proto/make-store :mock
-  [{:keys [completed-ids migrations]}]
-  (MockStore. completed-ids (map make-migration migrations)))
+  [{:keys [completed-ids]}]
+  (MockStore. completed-ids))
