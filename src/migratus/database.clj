@@ -16,6 +16,7 @@
             [clojure.java.jdbc :as sql]
             [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
+            [migratus.migration.sql :as sql-mig]
             [migratus.protocols :as proto])
   (:import [java.io File StringWriter]
            [java.sql Connection SQLException]
@@ -64,37 +65,6 @@
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
-
-(def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
-(def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
-(def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
-
-(defn sanitize [command]
-  (-> command
-      (clojure.string/replace sql-comment "")
-      (clojure.string/replace empty-line "")))
-
-(defn split-commands [commands]
-  (->> (.split sep commands)
-       (map sanitize)
-       (remove empty?)
-       (not-empty)))
-
-(defn execute-command [t-con c]
-  (log/trace "executing" c)
-  (try
-    (sql/db-do-prepared t-con c)
-    (catch Throwable t
-      (log/error t "failed to execute command:\n" c "\n")
-      (throw t))))
-
-(defn run-sql [{:keys [conn db modify-sql-fn]} sql direction]
-  (sql/with-db-transaction
-    [t-con (or conn db)]
-    (when-let [commands (map (or modify-sql-fn identity) (split-commands sql))]
-      (log/debug "found" (count commands) (name direction) "migrations")
-      (doseq [c commands]
-        (execute-command t-con c)))))
 
 (defn migrate-up* [config migration]
   (let [id (proto/id migration)
@@ -234,21 +204,6 @@
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(defrecord Migration [id name up down]
-  proto/Migration
-  (id [this]
-    id)
-  (name [this]
-    name)
-  (up [this config]
-    (if up
-      (run-sql config up :up)
-      (throw (Exception. (format "Up commands not found for %d" id)))))
-  (down [this config]
-    (if down
-      (run-sql config down :down)
-      (throw (Exception. (format "Down commands not found for %d" id))))))
-
 (defn connect* [db]
   (let [^Connection conn
         (try
@@ -273,10 +228,10 @@
 (defn migrations* [migration-dir init-script-name]
   (for [[id mig] (find-migrations migration-dir init-script-name)
         :let [{:strs [up down]} mig]]
-    (Migration. (parse-migration-id (or (:id up) (:id down)))
-                (or (:name up) (:name down))
-                (:content up)
-                (:content down))))
+    (sql-mig/->SqlMigration (parse-migration-id (or (:id up) (:id down)))
+                            (or (:name up) (:name down))
+                            (:content up)
+                            (:content down))))
 
 (defn table-exists?
   "Checks whether the migrations table exists, by attempting to select from
