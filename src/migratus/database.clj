@@ -75,7 +75,7 @@
         (sql/with-db-transaction
           [t-con db]
           (when-not (complete? t-con table-name id)
-            (proto/up migration config)
+            (proto/up migration (assoc config :conn t-con))
             (mark-complete t-con table-name id)
             :success))
         (finally
@@ -91,7 +91,7 @@
         (sql/with-db-transaction
           [t-con db]
           (when (complete? t-con table-name id)
-            (proto/down migration config)
+            (proto/down migration (assoc config :conn t-con))
             (mark-not-complete t-con table-name id)
             :success))
         (finally
