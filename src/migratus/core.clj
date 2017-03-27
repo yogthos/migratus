@@ -14,6 +14,7 @@
 (ns migratus.core
   (:require [clojure.set :as set]
             [clojure.tools.logging :as log]
+            [migratus.migrations :as mig]
             [migratus.protocols :as proto]
             migratus.database))
 
@@ -36,7 +37,7 @@
 
 (defn uncompleted-migrations [config store]
   (let [completed? (set (proto/completed-ids store))]
-    (remove (comp completed? proto/id) (migratus.database/list-migrations config))))
+    (remove (comp completed? proto/id) (mig/list-migrations config))))
 
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
@@ -70,7 +71,7 @@
 (defn- run-up [config store ids]
   (let [completed (set (proto/completed-ids store))
         ids (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id) (migratus.database/list-migrations config))]
+        migrations (filter (comp ids proto/id) (mig/list-migrations config))]
     (migrate-up* store migrations)))
 
 (defn up
@@ -83,7 +84,7 @@
   (let [completed (set (proto/completed-ids store))
         ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
-                           (migratus.database/list-migrations config))
+                           (mig/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
     (when (seq migrations)
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
@@ -129,12 +130,12 @@
 (defn create
   "Create a new migration with the current date"
   [config & [name]]
-  (migratus.database/create config name))
+  (mig/create config name))
 
 (defn destroy
   "Destroy migration"
   [config & [name]]
-  (migratus.database/destroy config name))
+  (mig/destroy config name))
 
 (defn pending-list
   "List pending migrations"
