@@ -42,3 +42,7 @@
                                       (str "^" (Pattern/quote dir) ".+"))
                            (enumeration-seq (.entries ^JarFile jar)))]
            jar)))
+
+(defn deep-merge
+  [& maps]
+  (apply merge-with deep-merge maps))
