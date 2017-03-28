@@ -23,40 +23,28 @@
 
 (deftest test-find-migrations
   (is (= {"20111202113000"
-          {:sql
-           {:up   {:id        "20111202113000"
-                   :name      "create-bar-table"
-                   :content   "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n"}
-            :down {:id        "20111202113000"
-                   :name      "create-bar-table"
-                   :content   "DROP TABLE IF EXISTS bar;\n"}}}
+          {"create-bar-table"
+           {:sql
+            {:up   "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n"
+             :down "DROP TABLE IF EXISTS bar;\n"}}}
           "20111202110600"
-          {:sql
-           {:up   {:id        "20111202110600"
-                   :name      "create-foo-table"
-                   :content   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n"}
-            :down {:id        "20111202110600"
-                   :name      "create-foo-table"
-                   :content   "DROP TABLE IF EXISTS foo;\n"}}}
+          {"create-foo-table"
+           {:sql
+            {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n"
+             :down "DROP TABLE IF EXISTS foo;\n"}}}
           "20120827170200"
-          {:sql
-           {:up   {:id        "20120827170200"
-                   :name      "multiple-statements"
-                   :content   multi-stmt-up}
-            :down {:id        "20120827170200"
-                   :name      "multiple-statements"
-                   :content   multi-stmt-down}}}}
+          {"multiple-statements"
+           {:sql
+            {:up   multi-stmt-up
+             :down multi-stmt-down}}}}
          (find-migrations "migrations" #{"init.sql"}))))
 
 (deftest test-find-jar-migrations
   (is (= {"20111214173500"
-          {:sql
-           {:up   {:id        "20111214173500"
-                   :name      "create-baz-table"
-                   :content   "CREATE TABLE IF NOT EXISTS baz(id bigint);\n"}
-            :down {:id        "20111214173500"
-                   :name      "create-baz-table"
-                   :content "DROP TABLE IF EXISTS baz;\n"}}}}
+          {"create-baz-table"
+           {:sql
+            {:up   "CREATE TABLE IF NOT EXISTS baz(id bigint);\n"
+             :down "DROP TABLE IF EXISTS baz;\n"}}}}
          (find-migrations "jar-migrations" #{"init.sql"}))))
 
 (deftest test-list-migrations
@@ -90,4 +78,7 @@
        (list-migrations {:migration-dir "migrations-duplicate-type"}))))
 
 (deftest test-list-migrations-duplicate-name
-  (is false "implement me"))
+  (is (thrown-with-msg?
+       Exception
+       #"Multiple migrations with id"
+       (list-migrations {:migration-dir "migrations-duplicate-name"}))))

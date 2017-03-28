@@ -54,10 +54,8 @@
 (defn migration-map
   [[id name exts] content]
   (assoc-in {}
-            (cons id (map keyword (reverse exts)))
-            {:id id
-             :name name
-             :content content}))
+            (concat [id name] (map keyword (reverse exts)))
+            content))
 
 (defn find-migration-files [migration-dir exclude-scripts]
   (->> (for [f (filter (fn [^File f] (.isFile f))
@@ -101,22 +99,26 @@
 
 (defn make-migration
   "Constructs a Migration instance from the merged migration file maps collected
-  by find-migrations."
+  by find-migrations. Expected structure for `mig` is:
+  {`migration-name` {`migration-type` payload}} where the structure of `payload`
+  is specific to the migration type."
   [config id mig]
   (if-let [id (parse-migration-id id)]
     (if (= 1 (count mig))
-      (let [[mig-type payload] (first mig)]
-        (case mig-type
-          :sql (let [{:keys [up down]} payload]
-                 (sql-mig/->SqlMigration id
-                                         (or (:name up) (:name down))
-                                         (:content up)
-                                         (:content down)))
-          (throw (Exception. (format "Unknown type '%s' for migration %d"
-                                     (name mig-type) id)))))
-      (throw (Exception.
-              (format "Multiple migration types specified for migration %d %s"
-                      id (pr-str (map name (keys mig)))))))
+      (let [[mig-name mig'] (first mig)]
+        (if (= 1 (count mig'))
+          (let [[mig-type payload] (first mig')]
+            (case mig-type
+              :sql (sql-mig/->SqlMigration id mig-name
+                                           (:up payload) (:down payload))
+              (throw (Exception. (format "Unknown type '%s' for migration %d"
+                                         (name mig-type) id)))))
+          (throw (Exception.
+                  (format
+                   "Multiple migration types specified for migration %d %s"
+                   id (pr-str (map name (keys mig'))))))))
+      (throw (Exception. (format "Multiple migrations with id %d %s"
+                                 id (pr-str (keys mig))))))
     (throw (Exception. (str "Invalid migration id: " id)))))
 
 (defn list-migrations [config]
