@@ -36,3 +36,14 @@
     "Frees resources necessary to run migrations against the store."))
 
 (defmulti make-store :store)
+
+(defmulti make-migration*
+  "Dispatcher to create migrations based on filename extension. To add support
+  for a new migration filename type, add a new defmethod for this."
+  (fn [mig-type mig-id mig-name payload config]
+    mig-type))
+
+(defmethod make-migration* :default
+  [mig-type mig-id mig-name payload config]
+  (throw (Exception. (format "Unknown type '%s' for migration %d"
+                             (clojure.core/name mig-type) mig-id))))

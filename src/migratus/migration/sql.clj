@@ -49,3 +49,7 @@
     (if down
       (run-sql config down :down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
+
+(defmethod proto/make-migration* :sql
+  [_ mig-id mig-name payload config]
+  (->SqlMigration mig-id mig-name (:up payload) (:down payload)))

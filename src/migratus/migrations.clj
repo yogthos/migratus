@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [migratus.migration.sql :as sql-mig]
+            migratus.migration.sql
+            [migratus.protocols :as proto]
             [migratus.utils :as utils])
   (:import [java.io File StringWriter]
            java.text.SimpleDateFormat
@@ -108,11 +109,7 @@
       (let [[mig-name mig'] (first mig)]
         (if (= 1 (count mig'))
           (let [[mig-type payload] (first mig')]
-            (case mig-type
-              :sql (sql-mig/->SqlMigration id mig-name
-                                           (:up payload) (:down payload))
-              (throw (Exception. (format "Unknown type '%s' for migration %d"
-                                         (name mig-type) id)))))
+            (proto/make-migration* mig-type id mig-name payload config))
           (throw (Exception.
                   (format
                    "Multiple migration types specified for migration %d %s"
