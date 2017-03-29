@@ -53,3 +53,8 @@
 (defmethod proto/make-migration* :sql
   [_ mig-id mig-name payload config]
   (->SqlMigration mig-id mig-name (:up payload) (:down payload)))
+
+(defmethod proto/migration-files* :sql
+  [_ migration-name]
+  [(str migration-name ".up.sql")
+   (str migration-name ".down.sql")])

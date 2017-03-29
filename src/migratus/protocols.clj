@@ -47,3 +47,13 @@
   [mig-type mig-id mig-name payload config]
   (throw (Exception. (format "Unknown type '%s' for migration %d"
                              (clojure.core/name mig-type) mig-id))))
+
+(defmulti migration-files*
+  "Dispatcher to get a list of filenames to create when creating new migrations"
+  (fn [mig-type migration-name]
+    mig-type))
+
+(defmethod migration-files* :default
+  [mig-type migration-name]
+  (throw (Exception. (format "Unknown migration type '%s'"
+                             (clojure.core/name mig-type)))))

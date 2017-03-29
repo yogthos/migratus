@@ -124,18 +124,16 @@
                                    (utils/get-exclude-scripts config))]
      (make-migration config id mig))))
 
-(defn create [config name]
+(defn create [config name migration-type]
   (let [migration-dir (find-or-create-migration-dir (get-migration-dir config))
-        migration-name (->kebab-case (str (timestamp) name))
-        migration-up-name (str migration-name ".up.sql")
-        migration-down-name (str migration-name ".down.sql")]
-    (.createNewFile (File. migration-dir migration-up-name))
-    (.createNewFile (File. migration-dir migration-down-name))))
+        migration-name (->kebab-case (str (timestamp) name))]
+    (doseq [mig-file (proto/migration-files* migration-type migration-name)]
+      (.createNewFile (io/file migration-dir mig-file)))))
 
 (defn destroy [config name]
   (let [migration-dir (utils/find-migration-dir (get-migration-dir config))
         migration-name (->kebab-case name)
-        pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
+        pattern (re-pattern (str "[\\d]*-" migration-name "\\..*"))
         migrations (file-seq migration-dir)]
     (doseq [f (filter #(re-find pattern (.getName %)) migrations)]
       (.delete f))))

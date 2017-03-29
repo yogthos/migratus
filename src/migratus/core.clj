@@ -129,8 +129,8 @@
 
 (defn create
   "Create a new migration with the current date"
-  [config & [name]]
-  (mig/create config name))
+  [config & [name type]]
+  (mig/create config name (or type :sql)))
 
 (defn destroy
   "Destroy migration"
