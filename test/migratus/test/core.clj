@@ -31,7 +31,7 @@
   (let [ups (atom [])
         downs (atom [])
         config {:store :mock
-                :completed-ids [1 3]}]
+                :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (migrate config))
     (is (= [2 4] @ups))
@@ -41,7 +41,7 @@
   (let [ups (atom [])
         downs (atom [])
         config {:store :mock
-                :completed-ids [1 3]}]
+                :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should bring up an uncompleted migration"
         (up config 4 2)
@@ -58,7 +58,7 @@
   (let [ups (atom [])
         downs (atom [])
         config {:store :mock
-                :completed-ids [1 3]}]
+                :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should bring down a completed migration"
         (down config 1 3)
@@ -125,7 +125,7 @@
   (let [ups (atom [])
         downs (atom [])
         config {:store :mock
-                :completed-ids [1]}]
+                :completed-ids (atom #{1})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should return the list of pending migrations"
         (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"

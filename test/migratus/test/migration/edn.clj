@@ -1,7 +1,9 @@
 (ns migratus.test.migration.edn
   (:require [clojure.java.io :as io]
             [clojure.test :refer :all]
+            [migratus.core :as core]
             [migratus.migration.edn :refer :all]
+            migratus.mock
             [migratus.protocols :as proto])
   (:import java.io.File))
 
@@ -111,3 +113,14 @@
     (is (test-file-exists?))
     (proto/down mig test-config)
     (is (test-file-exists?))))
+
+(deftest test-run-edn-migrations
+  (let [config (merge test-config
+                      {:store :mock
+                       :completed-ids (atom #{})
+                       :migration-dir "migrations-edn"})]
+    (is (not (test-file-exists?)))
+    (core/migrate config)
+    (is (test-file-exists?))
+    (core/rollback config)
+    (is (not (test-file-exists?)))))
