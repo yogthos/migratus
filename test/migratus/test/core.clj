@@ -71,29 +71,37 @@
         (is (empty? @ups))
         (is (empty? @downs))))))
 
-(defn- migration-exists? [name]
-    (let [migrations (file-seq (utils/find-migration-dir "migrations"))
-          names (map #(.getName %) migrations)]
-        (filter #(.contains % name) names)))
+(defn- migration-exists? [name & [dir]]
+  (let [migrations (file-seq (utils/find-migration-dir (or dir "migrations")))
+        names (map #(.getName %) migrations)]
+    (seq (filter #(.contains % name) names))))
 
 (deftest test-create-and-destroy
-    (let [config {:store :database}
-          migration "create-user"
-          migration-up  "create-user.up.sql"
-          migration-down "create-user.down.sql"]
-        (testing "should create two migrations"
-            (create config migration)
-            (is (migration-exists? migration-up))
-            (is (migration-exists? migration-down)))
-        (testing "should delete two migrations"
-            (destroy config migration)
-            (is (empty? (migration-exists? migration-up)))
-            (is (empty? (migration-exists? migration-down))))))
+  (let [migration "create-user"
+        migration-up  "create-user.up.sql"
+        migration-down "create-user.down.sql"]
+    (testing "should create two migrations"
+      (create nil migration)
+      (is (migration-exists? migration-up))
+      (is (migration-exists? migration-down)))
+    (testing "should delete two migrations"
+      (destroy nil migration)
+      (is (empty? (migration-exists? migration-up)))
+      (is (empty? (migration-exists? migration-down))))))
+
+(deftest test-create-and-destroy-edn
+  (let [migration "create-other-user"
+        migration-edn "create-other-user.edn"]
+    (testing "should create the migration"
+      (create nil migration :edn)
+      (is (migration-exists? migration-edn)))
+    (testing "should delete the migration"
+      (destroy nil migration)
+      (is (empty? (migration-exists? migration-edn))))))
 
 (deftest test-create-missing-directory
   (let [migration-dir "doesnt_exist"
-        config {:store :database
-                :migration-dir migration-dir}
+        config {:migration-dir migration-dir}
         migration "create-user"
         migration-up  "create-user.up.sql"
         migration-down  "create-user.down.sql"]
@@ -105,8 +113,8 @@
       (is (nil? (utils/find-migration-dir migration-dir)))
       (create config migration)
       (is (not (nil? (utils/find-migration-dir migration-dir))))
-      (is (migration-exists? migration-up))
-      (is (migration-exists? migration-down)))
+      (is (migration-exists? migration-up migration-dir))
+      (is (migration-exists? migration-down migration-dir)))
 
     ;; Clean up after ourselves
     (when (.exists (io/file "resources" migration-dir))
