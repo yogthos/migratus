@@ -26,8 +26,17 @@
     (and (.exists f)
          (= "Hello, world!" (slurp f)))))
 
+(use-fixtures :once
+  (fn [f]
+    (f)
+    ;; `lein test` thinks it needs to test this namespace, so make sure
+    ;; that it exists when we're done
+    (require test-namespace)))
+
 (use-fixtures :each
   (fn [f]
+    ;; unload the namespace before each test to ensure that it's loaded
+    ;; appropriately by the edn-migration code.
     (unload test-namespace)
     (recursive-delete (io/file test-dir))
     (f)))
