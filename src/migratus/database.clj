@@ -14,29 +14,18 @@
 (ns migratus.database
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
-            [clojure.java.classpath :as cp]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto])
-  (:import [java.io File StringWriter]
+            [migratus.migration.sql :as sql-mig]
+            [migratus.protocols :as proto]
+            [migratus.utils :as utils])
+  (:import java.io.File
            [java.sql Connection SQLException]
-           java.text.SimpleDateFormat
-           java.util.Date
-           [java.util.jar JarEntry JarFile]
-           java.util.regex.Pattern))
+           java.util.jar.JarEntry))
 
-(defn ->kebab-case [s]
-  (-> (reduce
-        (fn [s c]
-          (if (and
-                (not-empty s)
-                (Character/isLowerCase (last s))
-                (Character/isUpperCase c))
-            (str s "-" c)
-            (str s c)))
-        "" s)
-      (clojure.string/replace #"[\s]+" "-")
-      (.replaceAll "_" "-")
-      (.toLowerCase)))
+(def default-migrations-table "schema_migrations")
+
+(defn migration-table-name [config]
+  (:migration-table-name config default-migrations-table))
 
 (def reserved-id -1)
 
@@ -60,140 +49,35 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-(def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
-(def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
-(def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
-
-(defn sanitize [command]
-  (-> command
-      (clojure.string/replace sql-comment "")
-      (clojure.string/replace empty-line "")))
-
-(defn split-commands [commands]
-  (->> (.split sep commands)
-       (map sanitize)
-       (remove empty?)
-       (not-empty)))
-
-(defn execute-command [t-con table-name c id]
-  (log/trace "executing" c)
-  (try
-    (sql/db-do-prepared t-con c)
-    (catch Throwable t
-      (log/error t "failed to execute command:\n" c "\n")
-      (throw t))))
-
-(defn up* [db table-name id up modify-sql-fn]
-  (if (mark-reserved db table-name)
-    (try
-      (sql/with-db-transaction
-        [t-con db]
-        (when-not (complete? t-con table-name id)
-          (when-let [commands (map modify-sql-fn (split-commands up))]
-            (log/debug "found" (count commands) "up migrations")
-            (doseq [c commands]
-              (execute-command t-con table-name c id))
+(defn migrate-up* [db config migration]
+  (let [id (proto/id migration)
+        table-name (migration-table-name config)]
+    (if (mark-reserved db table-name)
+      (try
+        (sql/with-db-transaction
+          [t-con db]
+          (when-not (complete? t-con table-name id)
+            (proto/up migration (assoc config :conn t-con))
             (mark-complete t-con table-name id)
-            :success)))
-      (finally
-        (mark-unreserved db table-name)))
-    :ignore))
+            :success))
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
 
-(defn down* [db table-name id down modify-sql-fn]
-  (if (mark-reserved db table-name)
-    (try
-      (sql/with-db-transaction
-        [t-con db]
-        (when (complete? t-con table-name id)
-          (when-let [commands (map modify-sql-fn (split-commands down))]
-            (log/debug "found" (count commands) "down migrations")
-            (doseq [c commands]
-              (log/trace "executing" c)
-              (sql/db-do-prepared t-con c))
+(defn migrate-down* [db config migration]
+  (let [id (proto/id migration)
+        table-name (migration-table-name config)]
+    (if (mark-reserved db table-name)
+      (try
+        (sql/with-db-transaction
+          [t-con db]
+          (when (complete? t-con table-name id)
+            (proto/down migration (assoc config :conn t-con))
             (mark-not-complete t-con table-name id)
-            :success)))
-      (finally
-        (mark-unreserved db table-name)))
-    :ignore))
-
-(def migration-file-pattern #"^(\d+)-([^\.]+)\.(up|down)\.sql$")
-
-(defn parse-name [file-name]
-  (next (re-matches migration-file-pattern file-name)))
-
-(defn find-migration-dir [dir]
-  (->> (cp/classpath-directories)
-       (map #(io/file % dir))
-       (filter #(.exists ^File %))
-       first))
-
-(def default-migration-parent "resources/")
-
-(def default-init-script-name "init.sql")
-
-(defn find-or-create-migration-dir [dir]
-  (if-let [migration-dir (find-migration-dir dir)]
-    migration-dir
-
-    ;; Couldn't find the migration dir, create it
-    (let [new-migration-dir (io/file default-migration-parent dir)]
-      (io/make-parents new-migration-dir ".")
-      new-migration-dir)))
-
-(defn warn-on-invalid-migration [file-name]
-  (log/warn (str "skipping: '" file-name "'")
-            "migrations must match pattern:"
-            (str migration-file-pattern)))
-
-(defn find-migration-files [migration-dir init-script-name]
-  (->> (for [f (filter (fn [^File f] (.isFile f))
-                       (file-seq migration-dir))
-             :let [file-name (.getName ^File f)]]
-         (if-let [[id name direction] (parse-name file-name)]
-           {id {direction {:id        id
-                           :name      name
-                           :direction direction
-                           :content   (slurp f)}}}
-           (when (not= (.getName f) init-script-name)
-             (warn-on-invalid-migration file-name))))
-       (remove nil?)))
-
-(defn ensure-trailing-slash [dir]
-  (if (not= (last dir) \/)
-    (str dir "/")
-    dir))
-
-(defn find-migration-jar [dir]
-  (first (for [jar (cp/classpath-jarfiles)
-               :when (some #(.matches (.getName ^JarEntry %)
-                                      (str "^" (Pattern/quote dir) ".+"))
-                           (enumeration-seq (.entries ^JarFile jar)))]
-           jar)))
-
-(defn find-migration-resources [dir jar init-script-name]
-  (->> (for [entry (enumeration-seq (.entries jar))
-             :when (.matches (.getName ^JarEntry entry)
-                             (str "^" (Pattern/quote dir) ".+"))
-             :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")]]
-         (if-let [[id name direction] (parse-name entry-name)]
-           (let [w (StringWriter.)]
-             (io/copy (.getInputStream ^JarFile jar entry) w)
-             {id {direction {:id        id
-                             :name      name
-                             :direction direction
-                             :content   (.toString w)}}})
-           (when (not= entry-name init-script-name)
-             (warn-on-invalid-migration entry-name))))
-       (remove nil?)))
-
-(defn find-migrations [dir & [init-script-name]]
-  (->> (let [init-script (or init-script-name default-init-script-name)
-             dir (ensure-trailing-slash dir)]
-         (if-let [migration-dir (find-migration-dir dir)]
-           (find-migration-files migration-dir init-script)
-           (if-let [migration-jar (find-migration-jar dir)]
-             (find-migration-resources dir migration-jar init-script))))
-       (apply (partial merge-with merge))))
+            :success))
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
@@ -210,37 +94,11 @@
        (io/resource)))
 
 (defn find-init-script [dir init-script-name]
-  (let [dir (ensure-trailing-slash dir)]
-    (if-let [migration-dir (find-migration-dir dir)]
+  (let [dir (utils/ensure-trailing-slash dir)]
+    (if-let [migration-dir (utils/find-migration-dir dir)]
       (find-init-script-file migration-dir init-script-name)
-      (if-let [migration-jar (find-migration-jar dir)]
+      (if-let [migration-jar (utils/find-migration-jar dir)]
         (find-init-script-resource dir migration-jar init-script-name)))))
-
-(def default-migrations-table "schema_migrations")
-
-(defn migration-table-name [config]
-  (:migration-table-name config default-migrations-table))
-
-(defn parse-migration-id [id]
-  (try
-    (Long/parseLong id)
-    (catch Exception e
-      (log/error e (str "failed to parse migration id: " id)))))
-
-(defrecord Migration [db table-name id name up down modify-sql-fn]
-  proto/Migration
-  (id [this]
-    id)
-  (name [this]
-    name)
-  (up [this]
-    (if up
-      (up* db table-name id up modify-sql-fn)
-      (throw (Exception. (format "Up commands not found for %d" id)))))
-  (down [this]
-    (if down
-      (down* db table-name id down modify-sql-fn)
-      (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
   (let [^Connection conn
@@ -262,17 +120,6 @@
     (->> (sql/query t-con (str "select id from " table-name " where id != " reserved-id))
          (map :id)
          (doall))))
-
-(defn migrations* [db migration-dir table-name init-script-name modify-sql-fn]
-  (for [[id mig] (find-migrations migration-dir init-script-name)
-        :let [{:strs [up down]} mig]]
-    (Migration. db
-                table-name
-                (parse-migration-id (or (:id up) (:id down)))
-                (or (:name up) (:name down))
-                (:content up)
-                (:content down)
-                modify-sql-fn)))
 
 (defn table-exists?
   "Checks whether the migrations table exists, by attempting to select from
@@ -320,58 +167,31 @@
           (throw t))))
     (log/error "could not locate the initialization script '" init-script-name "'")))
 
-(defn- timestamp []
-  (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
-    (.format fmt (Date.))))
-
-(defn destroy* [files]
-  (doseq [f files]
-    (.delete f)))
-
-(defrecord Database [config]
+(defrecord Database [connection config]
   proto/Store
   (config [this] config)
   (init [this]
     (let [conn (connect* (:db config))]
       (try
         (init-db! conn
-                  (:migration-dir config)
-                  (get config :init-script default-init-script-name)
+                  (utils/get-migration-dir config)
+                  (utils/get-init-script config)
                   (get config :modify-sql-fn identity))
         (finally
           (disconnect* conn)))))
   (completed-ids [this]
-    (completed-ids* @(:connection config) (migration-table-name config)))
-  (migrations [this]
-    (migrations* @(:connection config)
-                 (:migration-dir config)
-                 (migration-table-name config)
-                 (get config :init-script default-init-script-name)
-                 (get config :modify-sql-fn identity)))
-  (create [this name]
-    (let [migration-dir (find-or-create-migration-dir (:migration-dir config))
-          migration-name (->kebab-case (str (timestamp) name))
-          migration-up-name (str migration-name ".up.sql")
-          migration-down-name (str migration-name ".down.sql")]
-      (.createNewFile (File. migration-dir migration-up-name))
-      (.createNewFile (File. migration-dir migration-down-name))))
-  (destroy [this name]
-    (let [migration-dir (find-migration-dir (:migration-dir config))
-          migration-name (->kebab-case name)
-          pattern (re-pattern (str "[\\d]*-" migration-name ".*.sql"))
-          migrations (file-seq migration-dir)]
-      (when-let [files (filter #(re-find pattern (.getName %)) migrations)]
-        (destroy* files))))
+    (completed-ids* @connection (migration-table-name config)))
+  (migrate-up [this migration]
+    (migrate-up* @connection config migration))
+  (migrate-down [this migration]
+    (migrate-down* @connection config migration))
   (connect [this]
-    (reset! (:connection config) (connect* (:db config)))
-    (init-schema! @(:connection config) (migration-table-name config) (get config :modify-sql-fn identity)))
+    (reset! connection (connect* (:db config)))
+    (init-schema! @connection (migration-table-name config) (get config :modify-sql-fn identity)))
   (disconnect [this]
-    (disconnect* @(:connection config))
-    (reset! (:connection config) nil)))
+    (disconnect* @connection)
+    (reset! connection nil)))
 
 (defmethod proto/make-store :database
   [config]
-  (-> config
-      (update-in [:migration-dir] #(or % "migrations"))
-      (assoc :connection (atom nil))
-      (Database.)))
+  (->Database (atom nil) config))

@@ -17,8 +17,8 @@
 (defprotocol Migration
   (id [this] "Id of this migration.")
   (name [this] "Name of this migration")
-  (up [this] "Bring this migration up.")
-  (down [this] "Bring this migration down."))
+  (up [this config] "Bring this migration up.")
+  (down [this config] "Bring this migration down."))
 
 (defprotocol Store
   (config [this])
@@ -26,15 +26,34 @@
     "Initialize the data store.")
   (completed-ids [this]
     "Seq of ids of completed migrations.")
-  (migrations [this]
-    "Seq of migrations (completed or not).")
-  (create [this name]
-    "Create a new migration")
-  (destroy [this name]
-    "Destroy migration")
+  (migrate-up [this migration]
+    "Run and record an up migration")
+  (migrate-down [this migration]
+    "Run and record a down migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]
     "Frees resources necessary to run migrations against the store."))
 
 (defmulti make-store :store)
+
+(defmulti make-migration*
+  "Dispatcher to create migrations based on filename extension. To add support
+  for a new migration filename type, add a new defmethod for this."
+  (fn [mig-type mig-id mig-name payload config]
+    mig-type))
+
+(defmethod make-migration* :default
+  [mig-type mig-id mig-name payload config]
+  (throw (Exception. (format "Unknown type '%s' for migration %d"
+                             (clojure.core/name mig-type) mig-id))))
+
+(defmulti migration-files*
+  "Dispatcher to get a list of filenames to create when creating new migrations"
+  (fn [mig-type migration-name]
+    mig-type))
+
+(defmethod migration-files* :default
+  [mig-type migration-name]
+  (throw (Exception. (format "Unknown migration type '%s'"
+                             (clojure.core/name mig-type)))))
