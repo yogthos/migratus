@@ -30,10 +30,6 @@
   (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
     (.format fmt (Date.))))
 
-(defn get-migration-dir [config]
-  ;; TODO - find a better home for me.
-  (get config :migration-dir "migrations"))
-
 (defn parse-migration-id [id]
   (try
     (Long/parseLong id)
@@ -121,18 +117,20 @@
 
 (defn list-migrations [config]
   (doall
-   (for [[id mig] (find-migrations (get-migration-dir config)
+   (for [[id mig] (find-migrations (utils/get-migration-dir config)
                                    (utils/get-exclude-scripts config))]
      (make-migration config id mig))))
 
 (defn create [config name migration-type]
-  (let [migration-dir (find-or-create-migration-dir (get-migration-dir config))
+  (let [migration-dir (find-or-create-migration-dir
+                       (utils/get-migration-dir config))
         migration-name (->kebab-case (str (timestamp) name))]
     (doseq [mig-file (proto/migration-files* migration-type migration-name)]
       (.createNewFile (io/file migration-dir mig-file)))))
 
 (defn destroy [config name]
-  (let [migration-dir (utils/find-migration-dir (get-migration-dir config))
+  (let [migration-dir (utils/find-migration-dir
+                       (utils/get-migration-dir config))
         migration-name (->kebab-case name)
         pattern (re-pattern (str "[\\d]*-" migration-name "\\..*"))
         migrations (file-seq migration-dir)]

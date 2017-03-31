@@ -49,10 +49,9 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-(defn migrate-up* [config migration]
+(defn migrate-up* [db config migration]
   (let [id (proto/id migration)
-        table-name (migration-table-name config)
-        db @(:connection config)]
+        table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
         (sql/with-db-transaction
@@ -65,10 +64,9 @@
           (mark-unreserved db table-name)))
       :ignore)))
 
-(defn migrate-down* [config migration]
+(defn migrate-down* [db config migration]
   (let [id (proto/id migration)
-        table-name (migration-table-name config)
-        db @(:connection config)]
+        table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
         (sql/with-db-transaction
@@ -169,34 +167,31 @@
           (throw t))))
     (log/error "could not locate the initialization script '" init-script-name "'")))
 
-(defrecord Database [config]
+(defrecord Database [connection config]
   proto/Store
   (config [this] config)
   (init [this]
     (let [conn (connect* (:db config))]
       (try
         (init-db! conn
-                  (:migration-dir config)
-                  (get config :init-script utils/default-init-script-name)
+                  (utils/get-migration-dir config)
+                  (utils/get-init-script config)
                   (get config :modify-sql-fn identity))
         (finally
           (disconnect* conn)))))
   (completed-ids [this]
-    (completed-ids* @(:connection config) (migration-table-name config)))
+    (completed-ids* @connection (migration-table-name config)))
   (migrate-up [this migration]
-    (migrate-up* config migration))
+    (migrate-up* @connection config migration))
   (migrate-down [this migration]
-    (migrate-down* config migration))
+    (migrate-down* @connection config migration))
   (connect [this]
-    (reset! (:connection config) (connect* (:db config)))
-    (init-schema! @(:connection config) (migration-table-name config) (get config :modify-sql-fn identity)))
+    (reset! connection (connect* (:db config)))
+    (init-schema! @connection (migration-table-name config) (get config :modify-sql-fn identity)))
   (disconnect [this]
-    (disconnect* @(:connection config))
-    (reset! (:connection config) nil)))
+    (disconnect* @connection)
+    (reset! connection nil)))
 
 (defmethod proto/make-store :database
   [config]
-  (-> config
-      (update-in [:migration-dir] #(or % "migrations"))
-      (assoc :connection (atom nil))
-      (Database.)))
+  (->Database (atom nil) config))

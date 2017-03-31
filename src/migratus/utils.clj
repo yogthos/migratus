@@ -5,7 +5,13 @@
            [java.util.jar JarEntry JarFile]
            java.util.regex.Pattern))
 
+(def default-migration-dir "migrations")
 (def default-init-script-name "init.sql")
+
+(defn get-migration-dir
+  "Gets the :migration-dir from config, or default if missing."
+  [config]
+  (get config :migration-dir default-migration-dir))
 
 (defn get-init-script
   "Gets the :init-script from config, or default if missing."
