@@ -5,7 +5,8 @@
 
   [[https://cdn.rawgit.com/yogthos/migratus/master/migrate.png]]
 
-  A general migration framework, with an implementation for database migrations.
+  A general migration framework, with implementations for migrations as SQL
+  scripts or general Clojure code.
 
   Designed to be compatible with a git based work flow where multiple topic
   branches may exist simultaneously, and be merged into a master branch in
@@ -129,6 +130,73 @@ This will result with up/down migration files being created prefixed with the cu
 
      : 20150701134958-create-user.up.sql
      : 20150701134958-create-user.down.sql
+
+** Code-based Migrations
+
+   Application developers often encounter situations where migrations
+   cannot be easily expressed as a SQL script. For instance:
+
+   - Executing programmatically-generated DDL statements
+     (e.g. updating the schema of a dynamically-sharded table).
+   - Transferring data between database servers.
+   - Backfilling existing records with information that must be
+     retrieved from an external system.
+
+   A common approach in these scenarios is to write one-off scripts
+   which an admin must manually apply for each instance of the
+   application, but issues arise if a script is not run or run
+   multiple times.
+
+   Migratus addresses this problem by providing support for code-based
+   migrations. You can write a migration as a Clojure function, and
+   Migratus will ensure that it's run exactly once for each instance
+   of the application.
+
+*** Defining a code-based migration
+
+    Create a code-based migration by adding a =.edn= file to your
+    migrations directory that contains the namespace and up/down
+    functions to run,
+    e.g. =resources/migrations/20170331141500-import-users.edn=:
+
+    : {:ns app.migrations.import-users
+    :  :up-fn migrate-up
+    :  :down-fn migrate-down}
+
+    Then, in =src/app/migrations/import_users.clj=:
+
+    : (ns app.migrations.import-users)
+    :
+    : (defn migrate-up [config]
+    :   ;; do stuff here
+    :   )
+    :
+    : (defn migrate-down [config]
+    :   ;; maybe undo stuff here
+    :   )
+
+    - The up and down migration functions should both accept a single
+      parameter, which is the config map passed to Migratus (so your
+      migrations can be configurable).
+    - You can omit the up or down migration by setting =:up-fn= or
+      =down-fn= to =nil= in the EDN file.
+
+*** Generate code-based migration files
+
+    The =migratus.core/create= function accepts an optional type
+    parameter, which you can pass as =:edn= to create a new migration
+    file.
+
+    : (migratus/create config "import-users" :edn)
+
+*** Mixing SQL and code-based migrations
+
+    You can include both SQL and code-based migrations in the same
+    migrations directory, in which case they will be run intermixed in
+    the order defined by their timestamps and their status stored in
+    the same table in the migrations database. This way if there are
+    dependencies between your SQL and code-based migrations, you can
+    be assured that they'll run in the correct order.
 
 ** Quick Start (Leiningen 2.x)
 
