@@ -44,5 +44,15 @@
            jar)))
 
 (defn deep-merge
+  "Merge keys at all nested levels of the maps."
   [& maps]
   (apply merge-with deep-merge maps))
+
+(defn recursive-delete
+  "Delete a file, including all children if it's a directory"
+  [^File f]
+  (when (.exists f)
+    (if (.isDirectory f)
+      (doseq [child (.listFiles f)]
+        (recursive-delete child))
+      (.delete f))))

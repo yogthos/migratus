@@ -18,7 +18,10 @@
             [migratus.core :as core]
             [clojure.test :refer :all]
             [migratus.database :refer :all]
-            migratus.logger))
+            migratus.logger
+            [migratus.test.migration.edn :as test-edn]
+            [migratus.utils :as utils])
+  (:import java.io.File))
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
@@ -175,3 +178,39 @@
        (mark-unreserved db migration-table-name)
        (core/down config 20111202110600)
        (is (not (verify-table-exists? config "foo")))))))
+
+(defn copy-dir
+  [^File from ^File to]
+  (when-not (.exists to)
+    (.mkdirs to))
+  (doseq [f (.listFiles from)
+          :when (.isFile f)]
+    (io/copy f (io/file to (.getName f)))))
+
+(deftest test-migration-sql-edn-mixed
+  (let [migrations-dir (io/file "resources/migrations-mixed")
+        test-config (merge config
+                           test-edn/test-config
+                           {:migration-dir "migrations-mixed"})]
+    (try
+      (utils/recursive-delete (io/file test-edn/test-dir))
+      (utils/recursive-delete migrations-dir)
+      (copy-dir (io/file "test/migrations") migrations-dir)
+      (copy-dir (io/file "test/migrations-edn") migrations-dir)
+
+      (is (not (verify-table-exists? test-config "foo")))
+      (is (not (verify-table-exists? test-config "bar")))
+      (is (not (verify-table-exists? test-config "quux")))
+      (is (not (verify-table-exists? test-config "quux2")))
+      (is (not (test-edn/test-file-exists?)))
+
+      (core/migrate test-config)
+
+      (is (verify-table-exists? test-config "foo"))
+      (is (verify-table-exists? test-config "bar"))
+      (is (verify-table-exists? test-config "quux"))
+      (is (verify-table-exists? test-config "quux2"))
+      (is (test-edn/test-file-exists?))
+
+      (finally
+        (utils/recursive-delete migrations-dir)))))

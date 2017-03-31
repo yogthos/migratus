@@ -4,15 +4,9 @@
             [migratus.core :as core]
             [migratus.migration.edn :refer :all]
             migratus.mock
-            [migratus.protocols :as proto])
+            [migratus.protocols :as proto]
+            [migratus.utils :as utils])
   (:import java.io.File))
-
-(defn recursive-delete [^File f]
-  (when (.exists f)
-    (if (.isDirectory f)
-      (doseq [child (.listFiles f)]
-        (recursive-delete child))
-      (.delete f))))
 
 (defn unload [ns-sym]
   (remove-ns ns-sym)
@@ -40,7 +34,7 @@
     ;; unload the namespace before each test to ensure that it's loaded
     ;; appropriately by the edn-migration code.
     (unload test-namespace)
-    (recursive-delete (io/file test-dir))
+    (utils/recursive-delete (io/file test-dir))
     (f)))
 
 (deftest test-to-sym
