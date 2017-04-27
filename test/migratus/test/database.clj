@@ -22,7 +22,8 @@
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils])
-  (:import java.io.File))
+  (:import java.io.File
+           java.util.jar.JarFile))
 
 (def config (merge test-sql/test-config
                    {:store :database
@@ -37,6 +38,13 @@
       (proto/disconnect store))))
 
 (use-fixtures :each test-sql/setup-test-db)
+
+(deftest test-find-init-script-resource
+  (testing "finds init.sql under migrations/ in a JAR file"
+    (let [jar-file    (JarFile. "test/migrations-jar/init-test.jar")
+          init-script (find-init-script-resource "migrations/" jar-file "init.sql")]
+      (is (not (nil? init-script)))
+      (is (= "CREATE SCHEMA foo;\n" (slurp init-script))))))
 
 (deftest test-make-store
   (testing "should create default table name"
