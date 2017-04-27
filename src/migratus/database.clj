@@ -85,13 +85,13 @@
             (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
-  (->> (.entries jar)
-       (enumeration-seq)
-       (filter (fn [^JarEntry entry]
-                 (= (.getName ^JarEntry entry) init-script-name)))
-       (first)
-       (.getName)
-       (io/resource)))
+  (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
+    (->> (.entries jar)
+         (enumeration-seq)
+         (filter (fn [^JarEntry entry]
+                   (.endsWith (.getName entry) init-script-path)))
+         (first)
+         (.getInputStream jar))))
 
 (defn find-init-script [dir init-script-name]
   (let [dir (utils/ensure-trailing-slash dir)]
