@@ -52,9 +52,11 @@
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
-(defn mark-complete [db table-name id]
+(defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
-  (sql/insert! db table-name {:id id}))
+  (sql/insert! db table-name {:id id
+                              :applied (Date.)
+                              :description description}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
@@ -83,7 +85,7 @@
       (log/error t "failed to execute command:\n" c "\n")
       (throw t))))
 
-(defn up* [db table-name id up modify-sql-fn]
+(defn up* [db table-name description id up modify-sql-fn]
   (if (mark-reserved db table-name)
     (try
       (sql/with-db-transaction
@@ -93,13 +95,13 @@
             (log/debug "found" (count commands) "up migrations")
             (doseq [c commands]
               (execute-command t-con table-name c id))
-            (mark-complete t-con table-name id)
+            (mark-complete t-con table-name description id)
             :success)))
       (finally
         (mark-unreserved db table-name)))
     :ignore))
 
-(defn down* [db table-name id down modify-sql-fn]
+(defn down* [db table-name description id down modify-sql-fn]
   (if (mark-reserved db table-name)
     (try
       (sql/with-db-transaction
@@ -235,11 +237,11 @@
     name)
   (up [this]
     (if up
-      (up* db table-name id up modify-sql-fn)
+      (up* db table-name name id up modify-sql-fn)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this]
     (if down
-      (down* db table-name id down modify-sql-fn)
+      (down* db table-name name id down modify-sql-fn)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defn connect* [db]
@@ -305,7 +307,9 @@
       [t-con db]
       (sql/db-do-commands t-con
                           (modify-sql-fn
-                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]]))))))
+                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                             [:applied "datetime" "" ""]
+                                                             [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn init-db! [db migration-dir init-script-name modify-sql-fn]
   (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]

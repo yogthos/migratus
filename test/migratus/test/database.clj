@@ -46,6 +46,12 @@
     (.close (:connection db))
     result))
 
+(defn verify-data [config table-name]
+  (let [db (connect* (:db config))
+        result (sql/query db [(str "SELECT * from " table-name)])]
+    (.close (:connection db))
+    result))
+
 (defn test-with-store [store & commands]
   (try
     (proto/connect store)
@@ -59,18 +65,18 @@
 (deftest test-make-store
   (testing "should create default table name"
     (is (not (verify-table-exists?
-               (dissoc config :migration-table-name) default-migrations-table)))
+              (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
-      (proto/make-store (dissoc config :migration-table-name))
-      (fn [config]
-        (is (verify-table-exists? config default-migrations-table)))))
+     (proto/make-store (dissoc config :migration-table-name))
+     (fn [config]
+       (is (verify-table-exists? config default-migrations-table)))))
   (reset-db)
   (testing "should create schema_migrations table"
     (is (not (verify-table-exists? config "foo_bar")))
     (test-with-store
-      (proto/make-store config)
-      (fn [config]
-        (is (verify-table-exists? config "foo_bar"))))))
+     (proto/make-store config)
+     (fn [config]
+       (is (verify-table-exists? config "foo_bar"))))))
 
 (deftest test-init
   (testing "db init"
@@ -230,3 +236,23 @@
        (mark-unreserved db migration-table-name)
        (core/down config 20111202110600)
        (is (not (verify-table-exists? config "foo")))))))
+
+
+(deftest test-description-and-applied-fields
+  (core/migrate config)  
+  (let [from-db (verify-data config (:migration-table-name config))]
+    (testing "descriptions match")
+    (is (= (map #(dissoc % :applied) from-db)
+           '({:id 20111202110600,
+              :description "create-foo-table"}
+             {:id 20111202113000,
+              :description "create-bar-table"}
+             {:id 20120827170200,
+              :description "multiple-statements"})))
+    (testing "applied are timestamps")
+    (is (every? identity (map #(-> %
+                                   :applied
+                                   type
+                                   (= java.sql.Timestamp))
+                              from-db)))))
+
