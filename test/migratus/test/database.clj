@@ -253,9 +253,7 @@
                 {:id 20120827170200,
                  :description "multiple-statements"})))
        (testing "applied are timestamps")
-       (is (every? identity (map #(-> %
-                                      :applied
-                                      type
-                                      (= java.sql.Timestamp))
-                                 from-db)))))))
+       (is (every? (partial = java.sql.Timestamp)
+                   (map #(-> % :applied type) from-db)))))))
+
 
