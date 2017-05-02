@@ -41,15 +41,17 @@
 (defn complete? [db table-name id]
   (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
 
-(defn mark-complete [db table-name id]
+(defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
-  (sql/insert! db table-name {:id id}))
+  (sql/insert! db table-name {:id id
+                              :applied (java.util.Date.)
+                              :description description}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-(defn migrate-up* [db config migration]
+(defn migrate-up* [db config {:keys [name] :as migration}]
   (let [id (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
@@ -58,7 +60,7 @@
           [t-con db]
           (when-not (complete? t-con table-name id)
             (proto/up migration (assoc config :conn t-con))
-            (mark-complete t-con table-name id)
+            (mark-complete t-con table-name name id)
             :success))
         (finally
           (mark-unreserved db table-name)))
@@ -152,7 +154,9 @@
       [t-con db]
       (sql/db-do-commands t-con
                           (modify-sql-fn
-                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]]))))))
+                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                             [:applied "datetime" "" ""]
+                                                             [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn init-db! [db migration-dir init-script-name modify-sql-fn]
   (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]
