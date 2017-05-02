@@ -29,6 +29,12 @@
                    {:store :database
                     :migration-table-name "foo_bar"}))
 
+(defn verify-data [config table-name]
+  (let [db (connect* (:db config))
+        result (sql/query db [(str "SELECT * from " table-name)])]
+    (.close (:connection db))
+    result))
+
 (defn test-with-store [store & commands]
   (try
     (proto/connect store)
@@ -201,3 +207,23 @@
 
       (finally
         (utils/recursive-delete migrations-dir)))))
+
+
+
+(deftest test-description-and-applied-fields
+  (core/migrate config)  
+  (let [from-db (verify-data config (:migration-table-name config))]
+    (testing "descriptions match")
+    (is (= (map #(dissoc % :applied) from-db)
+           '({:id 20111202110600,
+              :description "create-foo-table"}
+             {:id 20111202113000,
+              :description "create-bar-table"}
+             {:id 20120827170200,
+              :description "multiple-statements"})))
+    (testing "applied are timestamps")
+    (is (every? identity (map #(-> %
+                                   :applied
+                                   type
+                                   (= java.sql.Timestamp))
+                              from-db)))))
