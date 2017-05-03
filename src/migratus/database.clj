@@ -44,7 +44,7 @@
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
   (sql/insert! db table-name {:id id
-                              :applied (java.util.Date.)
+                              :applied (java.sql.Timestamp. (.getTime (java.util.Date.)))
                               :description description}))
 
 (defn mark-not-complete [db table-name id]
@@ -155,7 +155,7 @@
       (sql/db-do-commands t-con
                           (modify-sql-fn
                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                             [:applied "datetime" "" ""]
+                                                             [:applied "TIMESTAMP" "" ""]
                                                              [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn init-db! [db migration-dir init-script-name modify-sql-fn]
