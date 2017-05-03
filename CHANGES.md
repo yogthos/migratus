@@ -1,6 +1,10 @@
-0.9.1
+### 0.9.2
 
-### features
+Changedd `datetime` to `timestamp` as it's supported by more databases.
+
+### 0.9.1
+
+#### features
 
 As of version 0.9.1 Migratus writes a human-readable description, and timestamp when the migration was applied.
 This is a breaking change, as the schema for the migration table has changed. Users upgrading from pervious versions
