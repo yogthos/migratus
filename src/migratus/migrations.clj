@@ -14,14 +14,14 @@
 
 (defn ->kebab-case [s]
   (-> (reduce
-        (fn [s c]
-          (if (and
-                (not-empty s)
-                (Character/isLowerCase (last s))
-                (Character/isUpperCase c))
-            (str s "-" c)
-            (str s c)))
-        "" s)
+       (fn [s c]
+         (if (and
+              (not-empty s)
+              (Character/isLowerCase (last s))
+              (Character/isUpperCase c))
+           (str s "-" c)
+           (str s c)))
+       "" s)
       (str/replace #"[\s]+" "-")
       (.replaceAll "_" "-")
       (.toLowerCase)))
@@ -40,9 +40,23 @@
 
 (def migration-file-pattern #"^(\d+)-([^\.]+)((?:\.[^\.]+)+)$")
 
+(defn valid-extension?
+  "Returns true if file-name extension matches one of the file extensions supported
+   by all migration protocols/multimethods implemented"
+  [file-name]
+  (->    (->> (proto/get-all-supported-extensions)
+              (interpose "|"  )
+              (apply str)
+              (format "^.*?\\.(%s)$"))
+         re-pattern
+         (re-matches file-name)
+         boolean))
+
+
 (defn parse-name [file-name]
-  (when-let [[id name ext] (next (re-matches migration-file-pattern file-name))]
-    [id name (remove empty? (str/split ext #"\."))]))
+  (when (valid-extension? file-name)
+    (when-let [[id name ext] (next (re-matches migration-file-pattern file-name))]
+      [id name (remove empty? (str/split ext #"\."))])))
 
 (defn warn-on-invalid-migration [file-name]
   (log/warn (str "skipping: '" file-name "'")

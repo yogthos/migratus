@@ -66,9 +66,7 @@
          (set (list-migrations {:migration-dir "migrations"})))))
 
 (deftest test-list-migrations-bad-type
-  (is (thrown-with-msg?
-       Exception
-       #"Unknown type 'foo' for migration"
+  (is (empty?
        (list-migrations {:migration-dir "migrations-bad-type"}))))
 
 (deftest test-list-migrations-duplicate-type
@@ -82,3 +80,7 @@
        Exception
        #"Multiple migrations with id"
        (list-migrations {:migration-dir "migrations-duplicate-name"}))))
+
+
+
+

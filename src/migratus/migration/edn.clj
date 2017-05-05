@@ -50,6 +50,12 @@
                     (resolve-fn mig-name mig-ns up-fn)
                     (resolve-fn mig-name mig-ns down-fn))))
 
+
+(defmethod proto/get-extension* :edn
+  [_]
+  "edn")
+
+
 (defmethod proto/migration-files* :edn
-  [_ migration-name]
-  [(str migration-name ".edn")])
+  [x migration-name]
+  [(str migration-name "." (proto/get-extension* x))])
