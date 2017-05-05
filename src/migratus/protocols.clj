@@ -57,3 +57,22 @@
   [mig-type migration-name]
   (throw (Exception. (format "Unknown migration type '%s'"
                              (clojure.core/name mig-type)))))
+
+
+(defmulti get-extension*
+  "Dispatcher to get the supported file extension for this migration"
+  (fn [mig-type]
+    mig-type))
+
+(defmethod get-extension* :default
+  [mig-type]
+  (throw (Exception. (format "Unknown migration type '%s'"
+                             (clojure.core/name mig-type)))))
+
+
+(defn get-all-supported-extensions
+  "Returns a seq of all the file extensions supported by all migration protocols"
+  []
+  (for [[k v] (methods get-extension*)
+        :when (-> k (= :default) not)]
+    (v k)))

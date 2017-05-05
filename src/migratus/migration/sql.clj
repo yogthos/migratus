@@ -54,7 +54,13 @@
   [_ mig-id mig-name payload config]
   (->SqlMigration mig-id mig-name (:up payload) (:down payload)))
 
+
+(defmethod proto/get-extension* :sql
+  [_]
+  "sql")
+
 (defmethod proto/migration-files* :sql
-  [_ migration-name]
-  [(str migration-name ".up.sql")
-   (str migration-name ".down.sql")])
+  [x migration-name]
+  (let [ext  (proto/get-extension* x)]
+    [(str migration-name ".up." ext)
+     (str migration-name ".down." ext)]))

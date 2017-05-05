@@ -130,3 +130,10 @@
       (testing "should return the list of pending migrations"
         (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"
                (migratus.core/pending-list config)))))))
+
+
+(deftest supported-extensions
+  (testing "All supported extensions show up. 
+           NOTE: when you add a protocol, to migratus core, update this test")
+  (is (= '("sql" "edn")
+         (proto/get-all-supported-extensions))))
