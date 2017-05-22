@@ -51,6 +51,8 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
+
+
 (defn migrate-up* [db config {:keys [name] :as migration}]
   (let [id (proto/id migration)
         table-name (migration-table-name config)]
@@ -62,6 +64,12 @@
             (proto/up migration (assoc config :conn t-con))
             (mark-complete t-con table-name name id)
             :success))
+        (catch Throwable e
+          (log/error (format "Migration %s failed because %s backing out" name (.getMessage e)))
+          (try
+            (proto/down migration (assoc config :conn db))
+            (catch Throwable e
+              (log/debug e (format "As expected, one of the statements failed in %s while backing out the migration" name)))))
         (finally
           (mark-unreserved db table-name)))
       :ignore)))
@@ -83,8 +91,8 @@
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
-    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
-            (file-seq migration-dir))))
+   (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+           (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
   (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
@@ -199,3 +207,5 @@
 (defmethod proto/make-store :database
   [config]
   (->Database (atom nil) config))
+
+

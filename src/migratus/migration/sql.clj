@@ -24,7 +24,7 @@
   (try
     (sql/db-do-prepared t-con c)
     (catch Throwable t
-      (log/error t "failed to execute command:\n" c "\n")
+      (log/error  (format "failed to execute command:\n %s\nFailure: %s" c (.getMessage t)))
       (throw t))))
 
 (defn run-sql [{:keys [conn db modify-sql-fn]} sql direction]
