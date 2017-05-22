@@ -1,5 +1,6 @@
 (ns migratus.utils
   (:require [clojure.java.classpath :as cp]
+            [clojure.reflect :as reflect]
             [clojure.java.io :as io])
   (:import java.io.File
            [java.util.jar JarEntry JarFile]
@@ -62,3 +63,4 @@
       (doseq [child (.listFiles f)]
         (recursive-delete child))
       (.delete f))))
+

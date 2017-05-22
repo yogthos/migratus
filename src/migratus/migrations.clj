@@ -70,6 +70,7 @@
             content))
 
 (defn find-migration-files [migration-dir exclude-scripts]
+  (log/debug "Looking for migrations in in " migration-dir)
   (->> (for [f (filter (fn [^File f] (.isFile f))
                        (file-seq migration-dir))
              :let [file-name (.getName ^File f)]]
@@ -80,6 +81,7 @@
        (remove nil?)))
 
 (defn find-migration-resources [dir jar init-script-name]
+  (log/debug "Looking for migrations in in " dir jar)
   (->> (for [entry (enumeration-seq (.entries jar))
              :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".+"))

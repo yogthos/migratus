@@ -18,7 +18,7 @@
             [migratus.core :as core]
             [clojure.test :refer :all]
             [migratus.database :refer :all]
-            migratus.logger
+            [clojure.tools.logging :as log]
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils])
@@ -55,18 +55,18 @@
 (deftest test-make-store
   (testing "should create default table name"
     (is (not (test-sql/verify-table-exists?
-               (dissoc config :migration-table-name) default-migrations-table)))
+              (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
-      (proto/make-store (dissoc config :migration-table-name))
-      (fn [config]
-        (is (test-sql/verify-table-exists? config default-migrations-table)))))
+     (proto/make-store (dissoc config :migration-table-name))
+     (fn [config]
+       (is (test-sql/verify-table-exists? config default-migrations-table)))))
   (test-sql/reset-db)
   (testing "should create schema_migrations table"
     (is (not (test-sql/verify-table-exists? config "foo_bar")))
     (test-with-store
-      (proto/make-store config)
-      (fn [config]
-        (is (test-sql/verify-table-exists? config "foo_bar"))))))
+     (proto/make-store config)
+     (fn [config]
+       (is (test-sql/verify-table-exists? config "foo_bar"))))))
 
 (deftest test-init
   (testing "db init"
@@ -181,15 +181,15 @@
     (io/copy f (io/file to (.getName f)))))
 
 (deftest test-migration-sql-edn-mixed
-  (let [migrations-dir (io/file "resources/migrations-mixed")
+  (let [migration-dir (io/file "resources/migrations-mixed")
         test-config (merge config
                            test-edn/test-config
                            {:migration-dir "migrations-mixed"})]
     (try
       (utils/recursive-delete (io/file test-edn/test-dir))
-      (utils/recursive-delete migrations-dir)
-      (copy-dir (io/file "test/migrations") migrations-dir)
-      (copy-dir (io/file "test/migrations-edn") migrations-dir)
+      (utils/recursive-delete migration-dir)
+      (copy-dir (io/file "test/migrations") migration-dir)
+      (copy-dir (io/file "test/migrations-edn") migration-dir)
 
       (is (not (test-sql/verify-table-exists? test-config "foo")))
       (is (not (test-sql/verify-table-exists? test-config "bar")))
@@ -206,7 +206,7 @@
       (is (test-edn/test-file-exists?))
 
       (finally
-        (utils/recursive-delete migrations-dir)))))
+        (utils/recursive-delete migration-dir)))))
 
 
 
@@ -227,3 +227,16 @@
                                    type
                                    (= java.sql.Timestamp))
                               from-db)))))
+
+
+(deftest test-backing-out-bad-migration
+  (log/debug "running backout tests")
+  (let [test-config (assoc config :migration-dir "migrations-intentionally-broken")]
+    (core/migrate test-config)
+    (testing "first statement in migration was backed out because second one failed")
+    (is (not (test-sql/verify-table-exists? test-config "quux2")))
+    (testing "third statement in migration was backed out because second one failed")
+    (is (not (test-sql/verify-table-exists? test-config "quux3")))))
+
+
+
