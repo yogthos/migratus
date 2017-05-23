@@ -64,12 +64,13 @@
             (proto/up migration (assoc config :conn t-con))
             (mark-complete t-con table-name name id)
             :success))
-        (catch Throwable e
-          (log/error (format "Migration %s failed because %s backing out" name (.getMessage e)))
+        (catch Throwable up-e
+          (log/error (format "Migration %s failed because %s backing out" name (.getMessage up-e)))
           (try
             (proto/down migration (assoc config :conn db))
-            (catch Throwable e
-              (log/debug e (format "As expected, one of the statements failed in %s while backing out the migration" name)))))
+            (catch Throwable down-e
+              (log/debug down-e (format "As expected, one of the statements failed in %s while backing out the migration" name))))
+          (throw up-e))
         (finally
           (mark-unreserved db table-name)))
       :ignore)))
