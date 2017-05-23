@@ -232,7 +232,8 @@
 (deftest test-backing-out-bad-migration
   (log/debug "running backout tests")
   (let [{:keys [db migration-table-name] :as test-config} (assoc config :migration-dir "migrations-intentionally-broken")]
-    (core/migrate test-config)
+    (testing "should fail")
+    (is (thrown? Throwable (core/migrate test-config)))
     (testing "first statement in migration was backed out because second one failed")
     (is (not (test-sql/verify-table-exists? test-config "quux2")))
     (testing "third statement in migration was backed out because second one failed")
