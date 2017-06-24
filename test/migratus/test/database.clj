@@ -26,11 +26,11 @@
            java.util.jar.JarFile))
 
 (def config (merge test-sql/test-config
-                   {:store :database
+                   {:store                :database
                     :migration-table-name "foo_bar"}))
 
 (defn verify-data [config table-name]
-  (let [db (connect* (:db config))
+  (let [db     (connect* (:db config))
         result (sql/query db [(str "SELECT * from " table-name)])]
     (.close (:connection db))
     result))
@@ -55,24 +55,30 @@
 (deftest test-make-store
   (testing "should create default table name"
     (is (not (test-sql/verify-table-exists?
-              (dissoc config :migration-table-name) default-migrations-table)))
+               (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
-     (proto/make-store (dissoc config :migration-table-name))
-     (fn [config]
-       (is (test-sql/verify-table-exists? config default-migrations-table)))))
+      (proto/make-store (dissoc config :migration-table-name))
+      (fn [config]
+        (is (test-sql/verify-table-exists? config default-migrations-table)))))
   (test-sql/reset-db)
   (testing "should create schema_migrations table"
     (is (not (test-sql/verify-table-exists? config "foo_bar")))
     (test-with-store
-     (proto/make-store config)
-     (fn [config]
-       (is (test-sql/verify-table-exists? config "foo_bar"))))))
+      (proto/make-store config)
+      (fn [config]
+        (is (test-sql/verify-table-exists? config "foo_bar"))))))
 
 (deftest test-init
   (testing "db init"
-    (test-sql/reset-db)
-    (let [store (proto/make-store config)]
-      (proto/init store))))
+    (let [config (assoc config :init-script "init.sql")]
+      (test-sql/reset-db)
+      (let [store (proto/make-store config)]
+        (proto/init store)
+        (is (test-sql/verify-table-exists? config "foo")))
+      (test-sql/reset-db)
+      (let [store (proto/make-store (assoc config :init-in-transaction? false))]
+        (proto/init store)
+        (is (test-sql/verify-table-exists? config "foo"))))))
 
 (deftest test-migrate
   (is (not (test-sql/verify-table-exists? config "foo")))
@@ -124,12 +130,12 @@
 (deftest test-migration-table-creation-is-hooked
   (let [hook-called (atom false)]
     (core/migrate
-     (assoc config
-            :migration-table-name "schema_migrations"
-            :modify-sql-fn (fn [sql]
-                             (when (re-find #"CREATE TABLE schema_migrations" sql)
-                               (reset! hook-called true))
-                             sql)))
+      (assoc config
+        :migration-table-name "schema_migrations"
+        :modify-sql-fn (fn [sql]
+                         (when (re-find #"CREATE TABLE schema_migrations" sql)
+                           (reset! hook-called true))
+                         sql)))
     (is @hook-called)))
 
 (deftest test-migrate-until-just-before
@@ -150,27 +156,27 @@
 
 (deftest test-migration-ignored-when-already-reserved
   (test-with-store
-   (proto/make-store config)
-   (fn [{:keys [db migration-table-name] :as config}]
-     (testing "can only reserve once"
-       (is (mark-reserved db migration-table-name))
-       (is (not (mark-reserved db migration-table-name))))
-     (testing "migrations don't run when locked"
-       (is (not (test-sql/verify-table-exists? config "foo")))
-       (core/migrate config)
-       (is (not (test-sql/verify-table-exists? config "foo"))))
-     (testing "migrations run once lock is freed"
-       (mark-unreserved db migration-table-name)
-       (core/migrate config)
-       (is (test-sql/verify-table-exists? config "foo")))
-     (testing "rollback migration isn't run when locked"
-       (is (mark-reserved db migration-table-name))
-       (core/down config 20111202110600)
-       (is (test-sql/verify-table-exists? config "foo")))
-     (testing "rollback migration run once lock is freed"
-       (mark-unreserved db migration-table-name)
-       (core/down config 20111202110600)
-       (is (not (test-sql/verify-table-exists? config "foo")))))))
+    (proto/make-store config)
+    (fn [{:keys [db migration-table-name] :as config}]
+      (testing "can only reserve once"
+        (is (mark-reserved db migration-table-name))
+        (is (not (mark-reserved db migration-table-name))))
+      (testing "migrations don't run when locked"
+        (is (not (test-sql/verify-table-exists? config "foo")))
+        (core/migrate config)
+        (is (not (test-sql/verify-table-exists? config "foo"))))
+      (testing "migrations run once lock is freed"
+        (mark-unreserved db migration-table-name)
+        (core/migrate config)
+        (is (test-sql/verify-table-exists? config "foo")))
+      (testing "rollback migration isn't run when locked"
+        (is (mark-reserved db migration-table-name))
+        (core/down config 20111202110600)
+        (is (test-sql/verify-table-exists? config "foo")))
+      (testing "rollback migration run once lock is freed"
+        (mark-unreserved db migration-table-name)
+        (core/down config 20111202110600)
+        (is (not (test-sql/verify-table-exists? config "foo")))))))
 
 (defn copy-dir
   [^File from ^File to]
@@ -182,9 +188,9 @@
 
 (deftest test-migration-sql-edn-mixed
   (let [migration-dir (io/file "resources/migrations-mixed")
-        test-config (merge config
-                           test-edn/test-config
-                           {:migration-dir "migrations-mixed"})]
+        test-config   (merge config
+                             test-edn/test-config
+                             {:migration-dir "migrations-mixed"})]
     (try
       (utils/recursive-delete (io/file test-edn/test-dir))
       (utils/recursive-delete migration-dir)
@@ -211,16 +217,16 @@
 
 
 (deftest test-description-and-applied-fields
-  (core/migrate config)  
+  (core/migrate config)
   (let [from-db (verify-data config (:migration-table-name config))]
     (testing "descriptions match")
     (is (= (map #(dissoc % :applied) from-db)
-           '({:id 20111202110600,
+           '({:id          20111202110600,
               :description "create-foo-table"}
-             {:id 20111202113000,
-              :description "create-bar-table"}
-             {:id 20120827170200,
-              :description "multiple-statements"})))
+              {:id          20111202113000,
+               :description "create-bar-table"}
+              {:id          20120827170200,
+               :description "multiple-statements"})))
     (testing "applied are timestamps")
     (is (every? identity (map #(-> %
                                    :applied

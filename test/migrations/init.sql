@@ -1,1 +1,2 @@
+CREATE SCHEMA foo;
 CREATE TABLE IF NOT EXISTS foo(id bigint);

@@ -78,11 +78,11 @@
 	in your migrations, specify the database in your migration-table-name in the
 	connections, i.e. "database_name.table_name" not "table_name"
 
-	
+
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.8.32"]]
+    : :dependencies [[migratus "0.9.6"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
@@ -100,6 +100,9 @@ Next, create a namespace to manage the migrations:
      : (def config {:store                :database
      :              :migration-dir        "migrations/"
      :              :init-script          "init.sql"
+     :              ;defaults to true, some databases do not support
+     :              ;schema initialization in a transaction
+     :              :init-in-transaction? false
      :              :migration-table-name "foo_bar"
      :              :db {:classname   "org.h2.Driver"
      :                   :subprotocol "h2"

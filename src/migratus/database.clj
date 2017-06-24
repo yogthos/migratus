@@ -31,9 +31,9 @@
 
 (defn mark-reserved [db table-name]
   (boolean
-   (try
-     (sql/insert! db table-name {:id reserved-id})
-     (catch Exception _))))
+    (try
+      (sql/insert! db table-name {:id reserved-id})
+      (catch Exception _))))
 
 (defn mark-unreserved [db table-name]
   (sql/delete! db table-name ["id=?" reserved-id]))
@@ -43,8 +43,8 @@
 
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
-  (sql/insert! db table-name {:id id
-                              :applied (java.sql.Timestamp. (.getTime (java.util.Date.)))
+  (sql/insert! db table-name {:id          id
+                              :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
                               :description description}))
 
 (defn mark-not-complete [db table-name id]
@@ -54,7 +54,7 @@
 
 
 (defn migrate-up* [db config {:keys [name] :as migration}]
-  (let [id (proto/id migration)
+  (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -76,7 +76,7 @@
       :ignore)))
 
 (defn migrate-down* [db config migration]
-  (let [id (proto/id migration)
+  (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -92,8 +92,8 @@
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
-   (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
-           (file-seq migration-dir))))
+    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+            (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
   (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
@@ -163,21 +163,26 @@
       [t-con db]
       (sql/db-do-commands t-con
                           (modify-sql-fn
-                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                             [:applied "TIMESTAMP" "" ""]
-                                                             [:description "VARCHAR(1024)" "" ""]]))))))
+                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                              [:applied "TIMESTAMP" "" ""]
+                                                              [:description "VARCHAR(1024)" "" ""]]))))))
 
-(defn init-db! [db migration-dir init-script-name modify-sql-fn]
+(defn run-init-script! [init-script-name init-script conn modify-sql-fn]
+  (try
+    (log/info "running initialization script '" init-script-name "'")
+    (log/trace "\n" init-script "\n")
+    (sql/db-do-prepared conn (modify-sql-fn init-script))
+    (catch Throwable t
+      (log/error t "failed to initialize the database with:\n" init-script "\n")
+      (throw t))))
+
+(defn init-db! [db migration-dir init-script-name modify-sql-fn transaction?]
   (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]
-    (sql/with-db-transaction
-      [t-con db]
-      (try
-        (log/info "running initialization script '" init-script-name "'")
-        (log/trace "\n" init-script "\n")
-        (sql/db-do-prepared t-con (modify-sql-fn init-script))
-        (catch Throwable t
-          (log/error t "failed to initialize the database with:\n" init-script "\n")
-          (throw t))))
+    (if transaction?
+      (sql/with-db-transaction
+        [t-con db]
+        (run-init-script! init-script-name init-script t-con modify-sql-fn))
+      (run-init-script! init-script-name init-script db modify-sql-fn))
     (log/error "could not locate the initialization script '" init-script-name "'")))
 
 (defrecord Database [connection config]
@@ -189,7 +194,8 @@
         (init-db! conn
                   (utils/get-migration-dir config)
                   (utils/get-init-script config)
-                  (get config :modify-sql-fn identity))
+                  (get config :modify-sql-fn identity)
+                  (get config :init-in-transaction? true))
         (finally
           (disconnect* conn)))))
   (completed-ids [this]
@@ -200,7 +206,9 @@
     (migrate-down* @connection config migration))
   (connect [this]
     (reset! connection (connect* (:db config)))
-    (init-schema! @connection (migration-table-name config) (get config :modify-sql-fn identity)))
+    (init-schema! @connection
+                  (migration-table-name config)
+                  (get config :modify-sql-fn identity)))
   (disconnect [this]
     (disconnect* @connection)
     (reset! connection nil)))
