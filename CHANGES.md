@@ -11,7 +11,7 @@ This is a breaking change, as the schema for the migration table has changed. Us
 need the following additional columns in the migrations table:
 
 ```clojure
-[:applied "datetime" "" ""]
+[:applied "timestamp" "" ""]
 [:description "VARCHAR(1024)" "" ""]
 ```
 
