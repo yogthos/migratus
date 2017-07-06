@@ -183,7 +183,7 @@
     (sql/db-do-commands t-con
                         (modify-sql-fn
                          [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
-                          (str "ALTER TABLE " table-name " ADD COLUMN applied datetime")]))))
+                          (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")]))))
 
 
 (defn init-schema! [db table-name modify-sql-fn]
