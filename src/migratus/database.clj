@@ -31,9 +31,9 @@
 
 (defn mark-reserved [db table-name]
   (boolean
-    (try
-      (sql/insert! db table-name {:id reserved-id})
-      (catch Exception _))))
+   (try
+     (sql/insert! db table-name {:id reserved-id})
+     (catch Exception _))))
 
 (defn mark-unreserved [db table-name]
   (sql/delete! db table-name ["id=?" reserved-id]))
@@ -92,8 +92,8 @@
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
-    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
-            (file-seq migration-dir))))
+   (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+           (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
   (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
@@ -149,6 +149,43 @@
       (catch SQLException _
         false))))
 
+
+
+(defn migration-table-up-to-date?
+  [db table-name]
+  (sql/with-db-transaction
+    [t-con db]
+    (try
+      (sql/query t-con [(str "SELECT applied,description FROM " table-name)])
+      true
+      (catch SQLException _
+        false))))
+
+
+(defn create-migration-table!
+  "Creates the schema for the migration table via t-con in db in table-name"
+  [db modify-sql-fn table-name]
+  (log/info "creating migration table" (str "'" table-name "'"))
+  (sql/with-db-transaction
+    [t-con db]
+    (sql/db-do-commands t-con
+                        (modify-sql-fn
+                         (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                           [:applied "TIMESTAMP" "" ""]
+                                                           [:description "VARCHAR(1024)" "" ""]])))))
+
+(defn update-migration-table!
+  "Updates the schema for the migration table via t-con in db in table-name"
+  [t-con db modify-sql-fn table-name]
+  (log/info "updating migration table" (str "'" table-name "'"))
+  (sql/with-db-transaction
+    [t-con db]
+    (sql/db-do-commands t-con
+                        (modify-sql-fn
+                         [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
+                          (str "ALTER TABLE " table-name " ADD COLUMN applied datetime")]))))
+
+
 (defn init-schema! [db table-name modify-sql-fn]
   ;; Note: the table-exists? *has* to be done in its own top-level
   ;; transaction. It can't be run in the same transaction as other code, because
@@ -157,15 +194,11 @@
   ;; rollback only. That is, the act of detecting that it is necessary to create
   ;; the table renders the current transaction unusable for that purpose. I
   ;; blame Heisenberg.
-  (when-not (table-exists? db table-name)
-    (log/info "creating migration table" (str "'" table-name "'"))
-    (sql/with-db-transaction
-      [t-con db]
-      (sql/db-do-commands t-con
-                          (modify-sql-fn
-                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                              [:applied "TIMESTAMP" "" ""]
-                                                              [:description "VARCHAR(1024)" "" ""]]))))))
+  (or (table-exists? db table-name)
+      (create-migration-table! db modify-sql-fn table-name))
+  (or (migration-table-up-to-date? db table-name)
+      (update-migration-table! db modify-sql-fn table-name)))
+
 
 (defn run-init-script! [init-script-name init-script conn modify-sql-fn]
   (try
