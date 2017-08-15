@@ -176,7 +176,7 @@
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
-  [t-con db modify-sql-fn table-name]
+  [db modify-sql-fn table-name]
   (log/info "updating migration table" (str "'" table-name "'"))
   (sql/with-db-transaction
     [t-con db]
