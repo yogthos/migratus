@@ -3,8 +3,7 @@
   (:require [cljs.nodejs :as node]
             [cljs.reader :as edn]
             [clojure.pprint :refer [pprint]]
-            [clojure.string :refer [replace-first split]]
-            [lumo.core :refer [*command-line-args*]]))
+            [clojure.string :refer [replace-first split]]))
 
 (def fs (node/require "fs"))
 (def exec (.-execSync (node/require "child_process")))
