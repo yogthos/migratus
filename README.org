@@ -29,6 +29,12 @@
   Migratus does not use a single global version for a store.  It considers each
   migration independently, and runs all uncompleted migrations in sorted order.
 
+** Upgrading
+
+See [[https://github.com/yogthos/migratus/blob/master/CHANGES.md][changelog]] for changes.
+If you're upgrading from version below 0.9.1, you need to update the schema migations table
+to add a timestamp column.
+
 ** Quick Start
 
   - add the Migratus dependency:

@@ -20,5 +20,5 @@ or
 ```sql
 ALTER TABLE migratus.schema_migrations ADD COLUMN description varchar(1024);
 --;;
-ALTER TABLE migratus.schema_migrations ADD COLUMN applied datetime;
+ALTER TABLE migratus.schema_migrations ADD COLUMN applied timestamp with time zone;
 ```
