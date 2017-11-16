@@ -82,7 +82,7 @@
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "0.9.6"]]
+    : :dependencies [[migratus "1.0.0"]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
