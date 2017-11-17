@@ -76,12 +76,10 @@
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
-        (sql/with-db-transaction
-          [t-con db]
-          (when (complete? t-con table-name id)
-            (proto/down migration (assoc config :conn t-con))
-            (mark-not-complete t-con table-name id)
-            :success))
+        (when (complete? db table-name id)
+          (proto/down migration (assoc config :conn db))
+          (mark-not-complete db table-name id)
+          :success)
         (finally
           (mark-unreserved db table-name)))
       :ignore)))

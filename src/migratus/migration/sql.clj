@@ -58,7 +58,7 @@
     name)
   (tx? [this direction]
     (if-let [sql (get this direction)]
-      (not (str/starts-with? sql "-- :disable-transaction\n"))
+      (use-tx? sql)
       (throw (Exception. (format "SQL %s commands not found for %d" direction id)))))
   (up [this config]
     (if up
