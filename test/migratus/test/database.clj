@@ -248,4 +248,10 @@
     (is (not (complete? db migration-table-name 20120827170200)))))
 
 
-
+(deftest test-no-tx-migration
+  (let [{:keys [db migration-table-name] :as test-config} (assoc config :migration-dir "migrations-no-tx")]
+    (is (not (test-sql/verify-table-exists? test-config "foo")))
+    (core/migrate test-config)
+    (is (test-sql/verify-table-exists? test-config "foo"))
+    (core/down test-config 20111202110600)
+    (is (not (test-sql/verify-table-exists? test-config "foo")))))
