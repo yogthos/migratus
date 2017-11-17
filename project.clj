@@ -5,7 +5,7 @@
             :url "http://www.apache.org/licenses/LICENSE-2.0.html"
             :distribution :repo}
   :aliases {"test!" ["do" "clean," "test"]}
-  :dependencies [[org.clojure/clojure "1.6.0"]
+  :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/java.classpath "0.2.3"]
                  [org.clojure/java.jdbc "0.7.1"]
                  [org.clojure/tools.logging "0.3.1"]]

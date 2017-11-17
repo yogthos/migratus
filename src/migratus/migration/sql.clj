@@ -1,12 +1,18 @@
 (ns migratus.migration.sql
-  (:require [clojure.java.jdbc :as sql]
-            [clojure.tools.logging :as log]
-            [migratus.protocols :as proto])
-  (:import java.util.regex.Pattern))
+  (:require
+    [clojure.java.jdbc :as sql]
+    [clojure.string :as str]
+    [clojure.tools.logging :as log]
+    [migratus.protocols :as proto])
+  (:import
+    java.util.regex.Pattern))
 
 (def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
 (def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
 (def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
+
+(defn use-tx? [sql]
+  (not (str/starts-with? sql "-- :disable-transaction\n")))
 
 (defn sanitize [command]
   (-> command
@@ -19,21 +25,30 @@
        (remove empty?)
        (not-empty)))
 
-(defn execute-command [t-con c]
+(defn execute-command [t-con tx? c]
   (log/trace "executing" c)
   (try
-    (sql/db-do-prepared t-con c)
+    (sql/db-do-prepared t-con tx? c)
     (catch Throwable t
       (log/error (format "failed to execute command:\n %s\nFailure: %s" c (.getMessage t)))
       (throw t))))
 
-(defn run-sql [{:keys [conn db modify-sql-fn]} sql direction]
-  (sql/with-db-transaction
-    [t-con (or conn db)]
-    (when-let [commands (map (or modify-sql-fn identity) (split-commands sql))]
-      (log/debug "found" (count commands) (name direction) "migrations")
-      (doseq [c commands]
-        (execute-command t-con c)))))
+(defn- run-sql*
+  [conn tx? commands direction]
+  (log/debug "found" (count commands) (name direction) "migrations")
+  (doseq [c commands]
+    (execute-command conn tx? c)))
+
+(defn run-sql
+  [{:keys [conn db modify-sql-fn]} sql direction]
+  (when-let [commands (map (or modify-sql-fn identity) (split-commands sql))]
+    (if (use-tx? sql)
+      (sql/with-db-transaction
+        [t-con (or conn db)]
+        (run-sql* t-con true commands direction))
+      (sql/with-db-connection
+        [t-con (or conn db)]
+        (run-sql* t-con false commands direction)))))
 
 (defrecord SqlMigration [id name up down]
   proto/Migration
@@ -41,6 +56,10 @@
     id)
   (name [this]
     name)
+  (tx? [this direction]
+    (if-let [sql (get this direction)]
+      (use-tx? sql)
+      (throw (Exception. (format "SQL %s commands not found for %d" direction id)))))
   (up [this config]
     (if up
       (run-sql config up :up)
