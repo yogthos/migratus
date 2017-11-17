@@ -9,6 +9,7 @@
   proto/Migration
   (id [this] id)
   (name [this] name)
+  (tx? [this direction] true)
   (up [this config]
     (when up-fn
       (up-fn config)))

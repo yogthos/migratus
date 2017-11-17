@@ -11,6 +11,9 @@
 (def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
 (def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
+(defn use-tx? [sql]
+  (not (str/starts-with? sql "-- :disable-transaction\n")))
+
 (defn sanitize [command]
   (-> command
       (clojure.string/replace sql-comment "")
@@ -37,9 +40,9 @@
     (execute-command conn tx? c)))
 
 (defn run-sql
-  [{:keys [conn db modify-sql-fn]} tx? sql direction]
+  [{:keys [conn db modify-sql-fn]} sql direction]
   (when-let [commands (map (or modify-sql-fn identity) (split-commands sql))]
-    (if tx?
+    (if (use-tx? sql)
       (sql/with-db-transaction
         [t-con (or conn db)]
         (run-sql* t-con true commands direction))
@@ -47,30 +50,28 @@
         [t-con (or conn db)]
         (run-sql* t-con false commands direction)))))
 
-(defrecord SqlMigration [id name up down tx?]
+(defrecord SqlMigration [id name up down]
   proto/Migration
   (id [this]
     id)
   (name [this]
     name)
+  (tx? [this direction]
+    (if-let [sql (get this direction)]
+      (not (str/starts-with? sql "-- :disable-transaction\n"))
+      (throw (Exception. (format "SQL %s commands not found for %d" direction id)))))
   (up [this config]
     (if up
-      (run-sql config tx? up :up)
+      (run-sql config up :up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
   (down [this config]
     (if down
-      (run-sql config tx? down :down)
+      (run-sql config down :down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defmethod proto/make-migration* :sql
   [_ mig-id mig-name payload config]
-  (let [up (when-let [sql (:up payload)]
-             (if (string? sql) sql (:notx sql)))
-        down (when-let [sql (:down payload)]
-               (if (string? sql) sql (:notx sql)))
-        tx? (and (nil? (get-in payload [:up :notx]))
-                 (nil? (get-in payload [:down :notx])))]
-    (->SqlMigration mig-id mig-name up down tx?)))
+  (->SqlMigration mig-id mig-name (:up payload) (:down payload)))
 
 
 (defmethod proto/get-extension* :sql

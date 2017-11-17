@@ -51,27 +51,15 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-
-
 (defn migrate-up* [db config {:keys [name] :as migration}]
   (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
-        (if (:tx? migration)
-          (sql/with-db-transaction
-            [t-con db]
-            (when-not (complete? t-con table-name id)
-              (proto/up migration (assoc config :conn t-con))
-              (mark-complete t-con table-name name id)
-              :success))
-          (sql/with-db-connection
-            [t-con db]
-            (when-not (complete? t-con table-name id)
-              (proto/up migration (assoc config :conn t-con))
-              (sql/with-db-connection [t-con' db]
-                (mark-complete t-con' table-name name id))
-              :success)))
+        (when-not (complete? db table-name id)
+          (proto/up migration (assoc config :conn db))
+          (mark-complete db table-name name id)
+          :success)
         (catch Throwable up-e
           (log/error (format "Migration %s failed because %s backing out" name (.getMessage up-e)))
           (try
@@ -242,11 +230,15 @@
   (completed-ids [this]
     (completed-ids* @connection (migration-table-name config)))
   (migrate-up [this migration]
-    (migrate-up*
-      (if (:tx? migration) @connection (:db config))
-      config migration))
+    (if (proto/tx? migration :up)
+      (sql/with-db-transaction [t-con @connection]
+        (migrate-up* t-con config migration))
+      (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
-    (migrate-down* @connection config migration))
+    (if (proto/tx? migration :down)
+      (sql/with-db-transaction [t-con @connection]
+        (migrate-down* t-con config migration))
+      (migrate-down* (:db config) config migration)))
   (connect [this]
     (reset! connection (connect* (:db config)))
     (init-schema! @connection
