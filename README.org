@@ -61,6 +61,16 @@
     to rollback all the DDL statements that were applied in case a statement
     fails.
 
+*** Disabling transactions
+
+    Migratus attempts to run migrations within a transaction by default.
+    However, some databases do not support transactional DDL statements.
+    Transactions can be disabled by adding the following line at the start
+    of the migration file:
+
+    : -- :disable-transaction
+
+
 *** Running Functions in Migrations
 
     Functions inside migrations may need to be additionally wrapped,
