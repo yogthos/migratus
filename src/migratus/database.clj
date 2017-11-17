@@ -58,12 +58,20 @@
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
-        (sql/with-db-transaction
-          [t-con db]
-          (when-not (complete? t-con table-name id)
-            (proto/up migration (assoc config :conn t-con))
-            (mark-complete t-con table-name name id)
-            :success))
+        (if (:tx? migration)
+          (sql/with-db-transaction
+            [t-con db]
+            (when-not (complete? t-con table-name id)
+              (proto/up migration (assoc config :conn t-con))
+              (mark-complete t-con table-name name id)
+              :success))
+          (sql/with-db-connection
+            [t-con db]
+            (when-not (complete? t-con table-name id)
+              (proto/up migration (assoc config :conn t-con))
+              (sql/with-db-connection [t-con' db]
+                (mark-complete t-con' table-name name id))
+              :success)))
         (catch Throwable up-e
           (log/error (format "Migration %s failed because %s backing out" name (.getMessage up-e)))
           (try
@@ -234,7 +242,9 @@
   (completed-ids [this]
     (completed-ids* @connection (migration-table-name config)))
   (migrate-up [this migration]
-    (migrate-up* @connection config migration))
+    (migrate-up*
+      (if (:tx? migration) @connection (:db config))
+      config migration))
   (migrate-down [this migration]
     (migrate-down* @connection config migration))
   (connect [this]
