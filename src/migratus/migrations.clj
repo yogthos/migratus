@@ -80,7 +80,7 @@
              (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
-(defn find-migration-resources [dir jar init-script-name]
+(defn find-migration-resources [dir jar exclude-scripts]
   (log/debug "Looking for migrations in" dir jar)
   (->> (for [entry (enumeration-seq (.entries jar))
              :when (.matches (.getName ^JarEntry entry)
@@ -90,7 +90,7 @@
            (let [w (StringWriter.)]
              (io/copy (.getInputStream ^JarFile jar entry) w)
              (migration-map mig (.toString w)))
-           (when (not= entry-name init-script-name)
+           (when-not (exclude-scripts entry-name)
              (warn-on-invalid-migration entry-name))))
        (remove nil?)))
 
