@@ -1,0 +1,22 @@
+jobs:
+  build:
+    docker:
+      - image: clojure:lein-2.8.1
+    working_directory: /root/migratus
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-dependency-jars-{{ checksum "project.clj" }}
+            - v1-dependency-jars
+      - run: lein test
+      - save_cache:
+          key: v1-dependency-jars-{{ checksum "project.clj" }}
+          paths:
+            - /root/.m2
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
