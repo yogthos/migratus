@@ -45,7 +45,8 @@
            {:sql
             {:up   "CREATE TABLE IF NOT EXISTS baz(id bigint);\n"
              :down "DROP TABLE IF EXISTS baz;\n"}}}}
-         (find-migrations "jar-migrations" #{"init.sql"}))))
+         (find-migrations "jar-migrations" #{"init.sql"})
+         (find-migrations "migrations-in-jar" #{}))))
 
 (deftest test-list-migrations
   (is (= #{(sql-mig/->SqlMigration

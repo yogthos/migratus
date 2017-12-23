@@ -1,7 +1,5 @@
 (ns migratus.utils
-  (:require [clojure.java.classpath :as cp]
-            [clojure.reflect :as reflect]
-            [clojure.java.io :as io])
+  (:require [clojure.java.classpath :as cp])
   (:import java.io.File
            [java.util.jar JarEntry JarFile]
            java.util.regex.Pattern))
@@ -35,16 +33,18 @@
 (defn find-migration-dir
   "Finds the given directory on the classpath"
   [dir]
-  (->> (cp/classpath-directories)
-       (map #(io/file % dir))
-       (filter #(.exists ^File %))
-       first))
+  (try
+    (File. (.getFile (ClassLoader/getSystemResource dir)))
+    (catch NullPointerException _)))
+
+(defn classpath-jarfiles []
+  (map #(JarFile. ^File %) (filter cp/jar-file? (cp/system-classpath))))
 
 (defn find-migration-jar
   "Finds the first jar on the classpath containing a directory with the given
   name."
   [dir]
-  (first (for [jar (cp/classpath-jarfiles)
+  (first (for [jar (classpath-jarfiles)
                :when (some #(.matches (.getName ^JarEntry %)
                                       (str "^" (Pattern/quote dir) ".+"))
                            (enumeration-seq (.entries ^JarFile jar)))]

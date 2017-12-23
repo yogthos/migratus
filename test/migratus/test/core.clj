@@ -106,9 +106,9 @@
         migration-up  "create-user.up.sql"
         migration-down  "create-user.down.sql"]
     ;; Make sure the directory doesn't exist before we start the test
-    (when (.exists (io/file "resources" migration-dir))
-      (io/delete-file (io/file "resources" migration-dir)))
-
+    (when-let [dir (utils/find-migration-dir migration-dir)]
+      (doseq [f (reverse (file-seq dir))]
+             (io/delete-file f)))
     (testing "when migration dir doesn't exist, it is created"
       (is (nil? (utils/find-migration-dir migration-dir)))
       (create config migration)
@@ -133,7 +133,7 @@
 
 
 (deftest supported-extensions
-  (testing "All supported extensions show up. 
+  (testing "All supported extensions show up.
            NOTE: when you add a protocol, to migratus core, update this test")
   (is (= '("sql" "edn")
          (proto/get-all-supported-extensions))))
