@@ -1,7 +1,6 @@
 (ns migratus.utils
-  (:require [clojure.java.classpath :as cp])
   (:import java.io.File
-           [java.util.jar JarEntry JarFile]
+           java.util.jar.JarFile
            java.util.regex.Pattern))
 
 (def default-migration-dir "migrations")
@@ -30,25 +29,21 @@
     (str dir "/")
     dir))
 
+(defn jar-file [url]
+  (some-> url
+          (.getFile)
+          (.split "!/")
+          (first)
+          (.replaceFirst "file:" "")
+          (JarFile.)))
+
 (defn find-migration-dir
   "Finds the given directory on the classpath"
   [dir]
-  (try
-    (File. (.getFile (ClassLoader/getSystemResource dir)))
-    (catch NullPointerException _)))
-
-(defn classpath-jarfiles []
-  (map #(JarFile. ^File %) (filter cp/jar-file? (cp/system-classpath))))
-
-(defn find-migration-jar
-  "Finds the first jar on the classpath containing a directory with the given
-  name."
-  [dir]
-  (first (for [jar (classpath-jarfiles)
-               :when (some #(.matches (.getName ^JarEntry %)
-                                      (str "^" (Pattern/quote dir) ".+"))
-                           (enumeration-seq (.entries ^JarFile jar)))]
-           jar)))
+  (when-let [url (ClassLoader/getSystemResource dir)]
+    (if (= "jar" (.getProtocol url))
+      (jar-file url)
+      (File. (.getFile url)))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."

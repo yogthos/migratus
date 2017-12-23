@@ -94,12 +94,14 @@
              (warn-on-invalid-migration entry-name))))
        (remove nil?)))
 
+(defn read-migrations [dir exclude-scripts]
+  (when-let [migration-dir (utils/find-migration-dir dir)]
+    (if (instance? File migration-dir)
+      (find-migration-files migration-dir exclude-scripts)
+      (find-migration-resources dir migration-dir exclude-scripts))))
+
 (defn find-migrations [dir exclude-scripts]
-  (->> (let [dir (utils/ensure-trailing-slash dir)]
-         (if-let [migration-dir (utils/find-migration-dir dir)]
-           (find-migration-files migration-dir exclude-scripts)
-           (if-let [migration-jar (utils/find-migration-jar dir)]
-             (find-migration-resources dir migration-jar exclude-scripts))))
+  (->> (read-migrations (utils/ensure-trailing-slash dir) exclude-scripts)
        (apply utils/deep-merge)))
 
 (defn find-or-create-migration-dir [dir]
