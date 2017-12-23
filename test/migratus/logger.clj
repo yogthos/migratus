@@ -1,9 +1,6 @@
 (ns migratus.logger
-  (:import [org.apache.log4j ConsoleAppender PatternLayout Level Logger]))
+  (:import org.slf4j.LoggerFactory
+           [ch.qos.logback.classic Level Logger]))
 
-(.addAppender
-  (Logger/getRootLogger)
-  (doto (ConsoleAppender.)
-    (.setLayout (PatternLayout. "%d [%p|%c|%C{1}] %m%n"))
-    (.setThreshold Level/ERROR)
-    (.activateOptions)))
+(.setLevel (LoggerFactory/getLogger Logger/ROOT_LOGGER_NAME) Level/ERROR)
+
