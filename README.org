@@ -1,9 +1,11 @@
 #+STARTUP: hidestars showall
 * Migratus
+  
+  [[https://circleci.com/gh/yogthos/migratus.svg?style=shield&circle-token=636dc3b37803364146d48f15d6e1ecf4d5051109]]
 
-  [![CircleCI](https://circleci.com/gh/yogthos/migratus.svg?style=svg)](https://circleci.com/gh/yogthos/migratus)
+
   [[https://cdn.rawgit.com/yogthos/migratus/master/migrate.png]]
-
+  
   A general migration framework, with implementations for migrations as SQL
   scripts or general Clojure code.
 
