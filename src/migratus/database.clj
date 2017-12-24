@@ -100,10 +100,10 @@
 
 (defn find-init-script [dir init-script-name]
   (let [dir (utils/ensure-trailing-slash dir)]
-    (if-let [migration-dir (utils/find-migration-dir dir)]
-      (find-init-script-file migration-dir init-script-name)
-      (if-let [migration-jar (utils/find-migration-jar dir)]
-        (find-init-script-resource dir migration-jar init-script-name)))))
+    (when-let [migration-dir (utils/find-migration-dir dir)]
+      (if (instance? File migration-dir)
+        (find-init-script-file migration-dir init-script-name)
+        (find-init-script-resource dir migration-dir init-script-name)))))
 
 (defn connect* [db]
   (let [^Connection conn
