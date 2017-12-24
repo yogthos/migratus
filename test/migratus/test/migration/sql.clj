@@ -19,6 +19,7 @@
   (letfn [(delete [f]
             (when (.exists f)
               (.delete f)))]
+    (delete (io/file "resources"))
     (delete (io/file "site.db.trace.db"))
     (delete (io/file "site.db.mv.db"))))
 
@@ -41,16 +42,16 @@
     (is (not (verify-table-exists? config "bar")))
     (is (not (verify-table-exists? config "quux")))
     (is (not (verify-table-exists? config "quux2")))
-    
+
     (core/migrate config)
-    
+
     (is (verify-table-exists? config "foo"))
     (is (verify-table-exists? config "bar"))
     (is (verify-table-exists? config "quux"))
     (is (verify-table-exists? config "quux2"))
-    
+
     (core/rollback config)
-    
+
     (is (verify-table-exists? config "foo"))
     (is (verify-table-exists? config "bar"))
     (is (not (verify-table-exists? config "quux")))
