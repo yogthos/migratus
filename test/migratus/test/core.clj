@@ -114,7 +114,7 @@
 
     (testing "when migration dir doesn't exist, it is created"
       (is (nil? (utils/find-migration-dir migration-dir)))
-      (create migration)
+      (create config migration)
       (is (not (nil? (utils/find-migration-dir migration-dir))))
       (is (migration-exists? migration-up migration-dir))
       (is (migration-exists? migration-down migration-dir)))

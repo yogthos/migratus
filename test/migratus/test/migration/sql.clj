@@ -19,7 +19,6 @@
   (letfn [(delete [f]
             (when (.exists f)
               (.delete f)))]
-    (delete (io/file "resources"))
     (delete (io/file "site.db.trace.db"))
     (delete (io/file "site.db.mv.db"))))
 

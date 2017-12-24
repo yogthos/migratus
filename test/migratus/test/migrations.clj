@@ -41,12 +41,6 @@
          (find-migrations "migrations" #{"init.sql"}))))
 
 (deftest test-find-jar-migrations
-  #_(is (= {"20111214173500"
-          {"create-baz-table"
-           {:sql
-            {:up   "CREATE TABLE IF NOT EXISTS baz(id bigint);\n"
-             :down "DROP TABLE IF EXISTS baz;\n"}}}}
-         (find-migrations "jar-migrations" #{"init.sql"})))
   (let [dir "migrations-in-jar"
         url (java.net.URL. (str "jar:file:test/migrations-jar/migrations.jar!/" dir))]
     (is (not (nil? (utils/jar-file url))))))

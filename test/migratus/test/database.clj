@@ -187,7 +187,7 @@
     (io/copy f (io/file to (.getName f)))))
 
 (deftest test-migration-sql-edn-mixed
-  (let [migration-dir (io/file "resources/migrations-mixed")
+  (let [migration-dir (io/file "test/migrations-mixed")
         test-config   (merge config
                              test-edn/test-config
                              {:parent-migration-dir "test"
