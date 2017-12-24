@@ -3,8 +3,14 @@
            java.util.jar.JarFile
            java.util.regex.Pattern))
 
+(def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
 (def default-init-script-name "init.sql")
+
+(defn get-parent-migration-dir
+  "Gets the :parent-migration-dir from config, or default if missing."
+  [config]
+  (get config :parent-migration-dir default-migration-parent))
 
 (defn get-migration-dir
   "Gets the :migration-dir from config, or default if missing."

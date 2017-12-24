@@ -14,14 +14,14 @@
 
 (defn ->kebab-case [s]
   (-> (reduce
-       (fn [s c]
-         (if (and
-              (not-empty s)
-              (Character/isLowerCase (last s))
-              (Character/isUpperCase c))
-           (str s "-" c)
-           (str s c)))
-       "" s)
+        (fn [s c]
+          (if (and
+                (not-empty s)
+                (Character/isLowerCase (last s))
+                (Character/isUpperCase c))
+            (str s "-" c)
+            (str s c)))
+        "" s)
       (str/replace #"[\s]+" "-")
       (.replaceAll "_" "-")
       (.toLowerCase)))
@@ -36,21 +36,19 @@
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(def default-migration-parent "resources/")
-
 (def migration-file-pattern #"^(\d+)-([^\.]+)((?:\.[^\.]+)+)$")
 
 (defn valid-extension?
   "Returns true if file-name extension matches one of the file extensions supported
    by all migration protocols/multimethods implemented"
   [file-name]
-  (->    (->> (proto/get-all-supported-extensions)
-              (interpose "|"  )
-              (apply str)
-              (format "^.*?\\.(%s)$"))
-         re-pattern
-         (re-matches file-name)
-         boolean))
+  (-> (->> (proto/get-all-supported-extensions)
+           (interpose "|")
+           (apply str)
+           (format "^.*?\\.(%s)$"))
+      re-pattern
+      (re-matches file-name)
+      boolean))
 
 
 (defn parse-name [file-name]
@@ -104,14 +102,16 @@
   (->> (read-migrations (utils/ensure-trailing-slash dir) exclude-scripts)
        (apply utils/deep-merge)))
 
-(defn find-or-create-migration-dir [dir]
-  (if-let [migration-dir (utils/find-migration-dir dir)]
-    migration-dir
+(defn find-or-create-migration-dir
+  ([dir] (find-or-create-migration-dir utils/default-migration-parent dir))
+  ([parent-dir dir]
+   (if-let [migration-dir (utils/find-migration-dir dir)]
+     migration-dir
 
-    ;; Couldn't find the migration dir, create it
-    (let [new-migration-dir (io/file default-migration-parent dir)]
-      (io/make-parents new-migration-dir ".")
-      new-migration-dir)))
+     ;; Couldn't find the migration dir, create it
+     (let [new-migration-dir (io/file parent-dir dir)]
+       (io/make-parents new-migration-dir ".")
+       new-migration-dir))))
 
 (defn make-migration
   "Constructs a Migration instance from the merged migration file maps collected
@@ -126,31 +126,32 @@
           (let [[mig-type payload] (first mig')]
             (proto/make-migration* mig-type id mig-name payload config))
           (throw (Exception.
-                  (format
-                   "Multiple migration types specified for migration %d %s"
-                   id (pr-str (map name (keys mig'))))))))
+                   (format
+                     "Multiple migration types specified for migration %d %s"
+                     id (pr-str (map name (keys mig'))))))))
       (throw (Exception. (format "Multiple migrations with id %d %s"
                                  id (pr-str (keys mig))))))
     (throw (Exception. (str "Invalid migration id: " id)))))
 
 (defn list-migrations [config]
   (doall
-   (for [[id mig] (find-migrations (utils/get-migration-dir config)
-                                   (utils/get-exclude-scripts config))]
-     (make-migration config id mig))))
+    (for [[id mig] (find-migrations (utils/get-migration-dir config)
+                                    (utils/get-exclude-scripts config))]
+      (make-migration config id mig))))
 
 (defn create [config name migration-type]
-  (let [migration-dir (find-or-create-migration-dir
-                       (utils/get-migration-dir config))
+  (let [migration-dir  (find-or-create-migration-dir
+                         (utils/get-parent-migration-dir config)
+                         (utils/get-migration-dir config))
         migration-name (->kebab-case (str (timestamp) name))]
     (doseq [mig-file (proto/migration-files* migration-type migration-name)]
       (.createNewFile (io/file migration-dir mig-file)))))
 
 (defn destroy [config name]
-  (let [migration-dir (utils/find-migration-dir
-                       (utils/get-migration-dir config))
+  (let [migration-dir  (utils/find-migration-dir
+                         (utils/get-migration-dir config))
         migration-name (->kebab-case name)
-        pattern (re-pattern (str "[\\d]*-" migration-name "\\..*"))
-        migrations (file-seq migration-dir)]
+        pattern        (re-pattern (str "[\\d]*-" migration-name "\\..*"))
+        migrations     (file-seq migration-dir)]
     (doseq [f (filter #(re-find pattern (.getName %)) migrations)]
       (.delete f))))

@@ -25,12 +25,12 @@
 (defn migrations [ups downs]
   (for [n (range 4)]
     (mock/make-migration
-     {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs})))
+      {:id (inc n) :name (str "id-" (inc n)) :ups ups :downs downs})))
 
 (deftest test-migrate
-  (let [ups (atom [])
-        downs (atom [])
-        config {:store :mock
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
                 :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (migrate config))
@@ -38,9 +38,9 @@
     (is (empty? @downs))))
 
 (deftest test-up
-  (let [ups (atom [])
-        downs (atom [])
-        config {:store :mock
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
                 :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should bring up an uncompleted migration"
@@ -55,9 +55,9 @@
         (is (empty? @downs))))))
 
 (deftest test-down
-  (let [ups (atom [])
-        downs (atom [])
-        config {:store :mock
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
                 :completed-ids (atom #{1 3})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should bring down a completed migration"
@@ -72,13 +72,15 @@
         (is (empty? @downs))))))
 
 (defn- migration-exists? [name & [dir]]
-  (let [migrations (file-seq (utils/find-migration-dir (or dir "migrations")))
-        names (map #(.getName %) migrations)]
-    (seq (filter #(.contains % name) names))))
+  (when-let [migrations-dir (utils/find-migration-dir (or dir "migrations"))]
+    (->> (file-seq migrations-dir)
+         (map #(.getName %))
+         (filter #(.contains % name))
+         (not-empty))))
 
 (deftest test-create-and-destroy
-  (let [migration "create-user"
-        migration-up  "create-user.up.sql"
+  (let [migration      "create-user"
+        migration-up   "create-user.up.sql"
         migration-down "create-user.down.sql"]
     (testing "should create two migrations"
       (create nil migration)
@@ -90,7 +92,7 @@
       (is (empty? (migration-exists? migration-down))))))
 
 (deftest test-create-and-destroy-edn
-  (let [migration "create-other-user"
+  (let [migration     "create-other-user"
         migration-edn "create-other-user.edn"]
     (testing "should create the migration"
       (create nil migration :edn)
@@ -100,31 +102,32 @@
       (is (empty? (migration-exists? migration-edn))))))
 
 (deftest test-create-missing-directory
-  (let [migration-dir "doesnt_exist"
-        config {:migration-dir migration-dir}
-        migration "create-user"
-        migration-up  "create-user.up.sql"
-        migration-down  "create-user.down.sql"]
+  (let [migration-dir  "doesnt_exist"
+        config         {:parent-migration-dir "test"
+                        :migration-dir migration-dir}
+        migration      "create-user"
+        migration-up   "create-user.up.sql"
+        migration-down "create-user.down.sql"]
     ;; Make sure the directory doesn't exist before we start the test
-    (when-let [dir (utils/find-migration-dir migration-dir)]
-      (doseq [f (reverse (file-seq dir))]
-             (io/delete-file f)))
+    (when (.exists (io/file "test" migration-dir))
+      (io/delete-file (io/file "test" migration-dir)))
+
     (testing "when migration dir doesn't exist, it is created"
       (is (nil? (utils/find-migration-dir migration-dir)))
-      (create config migration)
+      (create migration)
       (is (not (nil? (utils/find-migration-dir migration-dir))))
       (is (migration-exists? migration-up migration-dir))
       (is (migration-exists? migration-down migration-dir)))
 
     ;; Clean up after ourselves
-    (when (.exists (io/file "resources" migration-dir))
+    (when (.exists (io/file "test" migration-dir))
       (destroy config migration)
-      (io/delete-file (io/file "resources" migration-dir)))))
+      (io/delete-file (io/file "test" migration-dir)))))
 
 (deftest test-pending-list
-  (let [ups (atom [])
-        downs (atom [])
-        config {:store :mock
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
                 :completed-ids (atom #{1})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should return the list of pending migrations"

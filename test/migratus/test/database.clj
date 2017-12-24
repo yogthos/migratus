@@ -190,7 +190,8 @@
   (let [migration-dir (io/file "resources/migrations-mixed")
         test-config   (merge config
                              test-edn/test-config
-                             {:migration-dir "migrations-mixed"})]
+                             {:parent-migration-dir "test"
+                              :migration-dir "migrations-mixed"})]
     (try
       (utils/recursive-delete (io/file test-edn/test-dir))
       (utils/recursive-delete migration-dir)
