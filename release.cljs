@@ -27,10 +27,10 @@
     version))
 
 (defn run [command]
-  (println (str (exec command))))
+  ( println (str (exec command))))
 
 (let [version (increment-version)]
-  (println "releasing version:" version)  
+  (println "releasing version:" version)
   (run (str "git commit -a -m \"release version " version "\""))
   (run "git push")
   (run (str "git tag -a v" version " -m \"release " version "\"" ))

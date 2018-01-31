@@ -7,10 +7,10 @@
             [migratus.protocols :as proto]
             [migratus.utils :as utils])
   (:import [java.io File StringWriter]
-           java.text.SimpleDateFormat
+           [java.util Date TimeZone]
            [java.util.jar JarEntry JarFile]
-           java.util.regex.Pattern
-           java.util.Date))
+           java.text.SimpleDateFormat
+           java.util.regex.Pattern))
 
 (defn ->kebab-case [s]
   (-> (reduce
@@ -27,7 +27,8 @@
       (.toLowerCase)))
 
 (defn- timestamp []
-  (let [fmt (SimpleDateFormat. "yyyyMMddHHmmss ")]
+  (let [fmt (doto (SimpleDateFormat. "yyyyMMddHHmmss ")
+              (.setTimeZone (TimeZone/getTimeZone "UTC")))]
     (.format fmt (Date.))))
 
 (defn parse-migration-id [id]

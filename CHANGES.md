@@ -1,3 +1,7 @@
+### 1.0.4
+
+updated `migratus.migrations/timestamp` to use UTC
+
 ### 1.0.3
 
 updated `pending-list` function to use `log/debug` as well as return names of the migrations as a vector.
