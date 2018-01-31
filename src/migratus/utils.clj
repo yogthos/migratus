@@ -44,12 +44,19 @@
           (JarFile.)))
 
 (defn find-migration-dir
-  "Finds the given directory on the classpath"
-  [dir]
-  (when-let [url (ClassLoader/getSystemResource dir)]
-    (if (= "jar" (.getProtocol url))
-      (jar-file url)
-      (File. (.getFile url)))))
+  "Finds the given directory on the classpath. For backward
+  compatibility, tries the System ClassLoader first, but falls back to
+  using the Context ClassLoader like Clojure's compiler."
+  ([dir]
+   (or (find-migration-dir (ClassLoader/getSystemClassLoader) dir)
+       (-> (Thread/currentThread)
+           (.getContextClassLoader)
+           (find-migration-dir dir))))
+  ([class-loader dir]
+   (when-let [url (.getResource class-loader dir)]
+     (if (= "jar" (.getProtocol url))
+       (jar-file url)
+       (File. (.getFile url))))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."
@@ -64,4 +71,3 @@
       (doseq [child (.listFiles f)]
         (recursive-delete child))
       (.delete f))))
-
