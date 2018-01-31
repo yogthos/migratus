@@ -69,8 +69,8 @@
   (run (proto/make-store config) nil (partial migrate* config)))
 
 (defn- run-up [config store ids]
-  (let [completed (set (proto/completed-ids store))
-        ids (set/difference (set ids) completed)
+  (let [completed  (set (proto/completed-ids store))
+        ids        (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (mig/list-migrations config))]
     (migrate-up* store migrations)))
 
@@ -81,8 +81,8 @@
   (run (proto/make-store config) ids (partial run-up config)))
 
 (defn- run-down [config store ids]
-  (let [completed (set (proto/completed-ids store))
-        ids (set/intersection (set ids) completed)
+  (let [completed  (set (proto/completed-ids store))
+        ids        (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
                            (mig/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
@@ -100,12 +100,12 @@
 
 (defn- rollback* [config store _]
   (run-down
-   config
-   store
-   (->> (proto/completed-ids store)
-        sort
-        last
-        vector)))
+    config
+    store
+    (->> (proto/completed-ids store)
+         sort
+         last
+         vector)))
 
 (defn- reset* [config store _]
   (run-down config store (->> (proto/completed-ids store) sort)))
@@ -140,13 +140,14 @@
 (defn pending-list
   "List pending migrations"
   [config]
-  (let [migrations-name (->> (doto (proto/make-store config)
-                               (proto/connect))
-                             (uncompleted-migrations config)
-                             (map proto/name))
+  (let [migrations-name  (->> (doto (proto/make-store config)
+                                (proto/connect))
+                              (uncompleted-migrations config)
+                              (mapv proto/name))
         migrations-count (count migrations-name)]
-    (str "You have " migrations-count " pending migrations:\n"
-         (clojure.string/join "\n" migrations-name))))
+    (log/debug "You have " migrations-count " pending migrations:\n"
+               (clojure.string/join "\n" migrations-name))
+    migrations-name))
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a

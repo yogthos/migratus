@@ -1,3 +1,9 @@
+### 1.0.3
+
+updated `pending-list` function to use `log/debug` as well as return names of the migrations as a vector.
+
+### 0.9.2
+
 ### 0.9.2
 
 Changedd `datetime` to `timestamp` as it's supported by more databases.

@@ -104,7 +104,7 @@
 (deftest test-create-missing-directory
   (let [migration-dir  "doesnt_exist"
         config         {:parent-migration-dir "test"
-                        :migration-dir migration-dir}
+                        :migration-dir        migration-dir}
         migration      "create-user"
         migration-up   "create-user.up.sql"
         migration-down "create-user.down.sql"]
@@ -131,7 +131,7 @@
                 :completed-ids (atom #{1})}]
     (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
       (testing "should return the list of pending migrations"
-        (is (= "You have 3 pending migrations:\nid-2\nid-3\nid-4"
+        (is (= ["id-2" "id-3" "id-4"]
                (migratus.core/pending-list config)))))))
 
 
