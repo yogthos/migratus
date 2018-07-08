@@ -1,11 +1,11 @@
 #+STARTUP: hidestars showall
 * Migratus
-  
+
   [[https://circleci.com/gh/yogthos/migratus.svg?style=shield&circle-token=636dc3b37803364146d48f15d6e1ecf4d5051109]]
 
 
   [[https://cdn.rawgit.com/yogthos/migratus/master/migrate.png]]
-  
+
   A general migration framework, with implementations for migrations as SQL
   scripts or general Clojure code.
 
@@ -93,15 +93,15 @@
 *** Setup
 
 - Add Migratus as a dependency to your =project.clj=
-    : :dependencies [[migratus "1.0.0"]]
+    : :dependencies [[migratus <VERSION>]]
 
 
     There are hidden dependencies on slf4j inside migratus, so
 	to avoid errors or silent failures you'll need to also add
-	: [org.slf4j/slf4j-log4j12 "1.7.9"]
+	: [org.slf4j/slf4j-log4j12 <VERSION>]
 
 	or if you're using Timbre
-	: [com.fzakaria/slf4j-timbre "0.3.2"]
+	: [com.fzakaria/slf4j-timbre <VERSION>]
 
 Next, create a namespace to manage the migrations:
 
@@ -303,7 +303,7 @@ function.
 
    Migratus can also be used from leiningen if you add it as a plugin dependency.
 
-   : :plugins [[migratus-lein "0.4.1"]]
+   : :plugins [[migratus-lein <VERSION>]]
 
    And add a configuration :migratus key to your project.clj.
 
