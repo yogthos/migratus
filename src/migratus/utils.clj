@@ -1,5 +1,6 @@
 (ns migratus.utils
   (:import java.io.File
+           java.net.URLDecoder
            java.util.jar.JarFile
            java.util.regex.Pattern))
 
@@ -38,6 +39,7 @@
 (defn jar-file [url]
   (some-> url
           (.getFile)
+          (URLDecoder/decode "UTF-8")
           (.split "!/")
           (first)
           (.replaceFirst "file:" "")
@@ -56,7 +58,7 @@
    (when-let [url (.getResource class-loader dir)]
      (if (= "jar" (.getProtocol url))
        (jar-file url)
-       (File. (.getFile url))))))
+       (File. (URLDecoder/decode (.getFile url) "UTF-8"))))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."
