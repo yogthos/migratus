@@ -235,10 +235,8 @@
                                    (= java.sql.Timestamp))
                               from-db)))))
 
-
-(deftest test-backing-out-bad-migration
-  (log/debug "running backout tests")
-  (let [{:keys [db migration-table-name] :as test-config} (assoc config :migration-dir "migrations-intentionally-broken")]
+(defn- test-backing-out* [test-config]
+  (let [{:keys [db migration-table-name]} test-config]
     (testing "should fail")
     (is (thrown? Throwable (core/migrate test-config)))
     (testing "first statement in migration was backed out because second one failed")
@@ -246,7 +244,17 @@
     (testing "third statement in migration was backed out because second one failed")
     (is (not (test-sql/verify-table-exists? test-config "quux3")))
     (testing "migration was not applied")
-    (is (not (complete? db migration-table-name 20120827170200)))))
+    (is (not (complete? db migration-table-name 20120827170200)))
+    (testing "table should be unreserved after migration failure")
+    (is (mark-reserved db migration-table-name))))
+
+(deftest test-backing-out-bad-migration
+  (log/debug "running backout tests")
+  (test-backing-out* (assoc config :migration-dir "migrations-intentionally-broken")))
+
+(deftest test-backing-out-bad-migration-no-tx
+  (log/debug "running backout tests without tx")
+  (test-backing-out* (assoc config :migration-dir "migrations-intentionally-broken-no-tx")))
 
 
 (deftest test-no-tx-migration
