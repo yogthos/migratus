@@ -23,7 +23,8 @@
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils])
   (:import java.io.File
-           java.util.jar.JarFile))
+           java.util.jar.JarFile
+           (java.util.concurrent CancellationException)))
 
 (def config (merge test-sql/test-config
                    {:store                :database
@@ -163,11 +164,11 @@
         (is (not (mark-reserved db migration-table-name))))
       (testing "migrations don't run when locked"
         (is (not (test-sql/verify-table-exists? config "foo")))
-        (core/migrate config)
+        (is (= :ignore (core/migrate config)))
         (is (not (test-sql/verify-table-exists? config "foo"))))
       (testing "migrations run once lock is freed"
         (mark-unreserved db migration-table-name)
-        (core/migrate config)
+        (is (nil? (core/migrate config)))
         (is (test-sql/verify-table-exists? config "foo")))
       (testing "rollback migration isn't run when locked"
         (is (mark-reserved db migration-table-name))
@@ -264,3 +265,22 @@
     (is (test-sql/verify-table-exists? test-config "foo"))
     (core/down test-config 20111202110600)
     (is (not (test-sql/verify-table-exists? test-config "foo")))))
+
+(deftest test-cancellation-observed
+  (let [lines-processed (atom 0)
+        future-instance (atom nil)
+        future-instance-set (promise)
+        migration-in-future (future (core/migrate
+                                     (assoc config
+                                       :migration-table-name "schema_migrations"
+                                       :modify-sql-fn (fn [sql]
+                                                        (when (re-find #"CREATE TABLE schema_migrations" sql)
+                                                          (deref future-instance-set)
+                                                          (future-cancel @future-instance))
+                                                        (swap! lines-processed inc)
+                                                        sql))))]
+    (reset! future-instance migration-in-future)
+    (deliver future-instance-set true)
+    (is (thrown? CancellationException @migration-in-future))
+    (Thread/sleep 100)
+    (is (= 1 @lines-processed))))
