@@ -52,10 +52,17 @@
       (log/info "Running up for" (pr-str (vec (map proto/id migrations))))
       (loop [[migration & more] migrations]
         (when migration
+          (when (Thread/interrupted)
+            (log/info "Thread cancellation detected.  Stopping migration.")
+            (throw (InterruptedException. "Migration interrupted by thread cancellation.")))
           (case (up* store migration)
             :success (recur more)
-            :ignore (log/info "Migration reserved by another instance. Ignoring.")
-            (log/error "Stopping:" (migration-name migration) "failed to migrate")))))))
+            :ignore (do
+                      (log/info "Migration reserved by another instance. Ignoring.")
+                      :ignore)
+            (do
+              (log/error "Stopping:" (migration-name migration) "failed to migrate")
+              :failure)))))))
 
 (defn- migrate* [config store _]
   (let [migrations (->> store
