@@ -1,3 +1,20 @@
+### 1.0.8
+
+alter migration function to return nil if successful, `:ignore` or `:failure` when migrations are incomplete.
+Add support for Thread cancellation during migrations.
+Tests added for backout.
+
+### 1.0.7
+
+Update dependency on `org.clojure/tools.logging` to 0.4.1
+Update dependency on `org.clojure/java.jdbc` to 0.7.7
+Fix issue with handling directories that have spaces.
+
+### 1.0.6
+
+search Context classloader as fall back to system class loader for migration directory discovery
+
+### 1.0.5
 ### 1.0.4
 
 updated `migratus.migrations/timestamp` to use UTC
