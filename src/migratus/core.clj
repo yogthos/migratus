@@ -71,7 +71,9 @@
     (migrate-up* store migrations)))
 
 (defn migrate
-  "Bring up any migrations that are not completed."
+  "Bring up any migrations that are not completed.
+  Returns nil if successful, :ignore if the table is reserved, :failure otherwise.
+  Supports thread cancellation."
   [config]
   (run (proto/make-store config) nil (partial migrate* config)))
 
