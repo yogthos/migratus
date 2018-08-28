@@ -12,7 +12,7 @@
 (def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
 (defn use-tx? [sql]
-  (not (str/starts-with? sql "-- :disable-transaction\n")))
+  (not (str/starts-with? sql "-- :disable-transaction")))
 
 (defn sanitize [command]
   (-> command
