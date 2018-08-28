@@ -1,3 +1,7 @@
+### 1.0.9
+
+[PR 144](https://github.com/yogthos/migratus/pull/144) removed \n in SQL to also allow windows line terminators.
+
 ### 1.0.8
 
 alter migration function to return nil if successful, `:ignore` or `:failure` when migrations are incomplete.
