@@ -27,7 +27,7 @@
   migration, in which case the lower numbered migration would never get run,
   unless it is renumbered.
 
-  Migratus does not use a single global version for a store.  It considers each
+  Migratus does not use a single global version for a store. It considers each
   migration independently, and runs all uncompleted migrations in sorted order.
 
 ** Quick Start
@@ -265,7 +265,7 @@ Migratus provides a Leiningen plugin:
     :  :db ~(get (System/getenv) "DATABASE_URL")}
 
     The :migration-dir key specifies the directory on the classpath in which to
-    find SQL migration files.  Each file should be named with the following
+    find SQL migration files. Each file should be named with the following
     pattern "[id]-[name].[direction].sql" where id is a unique integer
     id (ideally it should be a timestamp) for the migration, name is some human
     readable description of the migration, and direction is either 'up' or
@@ -290,7 +290,7 @@ function.
 
    | Function                                | Description                                                                                                                                    |
    |-----------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------------|
-   | migratus.core/init                      | Runs a script to nitialize the database, e.g: create a new schema.                                                                             |
+   | migratus.core/init                      | Runs a script to initialize the database, e.g: create a new schema.                                                                            |
    | migratus.core/create                    | Create a new migration with the current date.                                                                                                  |
    | migratus.core/migrate                   | Run 'up' for any migrations that have not been run. Returns nil if successful, :ignore if the table is reserved. Supports thread cancellation. |
    | migratus.core/rollback                  | Run 'down' for the last migration that was run.                                                                                                |
@@ -322,8 +322,8 @@ function.
    | lein migratus create <name> | Create a new migration with the current date.                                              |
    | lein migratus migrate       | Run 'up' for any migrations that have not been run.                                        |
    | lein migratus rollback      | Run 'down' for the last migration that was run.                                            |
-   | lein migratus up & ids      | Run 'up' for the specified migration ids.  Will skip any migration that is already up.     |
-   | lein migratus down & ids    | Run 'down' for the specified migration ids.  Will skip any migration that is already down. |
+   | lein migratus up & ids      | Run 'up' for the specified migration ids. Will skip any migration that is already up.      |
+   | lein migratus down & ids    | Run 'down' for the specified migration ids. Will skip any migration that is already down.  |
    | lein migratus reset         | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
    | lein migratus pending       | Run 'pending-list' to get all pending migrations.                                          |
 
