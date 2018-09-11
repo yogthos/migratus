@@ -329,5 +329,5 @@ function.
 
 ** License
    : Copyright © 2016 Paul Stadig, Dmitri Sotnikov
-   :
+
    : Licensed under the Apache License, Version 2.0.
