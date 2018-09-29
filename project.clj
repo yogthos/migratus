@@ -6,7 +6,7 @@
             :distribution :repo}
   :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[org.clojure/clojure "1.9.0"]
-                 [org.clojure/java.jdbc "0.7.7"]
+                 [org.clojure/java.jdbc "0.7.8"]
                  [org.clojure/tools.logging "0.4.1"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [ch.qos.logback/logback-classic "1.2.3"]
