@@ -244,6 +244,7 @@ Migratus provides a Leiningen plugin:
    parameter.  The :store key describes the type of store against which
    migrations should be run.  All other keys/values in the configuration map are
    store specific.
+   
 *** Databases
     To run migrations against a database use a :store of :database, and specify
     the database connection configuration in the :db key of the configuration
@@ -258,6 +259,11 @@ Migratus provides a Leiningen plugin:
     :       :user "root"
     :       :password ""}}
 
+    or:
+    
+    : {:store :database
+    :  :db {:connection-uri "jdbc:sqlite:foo_dev.db"}}
+    
     or:
 
     : {:store :database
