@@ -51,7 +51,7 @@
   (log/debug "marking" id "not complete")
   (sql/delete! db table-name ["id=?" id]))
 
-(defn migrate-up* [db config {:keys [name] :as migration}]
+(defn migrate-up* [db {:keys [tx-handles-ddl?] :as config} {:keys [name] :as migration}]
   (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
@@ -61,11 +61,14 @@
           (mark-complete db table-name name id)
           :success)
         (catch Throwable up-e
-          (log/error (format "Migration %s failed because %s backing out" name (.getMessage up-e)))
-          (try
-            (proto/down migration (assoc config :conn db))
-            (catch Throwable down-e
-              (log/debug down-e (format "As expected, one of the statements failed in %s while backing out the migration" name))))
+          (if tx-handles-ddl?
+            (log/error (format "Migration %s failed because %s" name (.getMessage up-e)))
+            (do
+              (log/error (format "Migration %s failed because %s backing out" name (.getMessage up-e)))
+              (try
+                (proto/down migration (assoc config :conn db))
+                (catch Throwable down-e
+                  (log/debug down-e (format "As expected, one of the statements failed in %s while backing out the migration" name))))))
           (throw up-e))
         (finally
           (mark-unreserved db table-name)))
