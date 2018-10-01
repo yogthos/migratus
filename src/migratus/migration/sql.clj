@@ -28,7 +28,7 @@
 (defn execute-command [t-con tx? c]
   (log/trace "executing" c)
   (try
-    (sql/db-do-prepared t-con tx? c)
+    (sql/db-do-commands t-con tx? [c])
     (catch Throwable t
       (log/error (format "failed to execute command:\n %s\nFailure: %s" c (.getMessage t)))
       (throw t))))
