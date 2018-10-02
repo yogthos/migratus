@@ -250,7 +250,17 @@ Migratus is configured via a configuration map that you pass in as its first par
 
 ### Databases
 
-To run migrations against a database use a :store of :database, and specify the database connection configuration in the :db key of the configuration map. This connection information is passed directly to clojure.java.jdbc. For example:
+To run migrations against a database use a :store of :database, and specify the database connection configuration in the :db key of the configuration map.
+
+* `:migration-dir` - directory where migration files are found
+* `:db` - clojure.java.jdbc database connection descriptor
+* `:expect-results?` - allows comparing migration query results using the `-- expect n` comment
+* `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
+* `:init-script` -  string pointing to a script that should be run when the database is initialized
+* `:init-in-transaction?` - defaults to true, but some databases do not support schema initialization in a transaction
+* `:migration-table-name` - string specifying a custom name for the migration table, defaults to "schema_migrations"
+
+#### example configurations
 
 ```clojure
 {:store :database
