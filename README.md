@@ -289,6 +289,18 @@ or:
 
 The `:migration-dir` key specifies the directory on the classpath in which to find SQL migration files. Each file should be named with the following pattern `[id]-[name].[direction].sql` where id is a unique integer `id` (ideally it should be a timestamp) for the migration, name is some human readable description of the migration, and direction is either `up` or `down`.
 
+When the `expect-results?` key is set in the config, an assertion can be added to the migrations to check that the expected number of rows was updated:
+
+```sql
+-- expect 17;;
+update foobar set thing = 'c' where thing = 'a';
+
+--;;
+
+-- expect 1;;
+delete from foobar where thing = 'c';
+```
+ 
 If Migratus is trying to run either the up or down migration and it does not exist, then an Exception will be thrown.
 
 See test/migrations in this repository for an example of how database migrations work.
