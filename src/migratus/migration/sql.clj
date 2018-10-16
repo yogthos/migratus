@@ -44,7 +44,7 @@
   (log/trace "executing" c)
   (cond->
     (try
-      (sql/db-do-commands t-con tx? [c])
+      (sql/db-do-commands t-con tx? (str/split c #";"))
       (catch SQLException e
         (log/error (format "failed to execute command:\n %s" c))
         (loop [e e]
