@@ -167,9 +167,7 @@
     [t-con db]
     (try
       (let [v (-> (sql/query t-con ["SELECT @@version AS v"]) (first) :v)]
-        (if (str/starts-with? v "Microsoft SQL Server")
-          true
-          false))
+        (str/starts-with? v "Microsoft SQL Server"))
       (catch SQLException _
         false))))
 
