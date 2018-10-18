@@ -15,6 +15,7 @@
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
             [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [migratus.migration.sql :as sql-mig]
             [migratus.protocols :as proto]
             [migratus.utils :as utils])
@@ -158,6 +159,20 @@
       (catch SQLException _
         false))))
 
+(defn datetime-backend?
+  "Checks whether the underlying backend requires the applied column to be
+  of type datetime instead of timestamp."
+  [db]
+  (sql/with-db-transaction
+    [t-con db]
+    (try
+      (let [v (-> (sql/query t-con ["SELECT @@version AS v"]) (first) :v)]
+        (if (str/starts-with? v "Microsoft SQL Server")
+          true
+          false))
+      (catch SQLException _
+        false))))
+
 
 (defn create-migration-table!
   "Creates the schema for the migration table via t-con in db in table-name"
@@ -168,7 +183,8 @@
     (sql/db-do-commands t-con
                         (modify-sql-fn
                          (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                           [:applied "TIMESTAMP" "" ""]
+                                                           [:applied (if (datetime-backend? t-con)
+                                                                       "DATETIME" "TIMESTAMP") "" ""]
                                                            [:description "VARCHAR(1024)" "" ""]])))))
 
 (defn update-migration-table!
@@ -252,5 +268,3 @@
 (defmethod proto/make-store :database
   [config]
   (->Database (atom nil) config))
-
-
