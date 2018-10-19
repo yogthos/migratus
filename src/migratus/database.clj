@@ -32,9 +32,9 @@
 
 (defn mark-reserved [db table-name]
   (boolean
-   (try
-     (sql/insert! db table-name {:id reserved-id})
-     (catch Exception _))))
+    (try
+      (sql/insert! db table-name {:id reserved-id})
+      (catch Exception _))))
 
 (defn mark-unreserved [db table-name]
   (sql/delete! db table-name ["id=?" reserved-id]))
@@ -90,8 +90,8 @@
 
 (defn find-init-script-file [migration-dir init-script-name]
   (first
-   (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
-           (file-seq migration-dir))))
+    (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
+            (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
   (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
@@ -163,27 +163,24 @@
   "Checks whether the underlying backend requires the applied column to be
   of type datetime instead of timestamp."
   [db]
-  (sql/with-db-transaction
-    [t-con db]
+  (sql/with-db-transaction [t-con db]
+    (sql/db-set-rollback-only! t-con)
     (try
       (let [v (-> (sql/query t-con ["SELECT @@version AS v"]) (first) :v)]
-        (str/starts-with? v "Microsoft SQL Server"))
-      (catch SQLException _
-        false))))
-
+        (if (str/starts-with? v "Microsoft SQL Server") "DATETIME" "TIMESTAMP"))
+      (catch Throwable _ "TIMESTAMP"))))
 
 (defn create-migration-table!
   "Creates the schema for the migration table via t-con in db in table-name"
   [db modify-sql-fn table-name]
   (log/info "creating migration table" (str "'" table-name "'"))
-  (sql/with-db-transaction
-    [t-con db]
-    (sql/db-do-commands t-con
-                        (modify-sql-fn
-                         (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                           [:applied (if (datetime-backend? t-con)
-                                                                       "DATETIME" "TIMESTAMP") "" ""]
-                                                           [:description "VARCHAR(1024)" "" ""]])))))
+  (let [timestamp-column-type (datetime-backend? db)]
+    (sql/with-db-transaction [t-con db]
+      (sql/db-do-commands t-con
+                          (modify-sql-fn
+                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                              [:applied timestamp-column-type "" ""]
+                                                              [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
@@ -193,8 +190,8 @@
     [t-con db]
     (sql/db-do-commands t-con
                         (modify-sql-fn
-                         [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
-                          (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")]))))
+                          [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
+                           (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")]))))
 
 
 (defn init-schema! [db table-name modify-sql-fn]
