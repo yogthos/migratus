@@ -53,7 +53,7 @@
   (sql/delete! db table-name ["id=?" id]))
 
 (defn migrate-up* [db {:keys [tx-handles-ddl?] :as config} {:keys [name] :as migration}]
-  (let [id         (proto/id migration)
+  (let [id (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -76,7 +76,7 @@
       :ignore)))
 
 (defn migrate-down* [db config migration]
-  (let [id         (proto/id migration)
+  (let [id (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -163,12 +163,11 @@
   "Checks whether the underlying backend requires the applied column to be
   of type datetime instead of timestamp."
   [db]
-  (sql/with-db-transaction [t-con db]
-    (sql/db-set-rollback-only! t-con)
-    (try
-      (let [v (-> (sql/query t-con ["SELECT @@version AS v"]) (first) :v)]
-        (if (str/starts-with? v "Microsoft SQL Server") "DATETIME" "TIMESTAMP"))
-      (catch Throwable _ "TIMESTAMP"))))
+  (println db)
+  (let [db-name (.. (:connection db) getMetaData getDatabaseProductName)]
+    (if (= "Microsoft SQL Server" db-name)
+      "DATETIME"
+      "TIMESTAMP")))
 
 (defn create-migration-table!
   "Creates the schema for the migration table via t-con in db in table-name"
