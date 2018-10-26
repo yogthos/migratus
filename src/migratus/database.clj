@@ -163,7 +163,6 @@
   "Checks whether the underlying backend requires the applied column to be
   of type datetime instead of timestamp."
   [db]
-  (println db)
   (let [db-name (.. (:connection db) getMetaData getDatabaseProductName)]
     (if (= "Microsoft SQL Server" db-name)
       "DATETIME"
