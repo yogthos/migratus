@@ -40,22 +40,28 @@
         (log/error message "Expected" expected)
         (log/info message)))))
 
-(defn execute-command [t-con tx? expect-results? c]
-  (log/trace "executing" c)
+(defn parse-commands-sql [commands]
+  (->>
+    (str/split commands #";")
+    (map str/trim)
+    (remove empty?)))
+
+(defn execute-command [t-con tx? expect-results? commands]
+  (log/trace "executing" commands)
   (cond->
     (try
-      (sql/db-do-commands t-con tx? (str/split c #";"))
+      (sql/db-do-commands t-con tx? (parse-commands-sql commands))
       (catch SQLException e
-        (log/error (format "failed to execute command:\n %s" c))
+        (log/error (format "failed to execute command:\n %s" commands))
         (loop [e e]
           (if-let [next-e (.getNextException e)]
             (recur next-e)
             (log/error (.getMessage e))))
         (throw e))
       (catch Throwable t
-        (log/error (format "failed to execute command:\n %s\nFailure: %s" c (.getMessage t)))
+        (log/error (format "failed to execute command:\n %s\nFailure: %s" commands (.getMessage t)))
         (throw t)))
-    expect-results? (check-expectations c)))
+    expect-results? (check-expectations commands)))
 
 (defn- run-sql*
   [conn tx? expect-results? commands direction]

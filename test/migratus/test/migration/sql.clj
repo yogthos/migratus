@@ -20,7 +20,8 @@
             (when (.exists f)
               (.delete f)))]
     (delete (io/file "site.db.trace.db"))
-    (delete (io/file "site.db.mv.db"))))
+    (delete (io/file "site.db.mv.db"))
+    (delete (io/file "site.db"))))
 
 (defn setup-test-db [f]
   (reset-db)
