@@ -2,7 +2,8 @@
   (:import java.io.File
            java.net.URLDecoder
            java.util.jar.JarFile
-           java.util.regex.Pattern))
+           java.util.regex.Pattern)
+  (:require [clojure.string :as str]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -73,3 +74,8 @@
       (doseq [child (.listFiles f)]
         (recursive-delete child))
       (.delete f))))
+
+(defn normalize-path
+  "Replace backslashes with forwardslashes"
+  [^String s]
+  (str/replace s "\\" "/"))

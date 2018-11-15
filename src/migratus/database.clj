@@ -94,7 +94,8 @@
             (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
-  (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
+  (let [init-script-path (utils/normalize-path
+                          (.getPath (io/file migration-dir init-script-name)))]
     (->> (.entries jar)
          (enumeration-seq)
          (filter (fn [^JarEntry entry]
