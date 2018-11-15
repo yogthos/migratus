@@ -94,7 +94,8 @@
             (file-seq migration-dir))))
 
 (defn find-init-script-resource [migration-dir jar init-script-name]
-  (let [init-script-path (.getPath (io/file migration-dir init-script-name))]
+  (let [init-script-path (utils/normalize-path
+                          (.getPath (io/file migration-dir init-script-name)))]
     (->> (.entries jar)
          (enumeration-seq)
          (filter (fn [^JarEntry entry]
@@ -176,9 +177,9 @@
     (sql/with-db-transaction [t-con db]
       (sql/db-do-commands t-con
                           (modify-sql-fn
-                            (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                              [:applied timestamp-column-type "" ""]
-                                                              [:description "VARCHAR(1024)" "" ""]]))))))
+                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                             [:applied timestamp-column-type "" ""]
+                                                             [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
