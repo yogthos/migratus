@@ -30,27 +30,29 @@
 (defn check-expectations [result c]
   (let [[full-str expect-str command] (re-matches #"(?sm).*\s*-- expect (.*);;\n+(.*)" c)]
     (assert expect-str (str "No expectation on command: " c))
-    (let [expected (some-> expect-str Long/parseLong)
-          actual (some-> result first)
+    (let [expected   (some-> expect-str Long/parseLong)
+          actual     (some-> result first)
           different? (not= actual expected)
-          message (format "%s %d"
-                          (some-> command (clojure.string/split #"\s+" 2) first clojure.string/upper-case)
-                          actual)]
+          message    (format "%s %d"
+                             (some-> command (clojure.string/split #"\s+" 2) first clojure.string/upper-case)
+                             actual)]
       (if different?
         (log/error message "Expected" expected)
         (log/info message)))))
 
-(defn parse-commands-sql [commands]
-  (->>
-    (str/split commands #";")
-    (map str/trim)
-    (remove empty?)))
+(defn parse-commands-sql [{:keys [command-separator]} commands]
+  (if command-separator
+    (->>
+      (str/split commands (re-pattern command-separator))
+      (map str/trim)
+      (remove empty?))
+    commands))
 
-(defn execute-command [t-con tx? expect-results? commands]
+(defn execute-command [config t-con tx? expect-results? commands]
   (log/trace "executing" commands)
   (cond->
     (try
-      (sql/db-do-commands t-con tx? (parse-commands-sql commands))
+      (sql/db-do-commands t-con tx? (parse-commands-sql config commands))
       (catch SQLException e
         (log/error (format "failed to execute command:\n %s" commands))
         (loop [e e]
@@ -64,21 +66,21 @@
     expect-results? (check-expectations commands)))
 
 (defn- run-sql*
-  [conn tx? expect-results? commands direction]
+  [config conn tx? expect-results? commands direction]
   (log/debug "found" (count commands) (name direction) "migrations")
   (doseq [c commands]
-    (execute-command conn tx? expect-results? c)))
+    (execute-command config conn tx? expect-results? c)))
 
 (defn run-sql
-  [{:keys [conn db modify-sql-fn expect-results?]} sql direction]
+  [{:keys [conn db modify-sql-fn expect-results?] :as config} sql direction]
   (when-let [commands (map (or modify-sql-fn identity) (split-commands sql expect-results?))]
     (if (use-tx? sql)
       (sql/with-db-transaction
         [t-con (or conn db)]
-        (run-sql* t-con true expect-results? commands direction))
+        (run-sql* config t-con true expect-results? commands direction))
       (sql/with-db-connection
         [t-con (or conn db)]
-        (run-sql* t-con false expect-results? commands direction)))))
+        (run-sql* config t-con false expect-results? commands direction)))))
 
 (defrecord SqlMigration [id name up down]
   proto/Migration
@@ -110,6 +112,6 @@
 
 (defmethod proto/migration-files* :sql
   [x migration-name]
-  (let [ext  (proto/get-extension* x)]
+  (let [ext (proto/get-extension* x)]
     [(str migration-name ".up." ext)
      (str migration-name ".down." ext)]))

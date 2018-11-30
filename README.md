@@ -254,6 +254,7 @@ To run migrations against a database use a :store of :database, and specify the 
 
 * `:migration-dir` - directory where migration files are found
 * `:db` - clojure.java.jdbc database connection descriptor
+* `:command-separator` - the separator will be used to split the commands within each transaction when specified
 * `:expect-results?` - allows comparing migration query results using the `-- expect n` comment
 * `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
 * `:init-script` -  string pointing to a script that should be run when the database is initialized
@@ -300,7 +301,7 @@ update foobar set thing = 'c' where thing = 'a';
 -- expect 1;;
 delete from foobar where thing = 'c';
 ```
- 
+
 If Migratus is trying to run either the up or down migration and it does not exist, then an Exception will be thrown.
 
 See test/migrations in this repository for an example of how database migrations work.

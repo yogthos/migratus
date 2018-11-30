@@ -28,6 +28,7 @@
 
 (def config (merge test-sql/test-config
                    {:store                :database
+                    :command-separator    ";"
                     :migration-table-name "foo_bar"}))
 
 (defn verify-data [config table-name]
