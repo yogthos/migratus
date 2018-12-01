@@ -1,7 +1,7 @@
 jobs:
   build:
     docker:
-      - image: clojure:lein
+      - image: clojure:lein-2.8.0
     working_directory: /root/migratus
     steps:
       - checkout
