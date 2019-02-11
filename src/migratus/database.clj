@@ -21,7 +21,7 @@
             [migratus.utils :as utils])
   (:import java.io.File
            [java.sql Connection SQLException]
-           java.util.jar.JarEntry))
+           [java.util.jar JarEntry JarFile]))
 
 (def default-migrations-table "schema_migrations")
 
@@ -93,7 +93,7 @@
     (filter (fn [^File f] (and (.isFile f) (= (.getName f) init-script-name)))
             (file-seq migration-dir))))
 
-(defn find-init-script-resource [migration-dir jar init-script-name]
+(defn find-init-script-resource [migration-dir ^JarFile jar init-script-name]
   (let [init-script-path (utils/normalize-path
                           (.getPath (io/file migration-dir init-script-name)))]
     (->> (.entries jar)
@@ -120,7 +120,7 @@
     {:connection conn}))
 
 (defn disconnect* [db]
-  (when-let [conn (:connection db)]
+  (when-let [^Connection conn (:connection db)]
     (when-not (.isClosed conn)
       (.close conn))))
 
@@ -164,7 +164,8 @@
   "Checks whether the underlying backend requires the applied column to be
   of type datetime instead of timestamp."
   [db]
-  (let [db-name (.. (:connection db) getMetaData getDatabaseProductName)]
+  (let [^Connection conn (:connection db)
+        db-name (.. conn getMetaData getDatabaseProductName)]
     (if (= "Microsoft SQL Server" db-name)
       "DATETIME"
       "TIMESTAMP")))

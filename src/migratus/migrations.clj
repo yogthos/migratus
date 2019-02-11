@@ -17,8 +17,8 @@
         (fn [s c]
           (if (and
                 (not-empty s)
-                (Character/isLowerCase (last s))
-                (Character/isUpperCase c))
+                (Character/isLowerCase (char (last s)))
+                (Character/isUpperCase (char c)))
             (str s "-" c)
             (str s c)))
         "" s)
@@ -75,13 +75,13 @@
              :let [file-name (.getName ^File f)]]
          (if-let [mig (parse-name file-name)]
            (migration-map mig (slurp f))
-           (when-not (exclude-scripts (.getName f))
+           (when-not (exclude-scripts (.getName ^File f))
              (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
 (defn find-migration-resources [dir jar exclude-scripts]
   (log/debug "Looking for migrations in" dir jar)
-  (->> (for [entry (enumeration-seq (.entries jar))
+  (->> (for [entry (enumeration-seq (.entries ^JarFile jar))
              :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".+"))
              :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")]]
@@ -154,5 +154,5 @@
         migration-name (->kebab-case name)
         pattern        (re-pattern (str "[\\d]*-" migration-name "\\..*"))
         migrations     (file-seq migration-dir)]
-    (doseq [f (filter #(re-find pattern (.getName %)) migrations)]
-      (.delete f))))
+    (doseq [f (filter #(re-find pattern (.getName ^File %)) migrations)]
+      (.delete ^File f))))

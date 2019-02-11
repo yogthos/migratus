@@ -1,8 +1,7 @@
 (ns migratus.utils
   (:import java.io.File
-           java.net.URLDecoder
            java.util.jar.JarFile
-           java.util.regex.Pattern)
+           [java.net URL URLDecoder])
   (:require [clojure.string :as str]))
 
 (def default-migration-parent "resources/")
@@ -37,12 +36,12 @@
     (str dir "/")
     dir))
 
-(defn jar-file [url]
+(defn jar-file [^URL url]
   (some-> url
           (.getFile)
           (URLDecoder/decode "UTF-8")
           (.split "!/")
-          (first)
+          ^String (first)
           (.replaceFirst "file:" "")
           (JarFile.)))
 
@@ -50,13 +49,13 @@
   "Finds the given directory on the classpath. For backward
   compatibility, tries the System ClassLoader first, but falls back to
   using the Context ClassLoader like Clojure's compiler."
-  ([dir]
+  ([^String dir]
    (or (find-migration-dir (ClassLoader/getSystemClassLoader) dir)
        (-> (Thread/currentThread)
            (.getContextClassLoader)
            (find-migration-dir dir))))
-  ([class-loader dir]
-   (when-let [url (.getResource class-loader dir)]
+  ([^ClassLoader class-loader ^String dir]
+   (when-let [^URL url (.getResource class-loader dir)]
      (if (= "jar" (.getProtocol url))
        (jar-file url)
        (File. (URLDecoder/decode (.getFile url) "UTF-8"))))))
