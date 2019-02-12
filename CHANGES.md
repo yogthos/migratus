@@ -1,3 +1,7 @@
+### 1.2.1
+
+type hints for compiling with Graal
+
 ### 1.1.1
 
 [pr](https://github.com/yogthos/migratus/pull/151) that adds the optional `-- expect` sanity check in migrations
