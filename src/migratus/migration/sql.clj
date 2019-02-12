@@ -8,10 +8,10 @@
     java.sql.SQLException
     java.util.regex.Pattern))
 
-(def sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
-(def sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
-(def sql-comment-without-expect (Pattern/compile "^--((?! *expect).)*$" Pattern/MULTILINE))
-(def empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
+(def ^Pattern sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
+(def ^Pattern sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
+(def ^Pattern sql-comment-without-expect (Pattern/compile "^--((?! *expect).)*$" Pattern/MULTILINE))
+(def ^Pattern empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
 (defn use-tx? [sql]
   (not (str/starts-with? sql "-- :disable-transaction")))
