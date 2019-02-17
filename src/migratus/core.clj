@@ -151,7 +151,9 @@
   [config & [name]]
   (mig/destroy config name))
 
-(defn select-migrations [config selection-fn]
+(defn select-migrations
+  "List pairs of id and name for migrations selected by the selection-fn."
+  [config selection-fn]
   (let [migrations (->> (doto (proto/make-store config)
                                (proto/connect))
                              (selection-fn config)
@@ -167,7 +169,7 @@
     (mapv second migrations)))
 
 (defn pending-list
-  "List completed migrations"
+  "List pending migrations"
   [config]
   (let [migrations (select-migrations config uncompleted-migrations)]
     (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
