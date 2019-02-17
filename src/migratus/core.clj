@@ -13,6 +13,7 @@
 ;;;; under the License.
 (ns migratus.core
   (:require [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [migratus.migrations :as mig]
             [migratus.protocols :as proto]
@@ -34,6 +35,10 @@
     (throw (Exception. "Store is not configured")))
   (let [plugin (symbol (str "migratus." (name store)))]
     (require plugin)))
+
+(defn completed-migrations [config store]
+  (let [completed? (set (proto/completed-ids store))]
+    (filter (comp completed? proto/id) (mig/list-migrations config))))
 
 (defn uncompleted-migrations [config store]
   (let [completed? (set (proto/completed-ids store))]
@@ -78,8 +83,8 @@
   (run (proto/make-store config) nil (partial migrate* config)))
 
 (defn- run-up [config store ids]
-  (let [completed  (set (proto/completed-ids store))
-        ids        (set/difference (set ids) completed)
+  (let [completed (set (proto/completed-ids store))
+        ids (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (mig/list-migrations config))]
     (migrate-up* store migrations)))
 
@@ -90,8 +95,8 @@
   (run (proto/make-store config) ids (partial run-up config)))
 
 (defn- run-down [config store ids]
-  (let [completed  (set (proto/completed-ids store))
-        ids        (set/intersection (set ids) completed)
+  (let [completed (set (proto/completed-ids store))
+        ids (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
                            (mig/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
@@ -146,17 +151,28 @@
   [config & [name]]
   (mig/destroy config name))
 
-(defn pending-list
-  "List pending migrations"
+(defn select-migrations [config selection-fn]
+  (let [migrations (->> (doto (proto/make-store config)
+                               (proto/connect))
+                             (selection-fn config)
+                             (mapv (juxt proto/id proto/name)))]
+    migrations))
+
+(defn completed-list
+  "List completed migrations"
   [config]
-  (let [migrations-name  (->> (doto (proto/make-store config)
-                                (proto/connect))
-                              (uncompleted-migrations config)
-                              (mapv proto/name))
-        migrations-count (count migrations-name)]
-    (log/debug "You have " migrations-count " pending migrations:\n"
-               (clojure.string/join "\n" migrations-name))
-    migrations-name))
+  (let [migrations (select-migrations config completed-migrations)]
+    (log/debug (apply str "You have " (count migrations) " completed migrations:\n"
+                      (str/join "\n" migrations)))
+    (mapv second migrations)))
+
+(defn pending-list
+  "List completed migrations"
+  [config]
+  (let [migrations (select-migrations config uncompleted-migrations)]
+    (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
+                      (str/join "\n" migrations)))
+    (mapv second migrations)))
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a

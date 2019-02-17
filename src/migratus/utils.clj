@@ -2,7 +2,8 @@
   (:import java.io.File
            java.util.jar.JarFile
            [java.net URL URLDecoder])
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.java.io :as io]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -48,17 +49,24 @@
 (defn find-migration-dir
   "Finds the given directory on the classpath. For backward
   compatibility, tries the System ClassLoader first, but falls back to
-  using the Context ClassLoader like Clojure's compiler."
+  using the Context ClassLoader like Clojure's compiler.
+  If classloaders return nothing try to find it on a filesystem."
   ([^String dir]
-   (or (find-migration-dir (ClassLoader/getSystemClassLoader) dir)
+   (or (find-migration-dir (ClassLoader/getSystemClassLoader) default-migration-parent dir)
        (-> (Thread/currentThread)
            (.getContextClassLoader)
-           (find-migration-dir dir))))
-  ([^ClassLoader class-loader ^String dir]
-   (when-let [^URL url (.getResource class-loader dir)]
+           (find-migration-dir default-migration-parent dir))))
+  ([^ClassLoader class-loader ^String parent-dir ^String dir]
+   (if-let [^URL url (.getResource class-loader dir)]
      (if (= "jar" (.getProtocol url))
        (jar-file url)
-       (File. (URLDecoder/decode (.getFile url) "UTF-8"))))))
+       (File. (URLDecoder/decode (.getFile url) "UTF-8")))
+     (let [migration-dir (io/file parent-dir dir)]
+       (if (.exists migration-dir)
+         migration-dir
+         (let [no-implicit-parent-dir (io/file dir)]
+           (when (.exists no-implicit-parent-dir)
+             no-implicit-parent-dir)))))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."

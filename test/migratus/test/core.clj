@@ -124,6 +124,16 @@
       (destroy config migration)
       (io/delete-file (io/file "test" migration-dir)))))
 
+(deftest test-completed-list
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
+                :completed-ids (atom #{1 2 3})}]
+    (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
+      (testing "should return the list of completed migrations"
+        (is (= ["id-1" "id-2" "id-3"]
+               (migratus.core/completed-list config)))))))
+
 (deftest test-pending-list
   (let [ups    (atom [])
         downs  (atom [])
@@ -134,6 +144,17 @@
         (is (= ["id-2" "id-3" "id-4"]
                (migratus.core/pending-list config)))))))
 
+(deftest test-select-migrations
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
+                :completed-ids (atom #{1 3})}]
+    (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
+      (testing "should return the list of [id name] selected migrations"
+        (is (= [[1 "id-1"] [3 "id-3"]]
+               (migratus.core/select-migrations config migratus.core/completed-migrations)))
+        (is (= [[2 "id-2"] [4 "id-4"]]
+               (migratus.core/select-migrations config migratus.core/uncompleted-migrations)))))))
 
 (deftest supported-extensions
   (testing "All supported extensions show up.
