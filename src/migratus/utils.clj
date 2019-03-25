@@ -86,3 +86,12 @@
   "Replace backslashes with forwardslashes"
   [^String s]
   (str/replace s "\\" "/"))
+
+(defn censor-password
+  "Show only first character of password if given db-spec has password"
+  [{:keys [password] :as db-spec}]
+  (if (empty? password)
+    db-spec
+    (assoc db-spec
+      :password (str (subs password 0 (min 1 (count password)))
+                     "<censored>"))))
