@@ -115,7 +115,7 @@
         (try
           (sql/get-connection db)
           (catch Exception e
-            (log/error e (str "Error creating DB connection for " db))))]
+            (log/error e (str "Error creating DB connection for " (utils/censor-password db)))))]
     (.setAutoCommit conn false)
     {:connection conn}))
 
