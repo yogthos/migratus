@@ -1,3 +1,11 @@
+### 1.2.3
+
+censor passworrd in logs [PR 166](https://github.com/yogthos/migratus/pull/166)
+
+### 1.2.2
+
+fix doc strings, [file system lookup for pending migrations](https://github.com/yogthos/migratus/commit/6bd8948b452a4ba909e1f978f7a33422e47b3d9e)
+
 ### 1.2.1
 
 type hints for compiling with Graal
