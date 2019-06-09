@@ -33,6 +33,7 @@ migration independently, and runs all uncompleted migrations in sorted order.
 - add the Migratus dependency:
 
 [![Clojars Project](https://img.shields.io/clojars/v/migratus.svg)](https://clojars.org/migratus)
+[![Open Source Helpers](https://www.codetriage.com/yogthos/migratus/badges/users.svg)](https://www.codetriage.com/yogthos/migratus)
 
 - Add the following code to
  `resources/migrations/20111206154000-create-foo-table.up.sql`
