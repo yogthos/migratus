@@ -260,7 +260,7 @@ To run migrations against a database use a :store of :database, and specify the 
 * `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
 * `:init-script` -  string pointing to a script that should be run when the database is initialized
 * `:init-in-transaction?` - defaults to true, but some databases do not support schema initialization in a transaction
-* `:migration-table-name` - string specifying a custom name for the migration table, defaults to "schema_migrations"
+* `:migration-table-name` - string specifying a custom name for the migration table, defaults to `schema_migrations`
 
 #### example configurations
 
