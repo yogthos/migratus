@@ -1,3 +1,7 @@
+### 1.2.4
+
+[support for passing in an existing connection](https://github.com/yogthos/migratus/pull/172)
+
 ### 1.2.3
 
 censor passworrd in logs [PR 166](https://github.com/yogthos/migratus/pull/166)
