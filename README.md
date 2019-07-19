@@ -144,6 +144,33 @@ Next, create a namespace to manage the migrations:
 (migratus/down config 20111206154000)
 ```
 
+#### Alternative setup
+
+It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in place of a db spec map, e.g:
+
+```clojure
+(ns my-migrations
+  (:require [clojure.java.jdbc :as jdbc]))
+
+(def connection (jdbc/get-connection
+                  {:classname   "org.h2.Driver"
+                   :subprotocol "h2"
+                   :subname     "site.db"}))
+
+(def config {:db connection})
+```
+
+```clojure
+(ns my-migrations
+  (:require [hikari-cp :as hk]))
+;; Hikari: https://github.com/tomekw/hikari-cp
+
+(def datasource-options {:adapter "h2"
+                         :url     "jdbc:h2:site.db"})
+
+(def config {:db (hk/make-datasource datasource-options)})
+```
+
 ### Generate migration files
 
 Migratus also provides a convenience function for creating migration files:

@@ -20,6 +20,7 @@
             [migratus.protocols :as proto]
             [migratus.utils :as utils])
   (:import java.io.File
+           [javax.sql DataSource]
            [java.sql Connection SQLException]
            [java.util.jar JarEntry JarFile]))
 
@@ -112,10 +113,16 @@
 
 (defn connect* [db]
   (let [^Connection conn
-        (try
-          (sql/get-connection db)
-          (catch Exception e
-            (log/error e (str "Error creating DB connection for " (utils/censor-password db)))))]
+        (cond
+          (instance? Connection db) db
+          (instance? DataSource db) (try (.getConnection db)
+                                         (catch Exception e
+                                           (log/error e (str "Error getting DB connection from source" db))))
+          :else (try
+                  (sql/get-connection db)
+                  (catch Exception e
+                    (log/error e (str "Error creating DB connection for "
+                                      (utils/censor-password db))))))]
     (.setAutoCommit conn false)
     {:connection conn}))
 

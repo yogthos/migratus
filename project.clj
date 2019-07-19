@@ -1,4 +1,4 @@
-(defproject migratus "1.2.3"
+(defproject migratus "1.2.4-SNAPSHOT"
   :description "MIGRATE ALL THE THINGS!"
   :url "http://github.com/yogthos/migratus"
   :license {:name "Apache License, Version 2.0"
@@ -10,4 +10,5 @@
                  [org.clojure/tools.logging "0.4.1"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [ch.qos.logback/logback-classic "1.2.3"]
-                                  [com.h2database/h2 "1.4.197"]]}})
+                                  [com.h2database/h2 "1.4.197"]
+                                  [hikari-cp "2.8.0"]]}})
