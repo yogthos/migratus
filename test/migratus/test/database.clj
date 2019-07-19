@@ -83,22 +83,6 @@
                                       default-migrations-table))))
   (test-sql/reset-db))
 
-#_(deftest test-make-store-pass-datasource
-  (testing "should create default table name"
-    (is (not (test-sql/verify-table-exists?
-              (dissoc config :migration-table-name) default-migrations-table)))
-    (test-with-store
-     (proto/make-store (-> (dissoc config :migration-table-name)
-                           (assoc :db (-> {:adapter "h2"
-                                           :url (str "jdbc:h2:" (-> config :db :subname))}
-                                          (hk/make-datasource)))))
-     (fn [_]
-       (test-sql/verify-table-exists? (dissoc config :migration-table-name)
-                                      default-migrations-table))))
-  (test-sql/reset-db))
-
-(test-make-store-pass-datasource)
-
 (deftest test-init
   (testing "db init"
     (let [config (assoc config :init-script "init.sql")]
