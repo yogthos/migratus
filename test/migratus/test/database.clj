@@ -21,7 +21,8 @@
             [clojure.tools.logging :as log]
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
-            [migratus.utils :as utils])
+            [migratus.utils :as utils]
+            [hikari-cp.core :as hk])
   (:import java.io.File
            java.util.jar.JarFile
            (java.util.concurrent CancellationException)))
@@ -69,6 +70,34 @@
       (proto/make-store config)
       (fn [config]
         (is (test-sql/verify-table-exists? config "foo_bar"))))))
+
+(deftest test-make-store-pass-conn
+  (testing "should create default table name"
+    (is (not (test-sql/verify-table-exists?
+              (dissoc config :migration-table-name) default-migrations-table)))
+    (test-with-store
+     (proto/make-store (-> (dissoc config :migration-table-name)
+                           (assoc :db (sql/get-connection (:db config)))))
+     (fn [_]
+       (test-sql/verify-table-exists? (dissoc config :migration-table-name)
+                                      default-migrations-table))))
+  (test-sql/reset-db))
+
+#_(deftest test-make-store-pass-datasource
+  (testing "should create default table name"
+    (is (not (test-sql/verify-table-exists?
+              (dissoc config :migration-table-name) default-migrations-table)))
+    (test-with-store
+     (proto/make-store (-> (dissoc config :migration-table-name)
+                           (assoc :db (-> {:adapter "h2"
+                                           :url (str "jdbc:h2:" (-> config :db :subname))}
+                                          (hk/make-datasource)))))
+     (fn [_]
+       (test-sql/verify-table-exists? (dissoc config :migration-table-name)
+                                      default-migrations-table))))
+  (test-sql/reset-db))
+
+(test-make-store-pass-datasource)
 
 (deftest test-init
   (testing "db init"
