@@ -171,6 +171,10 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 (def config {:db (hk/make-datasource datasource-options)})
 ```
 
+#### Running as native image (Postgres only)
+
+[PGMig](https://github.com/leafclick/pgmig) is a standalone tool built with migratus that's compiled as a standalone GraalVM native image executable.
+
 ### Generate migration files
 
 Migratus also provides a convenience function for creating migration files:
