@@ -54,7 +54,7 @@
   (sql/delete! db table-name ["id=?" id]))
 
 (defn migrate-up* [db {:keys [tx-handles-ddl?] :as config} {:keys [name] :as migration}]
-  (let [id (proto/id migration)
+  (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -77,7 +77,7 @@
       :ignore)))
 
 (defn migrate-down* [db config migration]
-  (let [id (proto/id migration)
+  (let [id         (proto/id migration)
         table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
       (try
@@ -176,7 +176,7 @@
   of type datetime instead of timestamp."
   [db]
   (let [^Connection conn (:connection db)
-        db-name (.. conn getMetaData getDatabaseProductName)]
+        db-name          (.. conn getMetaData getDatabaseProductName)]
     (if (= "Microsoft SQL Server" db-name)
       "DATETIME"
       "TIMESTAMP")))
@@ -187,11 +187,12 @@
   (log/info "creating migration table" (str "'" table-name "'"))
   (let [timestamp-column-type (datetime-backend? db)]
     (sql/with-db-transaction [t-con db]
-                             (sql/db-do-commands t-con
-                                                 (modify-sql-fn
-                                                   (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                                                     [:applied timestamp-column-type "" ""]
-                                                                                     [:description "VARCHAR(1024)" "" ""]]))))))
+      (sql/db-do-commands
+        t-con
+        (modify-sql-fn
+          (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                            [:applied timestamp-column-type "" ""]
+                                            [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
@@ -257,12 +258,12 @@
   (migrate-up [this migration]
     (if (proto/tx? migration :up)
       (sql/with-db-transaction [t-con @connection]
-                               (migrate-up* t-con config migration))
+        (migrate-up* t-con config migration))
       (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
     (if (proto/tx? migration :down)
       (sql/with-db-transaction [t-con @connection]
-                               (migrate-down* t-con config migration))
+        (migrate-down* t-con config migration))
       (migrate-down* (:db config) config migration)))
   (connect [this]
     (reset! connection (connect* (:db config)))
