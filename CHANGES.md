@@ -1,3 +1,7 @@
+### 1.2.5
+
+fixed error for transactional mode.
+
 ### 1.2.4
 
 [support for passing in an existing connection](https://github.com/yogthos/migratus/pull/172)
