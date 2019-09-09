@@ -96,7 +96,7 @@
 
 (defn find-init-script-resource [migration-dir ^JarFile jar init-script-name]
   (let [init-script-path (utils/normalize-path
-                          (.getPath (io/file migration-dir init-script-name)))]
+                           (.getPath (io/file migration-dir init-script-name)))]
     (->> (.entries jar)
          (enumeration-seq)
          (filter (fn [^JarEntry entry]
@@ -123,7 +123,11 @@
                   (catch Exception e
                     (log/error e (str "Error creating DB connection for "
                                       (utils/censor-password db))))))]
-    (.setAutoCommit conn false)
+    ;; set autocommit to false is necessary for transactional mode
+    ;; and must be enabled for non transactional mode
+    (if (:transaction? db)
+      (.setAutoCommit conn false)
+      (.setAutoCommit conn true))
     {:connection conn}))
 
 (defn disconnect* [db]
@@ -183,11 +187,11 @@
   (log/info "creating migration table" (str "'" table-name "'"))
   (let [timestamp-column-type (datetime-backend? db)]
     (sql/with-db-transaction [t-con db]
-      (sql/db-do-commands t-con
-                          (modify-sql-fn
-                           (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                                             [:applied timestamp-column-type "" ""]
-                                                             [:description "VARCHAR(1024)" "" ""]]))))))
+                             (sql/db-do-commands t-con
+                                                 (modify-sql-fn
+                                                   (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
+                                                                                     [:applied timestamp-column-type "" ""]
+                                                                                     [:description "VARCHAR(1024)" "" ""]]))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
@@ -215,11 +219,13 @@
       (update-migration-table! db modify-sql-fn table-name)))
 
 
-(defn run-init-script! [init-script-name init-script conn modify-sql-fn]
+(defn run-init-script! [init-script-name init-script conn modify-sql-fn transaction?]
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
-    (sql/db-do-prepared conn (modify-sql-fn init-script))
+    (if transaction?
+      (sql/db-do-prepared conn (modify-sql-fn init-script))
+      (sql/db-do-prepared conn false (modify-sql-fn init-script) {}))
     (catch Throwable t
       (log/error t "failed to initialize the database with:\n" init-script "\n")
       (throw t))))
@@ -229,15 +235,15 @@
     (if transaction?
       (sql/with-db-transaction
         [t-con db]
-        (run-init-script! init-script-name init-script t-con modify-sql-fn))
-      (run-init-script! init-script-name init-script db modify-sql-fn))
+        (run-init-script! init-script-name init-script t-con modify-sql-fn transaction?))
+      (run-init-script! init-script-name init-script db modify-sql-fn transaction?))
     (log/error "could not locate the initialization script '" init-script-name "'")))
 
 (defrecord Database [connection config]
   proto/Store
   (config [this] config)
   (init [this]
-    (let [conn (connect* (:db config))]
+    (let [conn (connect* (assoc (:db config) :transaction? (:init-in-transaction? config)))]
       (try
         (init-db! conn
                   (utils/get-migration-dir config)
@@ -251,12 +257,12 @@
   (migrate-up [this migration]
     (if (proto/tx? migration :up)
       (sql/with-db-transaction [t-con @connection]
-        (migrate-up* t-con config migration))
+                               (migrate-up* t-con config migration))
       (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
     (if (proto/tx? migration :down)
       (sql/with-db-transaction [t-con @connection]
-        (migrate-down* t-con config migration))
+                               (migrate-down* t-con config migration))
       (migrate-down* (:db config) config migration)))
   (connect [this]
     (reset! connection (connect* (:db config)))
