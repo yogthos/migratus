@@ -51,11 +51,12 @@
       (re-matches file-name)
       boolean))
 
-
 (defn parse-name [file-name]
-  (when (valid-extension? file-name)
-    (when-let [[id name ext] (next (re-matches migration-file-pattern file-name))]
-      [id name (remove empty? (str/split ext #"\."))])))
+    (when (valid-extension? file-name)
+      (let [[id name ext] (next (re-matches migration-file-pattern file-name))
+            migration-type (remove empty? (some-> ext (str/split #"\.")))]
+        (when (and id name (< 0 (count migration-type) 3))
+          [id name migration-type]))))
 
 (defn warn-on-invalid-migration [file-name]
   (log/warn (str "skipping: '" file-name "'")
