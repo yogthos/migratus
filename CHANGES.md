@@ -1,3 +1,11 @@
+### 1.2.7
+
+allow subfolders inside the migrations folder [PR 176](https://github.com/yogthos/migratus/pull/176)
+
+### 1.2.6
+
+improved error reporting for invalid migation file names
+
 ### 1.2.5
 
 fixed error for transactional mode.
