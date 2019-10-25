@@ -80,18 +80,22 @@
              (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
+
 (defn find-migration-resources [dir jar exclude-scripts]
   (log/debug "Looking for migrations in" dir jar)
   (->> (for [entry (enumeration-seq (.entries ^JarFile jar))
              :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".+"))
-             :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")]]
-         (if-let [mig (parse-name entry-name)]
+             :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")
+                   last-slash-index (str/last-index-of entry-name "/")
+                   file-name (subs entry-name (if-not last-slash-index 0
+                                                (+ 1 last-slash-index)))]]
+         (if-let [mig (parse-name file-name)]
            (let [w (StringWriter.)]
              (io/copy (.getInputStream ^JarFile jar entry) w)
              (migration-map mig (.toString w)))
-           (when-not (exclude-scripts entry-name)
-             (warn-on-invalid-migration entry-name))))
+           (when-not (exclude-scripts file-name)
+             (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
 (defn read-migrations [dir exclude-scripts]
