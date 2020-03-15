@@ -154,6 +154,7 @@
   (sql/with-db-transaction
     [t-con db]
     (try
+      (sql/db-set-rollback-only! t-con)
       (sql/query t-con [(str "SELECT 1 FROM " table-name)])
       true
       (catch SQLException _

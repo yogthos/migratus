@@ -1,3 +1,7 @@
+### 1.2.8
+
+fix for checking whether table exists when using the latest pg driver
+
 ### 1.2.7
 
 allow subfolders inside the migrations folder [PR 176](https://github.com/yogthos/migratus/pull/176)
