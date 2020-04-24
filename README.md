@@ -157,7 +157,7 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
                    :subprotocol "h2"
                    :subname     "site.db"}))
 
-(def config {:db connection})
+(def config {:db {:connection connection}})
 ```
 
 ```clojure
@@ -168,7 +168,7 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 (def datasource-options {:adapter "h2"
                          :url     "jdbc:h2:site.db"})
 
-(def config {:db (hk/make-datasource datasource-options)})
+(def config {:db {:datasource (hk/make-datasource datasource-options)}})
 ```
 
 #### Running as native image (Postgres only)
