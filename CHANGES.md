@@ -1,3 +1,7 @@
+### 1.3.0
+
+[Wrap modify-sql-fn to support returning a sequence](https://github.com/yogthos/migratus/pull/187)
+
 ### 1.2.9
 
 [Fix DB connection leak in select-migrations](https://github.com/yogthos/migratus/pull/186)
