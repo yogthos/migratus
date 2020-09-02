@@ -340,8 +340,9 @@ See test/migrations in this repository for an example of how database migrations
 
 ### Modify sql fn
 
-If you want to do some processing of the sql before it gets executed, you can provide a `:modify-sql-fn` in the config data structure to do so. This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and similar
-systems, where DDL statements need to be executed via an extension-provided function.
+If you want to do some processing of the sql before it gets executed, you can provide a `:modify-sql-fn` in the config data structure to do so.
+It expects a sql-string and can return either a modified sql-string or a sequence of sql-strings.
+This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and similar systems, where DDL statements need to be executed via an extension-provided function.
 
 ## Usage
    Migratus can be used programmatically by calling one of the following functions:

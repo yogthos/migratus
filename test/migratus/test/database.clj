@@ -131,6 +131,12 @@
     (str "-- " sql)
     sql))
 
+(defn multi-bar-statements [sql]
+  (if (re-find #"CREATE TABLE IF NOT EXISTS bar" sql)
+    ["CREATE TABLE IF NOT EXISTS bar1"
+     "CREATE TABLE IF NOT EXISTS bar2"]
+    sql))
+
 (deftest test-migrate-with-modify-sql-fn
   (is (not (test-sql/verify-table-exists? config "foo")))
   (is (not (test-sql/verify-table-exists? config "bar")))
@@ -139,6 +145,19 @@
   (core/migrate (assoc config :modify-sql-fn comment-out-bar-statements))
   (is (test-sql/verify-table-exists? config "foo"))
   (is (not (test-sql/verify-table-exists? config "bar")))
+  (is (test-sql/verify-table-exists? config "quux"))
+  (is (test-sql/verify-table-exists? config "quux2")))
+
+(deftest test-migrate-with-multi-statement-modify-sql-fn
+  (is (not (test-sql/verify-table-exists? config "foo")))
+  (is (not (test-sql/verify-table-exists? config "bar")))
+  (is (not (test-sql/verify-table-exists? config "quux")))
+  (is (not (test-sql/verify-table-exists? config "quux2")))
+  (core/migrate (assoc config :modify-sql-fn multi-bar-statements))
+  (is (test-sql/verify-table-exists? config "foo"))
+  (is (not (test-sql/verify-table-exists? config "bar")))
+  (is (test-sql/verify-table-exists? config "bar1"))
+  (is (test-sql/verify-table-exists? config "bar2"))
   (is (test-sql/verify-table-exists? config "quux"))
   (is (test-sql/verify-table-exists? config "quux2")))
 

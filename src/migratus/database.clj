@@ -250,7 +250,7 @@
         (init-db! conn
                   (utils/get-migration-dir config)
                   (utils/get-init-script config)
-                  (get config :modify-sql-fn identity)
+                  (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))
                   (get config :init-in-transaction? true))
         (finally
           (disconnect* conn)))))
@@ -270,7 +270,7 @@
     (reset! connection (connect* (:db config)))
     (init-schema! @connection
                   (migration-table-name config)
-                  (get config :modify-sql-fn identity)))
+                  (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))))
   (disconnect [this]
     (disconnect* @connection)
     (reset! connection nil)))
