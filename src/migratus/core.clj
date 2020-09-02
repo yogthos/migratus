@@ -19,6 +19,33 @@
             [migratus.protocols :as proto]
             migratus.database))
 
+(defmacro ^{:private true} assert-args
+  [& pairs]
+  `(do (when-not ~(first pairs)
+         (throw (IllegalArgumentException.
+                  (str (first ~'&form) " requires " ~(second pairs) " in " ~'*ns* ":" (:line (meta ~'&form))))))
+       ~(let [more (nnext pairs)]
+          (when more
+            (list* `assert-args more)))))
+
+(defmacro with-store
+  "bindings => name init
+  Evaluates body in a try expression with name bound to the value
+  of the init, and (proto/connect name) called before body, and a
+  finally clause that calls (proto/disconnect name)."
+  ([bindings & body]
+   (assert-args
+     (vector? bindings) "a vector for its binding"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector"
+     (symbol? (bindings 0)) "only Symbols in bindings")
+   (let [form (bindings 0) init (bindings 1)]
+     `(let [~form ~init]
+        (try
+          (proto/connect ~form)
+          ~@body
+          (finally
+            (proto/disconnect ~form)))))))
+
 (defn run [store ids command]
   (try
     (log/info "Starting migrations")
@@ -154,11 +181,10 @@
 (defn select-migrations
   "List pairs of id and name for migrations selected by the selection-fn."
   [config selection-fn]
-  (let [migrations (->> (doto (proto/make-store config)
-                               (proto/connect))
-                             (selection-fn config)
-                             (mapv (juxt proto/id proto/name)))]
-    migrations))
+  (with-store [store (proto/make-store config)]
+    (->> store
+         (selection-fn config)
+         (mapv (juxt proto/id proto/name)))))
 
 (defn completed-list
   "List completed migrations"
@@ -181,13 +207,10 @@
   migration behaves as expected on fixture data. This only considers uncompleted
   migrations, and will not migrate down."
   [config migration-id]
-  (let [store (proto/make-store config)]
-    (try
-      (proto/connect store)
-      (->> (uncompleted-migrations config store)
-           (map proto/id)
-           distinct
-           sort
-           (take-while #(< % migration-id))
-           (apply up config))
-      (finally (proto/disconnect store)))))
+  (with-store [store (proto/make-store config)]
+    (->> (uncompleted-migrations config store)
+         (map proto/id)
+         distinct
+         sort
+         (take-while #(< % migration-id))
+         (apply up config))))
