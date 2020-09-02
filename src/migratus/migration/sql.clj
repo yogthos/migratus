@@ -40,6 +40,14 @@
         (log/error message "Expected" expected)
         (log/info message)))))
 
+(defn wrap-modify-sql-fn [old-modify-fn]
+  (fn [sql]
+    (let [modify-fn (or old-modify-fn identity)
+          result (modify-fn sql)]
+      (if (string? result)
+        [result]
+        result))))
+
 (defn parse-commands-sql [{:keys [command-separator]} commands]
   (if command-separator
     (->>
@@ -73,7 +81,7 @@
 
 (defn run-sql
   [{:keys [conn db modify-sql-fn expect-results?] :as config} sql direction]
-  (when-let [commands (map (or modify-sql-fn identity) (split-commands sql expect-results?))]
+  (when-let [commands (mapcat (wrap-modify-sql-fn modify-sql-fn) (split-commands sql expect-results?))]
     (if (use-tx? sql)
       (sql/with-db-transaction
         [t-con (or conn db)]
