@@ -1,3 +1,7 @@
+### 1.2.9
+
+[Fix DB connection leak in select-migrations](https://github.com/yogthos/migratus/pull/186)
+
 ### 1.2.8
 
 fix for checking whether table exists when using the latest pg driver
