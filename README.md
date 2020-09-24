@@ -390,6 +390,43 @@ And add a configuration :migratus key to your `project.clj`.
    | lein migratus reset         | Run 'down' for all migrations that have been run, and 'up' for all migrations.             |
    | lein migratus pending       | Run 'pending-list' to get all pending migrations.                                          |
 
+## Quickstart with native Clojure projects
+
+[![Clojars Project](https://img.shields.io/clojars/v/orangefoxcollective/clj-migratus.svg)](https://clojars.org/orangefoxcollective/clj-migratus)
+
+See [clj-migratus](https://gitlab.com/orangefoxcollective/clj-migratus) for more information.
+
+## Usage
+
+Add the following to your `deps.edn`:
+
+	:aliases
+	{:migratus {:extra-deps
+	            {orangefoxcollective/clj-migratus {:mvn/version "0.1.0"}
+	            :main-opts ["-m" "clj-migratus.core"]}}
+
+
+Create a [Migratus configuration](https://github.com/yogthos/migratus#configuration) file `migratus.edn`:
+
+    {:store :database
+     :migration-dir "migrations"
+     :db {:classname "com.mysql.jdbc.Driver"
+	      :subprotocol "mysql"
+          :subname "//localhost/migratus"
+          :user "root"
+          :password ""}}
+
+Then run `clj-migratus` via the command line. For example:
+
+    $ clj -Amigratus init
+
+    $ clj -Amigratus migrate
+
+    $ clj -Amigratus create create-user-table
+
+See [Migratus Usage](https://github.com/yogthos/migratus#usage) for documentation on each command.
+
+
 ## License
 
 Copyright © 2016 Paul Stadig, Dmitri Sotnikov
