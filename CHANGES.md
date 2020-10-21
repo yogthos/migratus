@@ -1,3 +1,6 @@
+### 1.3.1
+
+[skip logging connection-uri on connection failure to avoid logging passwords](https://github.com/yogthos/migratus/pull/192)
 ### 1.3.0
 
 [Wrap modify-sql-fn to support returning a sequence](https://github.com/yogthos/migratus/pull/187)
