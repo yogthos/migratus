@@ -95,10 +95,17 @@
     "uri-censored"))
 
 (defmethod censor-password :default
-  [{:keys [password] :as db-spec}]
-  (if (empty? password)
-    db-spec
-    ;; Show only first character of password if given db-spec has password
-    (assoc db-spec
-      :password (str (subs password 0 (min 1 (count password)))
-                     "<censored>"))))
+  [{:keys [password connection-uri] :as db-spec}]
+    (let [password-map
+          (if (empty? password)
+            nil
+            ;; Show only first character of password if given db-spec has password
+            {:password
+             (str (subs password 0 (min 1 (count password)))
+                  "<censored>")})
+          uri-map
+          (if (empty? connection-uri)
+            nil
+            ;; Censor entire uri instead of trying to parse out and replace only a possible password parameter
+            {:connection-uri "uri-censored"})]
+    (merge db-spec password-map uri-map)))
