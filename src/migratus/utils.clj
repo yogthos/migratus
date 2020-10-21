@@ -87,11 +87,18 @@
   [^String s]
   (str/replace s "\\" "/"))
 
-(defn censor-password
-  "Show only first character of password if given db-spec has password"
+(defmulti censor-password class)
+
+(defmethod censor-password String [uri]
+  (if (empty? uri)
+    ""
+    "uri-censored"))
+
+(defmethod censor-password :default
   [{:keys [password] :as db-spec}]
   (if (empty? password)
     db-spec
+    ;; Show only first character of password if given db-spec has password
     (assoc db-spec
       :password (str (subs password 0 (min 1 (count password)))
                      "<censored>"))))
