@@ -118,15 +118,15 @@ Next, create a namespace to manage the migrations:
  (:require [migratus.core :as migratus]))
 
 (def config {:store                :database
-              :migration-dir        "migrations/"
-              :init-script          "init.sql" ;script should be located in the :migration-dir path
-              ;defaults to true, some databases do not support
-              ;schema initialization in a transaction
-              :init-in-transaction? false
-              :migration-table-name "foo_bar"
-              :db {:classname   "org.h2.Driver"
-                   :subprotocol "h2"
-                   :subname     "site.db"}})
+             :migration-dir        "migrations/"
+             :init-script          "init.sql" ;script should be located in the :migration-dir path
+             ;defaults to true, some databases do not support
+             ;schema initialization in a transaction
+             :init-in-transaction? false
+             :migration-table-name "foo_bar"
+             :db {:classname   "org.h2.Driver"
+                  :subprotocol "h2"
+                  :subname     "site.db"}})
 
 ;initialize the database using the 'init.sql' script
 (migratus/init config)
@@ -162,11 +162,11 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 
 ```clojure
 (ns my-migrations
-  (:require [hikari-cp :as hk]))
+  (:require [hikari-cp.core :as hk]))
 ;; Hikari: https://github.com/tomekw/hikari-cp
 
 (def datasource-options {:adapter "h2"
-                         :url     "jdbc:h2:site.db"})
+                         :url     "jdbc:h2:./site.db"})
 
 (def config {:db {:datasource (hk/make-datasource datasource-options)}})
 ```
