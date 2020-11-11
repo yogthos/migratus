@@ -115,7 +115,7 @@
   (let [^Connection conn
         (cond
           (instance? Connection db) db
-          (instance? DataSource db) (try (.getConnection db)
+          (instance? DataSource db) (try (.getConnection ^DataSource db)
                                          (catch Exception e
                                            (log/error e (str "Error getting DB connection from source" db))))
           :else (try
