@@ -402,7 +402,7 @@ Add the following to your `deps.edn`:
 
 	:aliases
 	{:migratus {:extra-deps
-	            {orangefoxcollective/clj-migratus {:mvn/version "0.1.0"}
+	            {orangefoxcollective/clj-migratus {:mvn/version "0.1.0"}}
 	            :main-opts ["-m" "clj-migratus.core"]}}
 
 
