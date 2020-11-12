@@ -1,3 +1,7 @@
+### 1.3.3
+
+type hint for the data source, updated dependencies
+
 ### 1.3.2
 
 [Don't log value of :connection-uri in db-spec](https://github.com/yogthos/migratus/pull/193)
