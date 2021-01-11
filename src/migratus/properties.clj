@@ -1,9 +1,11 @@
 (ns migratus.properties
   (:require
-    [clojure.string :as s]))
+    [clojure.string :as s])
+  (:import
+    java.util.Date))
 
 (def ^:private default-properties
-  #{"migratus.schema" "migratus.user" "migratus.database" "migratus.timestamp"})
+  #{"migratus.schema" "migratus.user" "migratus.database"})
 
 (defn read-system-env []
   (reduce
@@ -15,7 +17,7 @@
 (defn inject-properties [properties text]
   (reduce
     (fn [text [k v]]
-      (.replace text k v))
+      (.replace text k (str v)))
     text
     properties))
 
@@ -29,7 +31,7 @@
         (if-let [v (get props k)]
           (assoc m (str "${" k "}") v)
           m))
-      {}
+      {"${migratus.timestamp}" (.getTime (Date.))}
       (into default-properties property-names))))
 
 (defn map->props
