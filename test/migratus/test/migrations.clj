@@ -38,7 +38,11 @@
            {:sql
             {:up   multi-stmt-up
              :down multi-stmt-down}}}}
-         (find-migrations "migrations" #{"init.sql"}))))
+         (find-migrations "migrations" #{"init.sql"} nil)))
+  (is (= {"20111202110600" {"create-foo-table" {:sql {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n",
+                                                      :down "DROP TABLE IF EXISTS TEST_SCHEMA.foo;\n"}},
+                            "create-schema"    {:sql {:up "CREATE SCHEMA TEST_SCHEMA\n"}}}}
+         (find-migrations "migrations-with-props" #{} {"${migratus.schema}" "TEST_SCHEMA"}))))
 
 (deftest test-find-jar-migrations
   (let [dir "migrations-in-jar"
