@@ -110,15 +110,20 @@ Migratus will look for the following default properties:
 * migratus.database
 * migratus.timestamp
 
-Additional properties can be specified using the `:custom-properties` key:
+Additional property can be specified using the `:custom-env-properties` key or by providing a map of custom properties using the `:custom-properties` key:
 
 ```clojure
-{:store                :database
- :inject-properties?   true
- :custom-properties    ["foo.bar" "bar.baz"]
+{:store                 :database
+ :inject-properties?    true
+ :custom-env-properties ["database.table"]
+ :custom-properties     {:database {:user "bob"}}
  :db {:classname   "org.h2.Driver"
       :subprotocol "h2"
       :subname     "site.db"}}
+```
+The `database.table` key will replace `${database.table}` in the template with the value found in the environment, while `{:database {:user "bob"}}` will replace `${database.user}` with `"bob"`.
+```
+GRANT SELECT,INSERT ON ${database.table} TO ${database.user};
 ```
 
 ### Setup

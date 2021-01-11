@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [migratus.migration.sql :as sql-mig]
             [migratus.migrations :refer :all]
-            [migratus.utils :as utils]))
+            [migratus.utils :as utils]
+            [migratus.properties :as props]))
 
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" ["up" "sql"]]
@@ -21,6 +22,16 @@
 (def multi-stmt-down (str "DROP TABLE quux2;\n"
                           "--;;\n"
                           "DROP TABLE quux;\n"))
+
+(deftest test-properties
+  (let [props (props/load-properties
+                {:inject-properties?    true
+                 :custom-env-properties ["java.home"]
+                 :custom-properties     {:foo "bar"
+                                         :baz {:bar "foo"}}})]
+    (is (not (empty? (get props "${java.home}"))))
+    (is (= "bar" (get props "${foo}")))
+    (is (= "foo" (get props "${baz.bar}")))))
 
 (deftest test-find-migrations
   (is (= {"20111202113000"

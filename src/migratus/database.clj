@@ -259,8 +259,7 @@
                   (utils/get-init-script config)
                   (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))
                   (get config :init-in-transaction? true)
-                  (when (:inject-properties? config)
-                    (props/system-properties (:custom-properties config))))
+                  (props/load-properties config))
         (finally
           (disconnect* conn)))))
   (completed-ids [this]

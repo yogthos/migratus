@@ -22,7 +22,7 @@
 (defn system-properties
   "read systme properties, accepts an optional collection of strings
    specifying additional property names"
-  [& [property-names]]
+  [property-names]
   (let [props (read-system-env)]
     (reduce
       (fn [m k]
@@ -31,3 +31,19 @@
           m))
       {}
       (into default-properties property-names))))
+
+(defn map->props
+  ([m] (map->props {} nil m))
+  ([props path m]
+   (reduce
+     (fn [m [k v]]
+       (let [path (if path (str path "." (name k)) (name k))]
+         (if (map? v)
+           (map->props m path v)
+           (assoc m (str "${" path "}") v))))
+     props
+     m)))
+
+(defn load-properties [{:keys [inject-properties? custom-env-properties custom-properties]}]
+  (when inject-properties?
+    (merge (system-properties custom-env-properties) (map->props custom-properties))))

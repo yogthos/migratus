@@ -148,8 +148,7 @@
   (doall
     (for [[id mig] (find-migrations (utils/get-migration-dir config)
                                     (utils/get-exclude-scripts config)
-                                    (when (:inject-properties? config)
-                                      (props/system-properties (:custom-properties config))))]
+                                    (props/load-properties config))]
       (make-migration config id mig))))
 
 (defn create [config name migration-type]
