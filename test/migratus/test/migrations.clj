@@ -28,9 +28,9 @@
   (is (number? (get (props/load-properties {:properties {}}) "${migratus.timestamp}")))
   (let [props (props/load-properties
                 {:properties
-                 {:custom-env-properties ["java.home"]
-                  :custom-properties     {:foo "bar"
-                                          :baz {:bar "foo"}}}})]
+                 {:env ["java.home"]
+                  :map {:foo "bar"
+                        :baz {:bar "foo"}}}})]
     (is (not (empty? (get props "${java.home}"))))
     (is (= "bar" (get props "${foo}")))
     (is (= "foo" (get props "${baz.bar}")))))

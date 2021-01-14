@@ -50,9 +50,6 @@
      props
      m)))
 
-(defn load-properties [{{:keys [custom-env-properties custom-properties]} :properties :as opts}]
+(defn load-properties [{{:keys [env map]} :properties :as opts}]
   (when (map? (:properties opts))
-    (merge (system-properties custom-env-properties) (map->props custom-properties))))
-
-(load-properties {:properties {:custom-properties {:foo :bar}
-                               :custom-env-properties ["java.home"]}})
+    (merge (system-properties env) (map->props map))))

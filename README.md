@@ -114,8 +114,8 @@ Additional property can be specified using the `:custom-env-properties` key or b
 
 ```clojure
 {:store :database
- :properties {:custom-env-properties ["database.table"]
-              :custom-properties     {:database {:user "bob"}}}
+ :properties {:env ["database.table"]
+              :map {:database {:user "bob"}}}
  :db {:classname   "org.h2.Driver"
       :subprotocol "h2"
       :subname     "site.db"}}
