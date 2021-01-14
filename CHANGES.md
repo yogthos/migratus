@@ -1,3 +1,7 @@
+### 1.3.4
+
+new feature: [property substitution](https://github.com/yogthos/migratus/pull/198)
+
 ### 1.3.3
 
 type hint for the data source, updated dependencies
