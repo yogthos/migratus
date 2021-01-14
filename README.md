@@ -101,7 +101,7 @@ Shell variables will be normalized into Java properties style by being lower cas
 FOO_BAR - > foo.bar
 ```
 
-This feature must be explicitly enabled by setting the `:inject-properties? true` flag in the configuration.
+This feature is enabled by when the `:properties` flag is set in the configuration.
 
 Migratus will look for the following default properties:
 
@@ -113,10 +113,9 @@ Migratus will look for the following default properties:
 Additional property can be specified using the `:custom-env-properties` key or by providing a map of custom properties using the `:custom-properties` key:
 
 ```clojure
-{:store                 :database
- :inject-properties?    true
- :custom-env-properties ["database.table"]
- :custom-properties     {:database {:user "bob"}}
+{:store :database
+ :properties {:custom-env-properties ["database.table"]
+              :custom-properties     {:database {:user "bob"}}}
  :db {:classname   "org.h2.Driver"
       :subprotocol "h2"
       :subname     "site.db"}}

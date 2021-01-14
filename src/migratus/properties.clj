@@ -1,6 +1,7 @@
 (ns migratus.properties
   (:require
-    [clojure.string :as s])
+    [clojure.string :as s]
+    [clojure.tools.logging :as log])
   (:import
     java.util.Date))
 
@@ -15,11 +16,14 @@
     (System/getenv)))
 
 (defn inject-properties [properties text]
-  (reduce
-    (fn [text [k v]]
-      (.replace text k (str v)))
-    text
-    properties))
+  (let [text-with-props (reduce
+                          (fn [text [k v]]
+                            (.replace text k (str v)))
+                          text
+                          properties)]
+    (doseq [x (re-seq #"\$\{[a-zA-Z0-9\-_\.]+}" text-with-props)]
+      (log/warn "no property found for key:" x))
+    text-with-props))
 
 (defn system-properties
   "read systme properties, accepts an optional collection of strings
@@ -46,6 +50,9 @@
      props
      m)))
 
-(defn load-properties [{:keys [inject-properties? custom-env-properties custom-properties]}]
-  (when inject-properties?
+(defn load-properties [{{:keys [custom-env-properties custom-properties]} :properties :as opts}]
+  (when (map? (:properties opts))
     (merge (system-properties custom-env-properties) (map->props custom-properties))))
+
+(load-properties {:properties {:custom-properties {:foo :bar}
+                               :custom-env-properties ["java.home"]}})
