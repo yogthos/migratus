@@ -12,17 +12,20 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.database
-  (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
-            [clojure.tools.logging :as log]
-            [clojure.string :as str]
-            [migratus.migration.sql :as sql-mig]
-            [migratus.protocols :as proto]
-            [migratus.utils :as utils])
-  (:import java.io.File
-           [javax.sql DataSource]
-           [java.sql Connection SQLException]
-           [java.util.jar JarEntry JarFile]))
+  (:require
+    [clojure.java.io :as io]
+    [clojure.java.jdbc :as sql]
+    [clojure.tools.logging :as log]
+    [clojure.string :as str]
+    [migratus.migration.sql :as sql-mig]
+    [migratus.protocols :as proto]
+    [migratus.properties :as props]
+    [migratus.utils :as utils])
+  (:import
+    java.io.File
+    [javax.sql DataSource]
+    [java.sql Connection SQLException]
+    [java.util.jar JarEntry JarFile]))
 
 (def default-migrations-table "schema_migrations")
 
@@ -160,8 +163,6 @@
       (catch SQLException _
         false))))
 
-
-
 (defn migration-table-up-to-date?
   [db table-name]
   (sql/with-db-transaction
@@ -220,7 +221,6 @@
   (or (migration-table-up-to-date? db table-name)
       (update-migration-table! db modify-sql-fn table-name)))
 
-
 (defn run-init-script! [init-script-name init-script conn modify-sql-fn transaction?]
   (try
     (log/info "running initialization script '" init-script-name "'")
@@ -232,8 +232,15 @@
       (log/error t "failed to initialize the database with:\n" init-script "\n")
       (throw t))))
 
-(defn init-db! [db migration-dir init-script-name modify-sql-fn transaction?]
-  (if-let [init-script (some-> (find-init-script migration-dir init-script-name) slurp)]
+(defn inject-properties [init-script properties]
+  (if properties
+    (props/inject-properties properties init-script)
+    init-script))
+
+(defn init-db! [db migration-dir init-script-name modify-sql-fn transaction? properties]
+  (if-let [init-script (some-> (find-init-script migration-dir init-script-name)
+                               slurp
+                               (inject-properties properties))]
     (if transaction?
       (sql/with-db-transaction
         [t-con db]
@@ -251,7 +258,8 @@
                   (utils/get-migration-dir config)
                   (utils/get-init-script config)
                   (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))
-                  (get config :init-in-transaction? true))
+                  (get config :init-in-transaction? true)
+                  (props/load-properties config))
         (finally
           (disconnect* conn)))))
   (completed-ids [this]

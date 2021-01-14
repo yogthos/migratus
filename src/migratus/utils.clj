@@ -1,9 +1,11 @@
 (ns migratus.utils
-  (:import java.io.File
-           java.util.jar.JarFile
-           [java.net URL URLDecoder])
-  (:require [clojure.string :as str]
-            [clojure.java.io :as io]))
+  (:require
+    [clojure.string :as str]
+    [clojure.java.io :as io])
+  (:import
+    java.io.File
+    java.util.jar.JarFile
+    [java.net URL URLDecoder]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -96,16 +98,16 @@
 
 (defmethod censor-password :default
   [{:keys [password connection-uri] :as db-spec}]
-    (let [password-map
-          (if (empty? password)
-            nil
-            ;; Show only first character of password if given db-spec has password
-            {:password
-             (str (subs password 0 (min 1 (count password)))
-                  "<censored>")})
-          uri-map
-          (if (empty? connection-uri)
-            nil
-            ;; Censor entire uri instead of trying to parse out and replace only a possible password parameter
-            {:connection-uri "uri-censored"})]
+  (let [password-map
+        (if (empty? password)
+          nil
+          ;; Show only first character of password if given db-spec has password
+          {:password
+           (str (subs password 0 (min 1 (count password)))
+                "<censored>")})
+        uri-map
+        (if (empty? connection-uri)
+          nil
+          ;; Censor entire uri instead of trying to parse out and replace only a possible password parameter
+          {:connection-uri "uri-censored"})]
     (merge db-spec password-map uri-map)))

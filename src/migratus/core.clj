@@ -12,12 +12,13 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.core
-  (:require [clojure.set :as set]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            [migratus.migrations :as mig]
-            [migratus.protocols :as proto]
-            migratus.database))
+  (:require
+    [clojure.set :as set]
+    [clojure.string :as str]
+    [clojure.tools.logging :as log]
+    [migratus.migrations :as mig]
+    [migratus.protocols :as proto]
+    migratus.database))
 
 (defmacro ^{:private true} assert-args
   [& pairs]
@@ -110,8 +111,8 @@
   (run (proto/make-store config) nil (partial migrate* config)))
 
 (defn- run-up [config store ids]
-  (let [completed (set (proto/completed-ids store))
-        ids (set/difference (set ids) completed)
+  (let [completed  (set (proto/completed-ids store))
+        ids        (set/difference (set ids) completed)
         migrations (filter (comp ids proto/id) (mig/list-migrations config))]
     (migrate-up* store migrations)))
 
@@ -122,8 +123,8 @@
   (run (proto/make-store config) ids (partial run-up config)))
 
 (defn- run-down [config store ids]
-  (let [completed (set (proto/completed-ids store))
-        ids (set/intersection (set ids) completed)
+  (let [completed  (set (proto/completed-ids store))
+        ids        (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
                            (mig/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
@@ -182,9 +183,9 @@
   "List pairs of id and name for migrations selected by the selection-fn."
   [config selection-fn]
   (with-store [store (proto/make-store config)]
-    (->> store
-         (selection-fn config)
-         (mapv (juxt proto/id proto/name)))))
+              (->> store
+                   (selection-fn config)
+                   (mapv (juxt proto/id proto/name)))))
 
 (defn completed-list
   "List completed migrations"
@@ -208,9 +209,9 @@
   migrations, and will not migrate down."
   [config migration-id]
   (with-store [store (proto/make-store config)]
-    (->> (uncompleted-migrations config store)
-         (map proto/id)
-         distinct
-         sort
-         (take-while #(< % migration-id))
-         (apply up config))))
+              (->> (uncompleted-migrations config store)
+                   (map proto/id)
+                   distinct
+                   sort
+                   (take-while #(< % migration-id))
+                   (apply up config))))

@@ -91,6 +91,39 @@ END;$func$;
 
 To run migrations against several different databases (in MySQL, or "schemas" in Postgres, etc.), with embedded `use` statements in your migrations, specify the database in your migration-table-name in the connections, i.e. `database_name.table_name` not `table_name`.
 
+### Property substitution
+
+Migratus supports property substitution where migration files can contain placeholders with the format of `${property.name}`, these placeholders will be replaced with values found in the environment as a result of calling `(System/getenv)`.
+
+Shell variables will be normalized into Java properties style by being lower cased and with `_` being transformed into `.`, e.g:
+
+```
+FOO_BAR - > foo.bar
+```
+
+This feature is enabled by when the `:properties` flag is set in the configuration.
+
+Migratus will look for the following default properties:
+
+* migratus.schema
+* migratus.user
+* migratus.database
+* migratus.timestamp
+
+Additional property can be specified using the `:custom-env-properties` key or by providing a map of custom properties using the `:custom-properties` key:
+
+```clojure
+{:store :database
+ :properties {:env ["database.table"]
+              :map {:database {:user "bob"}}}
+ :db {:classname   "org.h2.Driver"
+      :subprotocol "h2"
+      :subname     "site.db"}}
+```
+The `database.table` key will replace `${database.table}` in the template with the value found in the environment, while `{:database {:user "bob"}}` will replace `${database.user}` with `"bob"`.
+```
+GRANT SELECT,INSERT ON ${database.table} TO ${database.user};
+```
 
 ### Setup
 

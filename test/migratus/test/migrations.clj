@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [migratus.migration.sql :as sql-mig]
             [migratus.migrations :refer :all]
-            [migratus.utils :as utils]))
+            [migratus.utils :as utils]
+            [migratus.properties :as props]))
 
 (deftest test-parse-name
   (is (= ["20111202110600" "create-foo-table" ["up" "sql"]]
@@ -22,6 +23,18 @@
                           "--;;\n"
                           "DROP TABLE quux;\n"))
 
+(deftest test-properties
+  (is (nil? (props/load-properties {})))
+  (is (number? (get (props/load-properties {:properties {}}) "${migratus.timestamp}")))
+  (let [props (props/load-properties
+                {:properties
+                 {:env ["java.home"]
+                  :map {:foo "bar"
+                        :baz {:bar "foo"}}}})]
+    (is (not (empty? (get props "${java.home}"))))
+    (is (= "bar" (get props "${foo}")))
+    (is (= "foo" (get props "${baz.bar}")))))
+
 (deftest test-find-migrations
   (is (= {"20111202113000"
           {"create-bar-table"
@@ -38,7 +51,11 @@
            {:sql
             {:up   multi-stmt-up
              :down multi-stmt-down}}}}
-         (find-migrations "migrations" #{"init.sql"}))))
+         (find-migrations "migrations" #{"init.sql"} nil)))
+  (is (= {"20111202110600" {"create-foo-table" {:sql {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n",
+                                                      :down "DROP TABLE IF EXISTS TEST_SCHEMA.foo;\n"}},
+                            "create-schema"    {:sql {:up "CREATE SCHEMA TEST_SCHEMA\n"}}}}
+         (find-migrations "migrations-with-props" #{} {"${migratus.schema}" "TEST_SCHEMA"}))))
 
 (deftest test-find-jar-migrations
   (let [dir "migrations-in-jar"

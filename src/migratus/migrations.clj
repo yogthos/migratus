@@ -1,16 +1,19 @@
 (ns migratus.migrations
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]
-            [clojure.tools.logging :as log]
-            migratus.migration.edn
-            migratus.migration.sql
-            [migratus.protocols :as proto]
-            [migratus.utils :as utils])
-  (:import [java.io File StringWriter]
-           [java.util Date TimeZone]
-           [java.util.jar JarEntry JarFile]
-           java.text.SimpleDateFormat
-           java.util.regex.Pattern))
+  (:require
+    [clojure.java.io :as io]
+    [clojure.string :as str]
+    [clojure.tools.logging :as log]
+    migratus.migration.edn
+    migratus.migration.sql
+    [migratus.properties :as props]
+    [migratus.protocols :as proto]
+    [migratus.utils :as utils])
+  (:import
+    [java.io File StringWriter]
+    [java.util Date TimeZone]
+    [java.util.jar JarEntry JarFile]
+    java.text.SimpleDateFormat
+    java.util.regex.Pattern))
 
 (defn ->kebab-case [s]
   (-> (reduce
@@ -52,11 +55,11 @@
       boolean))
 
 (defn parse-name [file-name]
-    (when (valid-extension? file-name)
-      (let [[id name ext] (next (re-matches migration-file-pattern file-name))
-            migration-type (remove empty? (some-> ext (str/split #"\.")))]
-        (when (and id name (< 0 (count migration-type) 3))
-          [id name migration-type]))))
+  (when (valid-extension? file-name)
+    (let [[id name ext] (next (re-matches migration-file-pattern file-name))
+          migration-type (remove empty? (some-> ext (str/split #"\.")))]
+      (when (and id name (< 0 (count migration-type) 3))
+        [id name migration-type]))))
 
 (defn warn-on-invalid-migration [file-name]
   (log/warn (str "skipping: '" file-name "'")
@@ -64,48 +67,50 @@
             (str migration-file-pattern)))
 
 (defn migration-map
-  [[id name exts] content]
+  [[id name exts] content properties]
   (assoc-in {}
             (concat [id name] (map keyword (reverse exts)))
-            content))
+            (if properties
+              (props/inject-properties properties content)
+              content)))
 
-(defn find-migration-files [migration-dir exclude-scripts]
+(defn find-migration-files [migration-dir exclude-scripts properties]
   (log/debug "Looking for migrations in" migration-dir)
   (->> (for [f (filter (fn [^File f] (.isFile f))
                        (file-seq migration-dir))
              :let [file-name (.getName ^File f)]]
          (if-let [mig (parse-name file-name)]
-           (migration-map mig (slurp f))
+           (migration-map mig (slurp f) properties)
            (when-not (exclude-scripts (.getName ^File f))
              (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
 
-(defn find-migration-resources [dir jar exclude-scripts]
+(defn find-migration-resources [dir jar exclude-scripts properties]
   (log/debug "Looking for migrations in" dir jar)
   (->> (for [entry (enumeration-seq (.entries ^JarFile jar))
              :when (.matches (.getName ^JarEntry entry)
                              (str "^" (Pattern/quote dir) ".+"))
-             :let [entry-name (.replaceAll (.getName ^JarEntry entry) dir "")
+             :let [entry-name       (.replaceAll (.getName ^JarEntry entry) dir "")
                    last-slash-index (str/last-index-of entry-name "/")
-                   file-name (subs entry-name (if-not last-slash-index 0
-                                                (+ 1 last-slash-index)))]]
+                   file-name        (subs entry-name (if-not last-slash-index 0
+                                                                              (+ 1 last-slash-index)))]]
          (if-let [mig (parse-name file-name)]
            (let [w (StringWriter.)]
              (io/copy (.getInputStream ^JarFile jar entry) w)
-             (migration-map mig (.toString w)))
+             (migration-map mig (.toString w) properties))
            (when-not (exclude-scripts file-name)
              (warn-on-invalid-migration file-name))))
        (remove nil?)))
 
-(defn read-migrations [dir exclude-scripts]
+(defn read-migrations [dir exclude-scripts properties]
   (when-let [migration-dir (utils/find-migration-dir dir)]
     (if (instance? File migration-dir)
-      (find-migration-files migration-dir exclude-scripts)
-      (find-migration-resources dir migration-dir exclude-scripts))))
+      (find-migration-files migration-dir exclude-scripts properties)
+      (find-migration-resources dir migration-dir exclude-scripts properties))))
 
-(defn find-migrations [dir exclude-scripts]
-  (->> (read-migrations (utils/ensure-trailing-slash dir) exclude-scripts)
+(defn find-migrations [dir exclude-scripts properties]
+  (->> (read-migrations (utils/ensure-trailing-slash dir) exclude-scripts properties)
        (apply utils/deep-merge)))
 
 (defn find-or-create-migration-dir
@@ -142,7 +147,8 @@
 (defn list-migrations [config]
   (doall
     (for [[id mig] (find-migrations (utils/get-migration-dir config)
-                                    (utils/get-exclude-scripts config))]
+                                    (utils/get-exclude-scripts config)
+                                    (props/load-properties config))]
       (make-migration config id mig))))
 
 (defn create [config name migration-type]
