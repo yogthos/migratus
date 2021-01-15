@@ -101,16 +101,16 @@ Shell variables will be normalized into Java properties style by being lower cas
 FOO_BAR - > foo.bar
 ```
 
-This feature is enabled by when the `:properties` flag is set in the configuration.
+This feature is enabled when the `:properties` flag is set in the configuration.
 
 Migratus will look for the following default properties:
 
-* migratus.schema
-* migratus.user
-* migratus.database
-* migratus.timestamp
+* `migratus.schema`
+* `migratus.user`
+* `migratus.database`
+* `migratus.timestamp` (defaults to the value of `(.getTime (java.util.Date.))`)
 
-Additional property can be specified using the `:custom-env-properties` key or by providing a map of custom properties using the `:custom-properties` key:
+Additional property can be specified using the `:env` key or by providing a map of custom properties using the `:env` key:
 
 ```clojure
 {:store :database
@@ -120,10 +120,14 @@ Additional property can be specified using the `:custom-env-properties` key or b
       :subprotocol "h2"
       :subname     "site.db"}}
 ```
-The `database.table` key will replace `${database.table}` in the template with the value found in the environment, while `{:database {:user "bob"}}` will replace `${database.user}` with `"bob"`.
-```
+
+For example, given the following template:
+
+```sql
 GRANT SELECT,INSERT ON ${database.table} TO ${database.user};
 ```
+
+The environment variable associated with the `database.table` key will replace `${database.table}` tag in the template, while `{:database {:user "bob"}}` will replace `${database.user}` with `"bob"`.
 
 ### Setup
 
