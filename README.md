@@ -171,7 +171,7 @@ Next, create a namespace to manage the migrations:
 ;apply pending migrations
 (migratus/migrate config)
 
-;rollback the last migration applied
+;rollback the migration with the latest timestamp
 (migratus/rollback config)
 
 ;bring up migrations matching the ids
@@ -307,7 +307,7 @@ To apply pending migrations:
 
    - Run `lein migratus migrate`
 
-To rollback the last migration that was applied run:
+To rollback the migration with the last creation timestamp:
 
    - Run `lein migratus rollback`
 
