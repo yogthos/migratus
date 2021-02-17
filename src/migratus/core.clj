@@ -215,3 +215,16 @@
                    sort
                    (take-while #(< % migration-id))
                    (apply up config))))
+
+(defn rollback-until-just-after
+  "Migrate down all migrations after migration-id. This only considers completed
+  migrations, and will not migrate up."
+  [config migration-id]
+  (with-store [store (proto/make-store config)]
+              (->> (completed-migrations config store)
+                   (map proto/id)
+                   distinct
+                   sort
+                   reverse
+                   (take-while #(> % migration-id))
+                   (apply down config))))
