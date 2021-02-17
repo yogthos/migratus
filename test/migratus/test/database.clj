@@ -188,6 +188,18 @@
   (is (test-sql/verify-table-exists? config "quux"))
   (is (test-sql/verify-table-exists? config "quux2")))
 
+(deftest test-rollback-until-just-after
+  (core/migrate config)
+  (is (test-sql/verify-table-exists? config "foo"))
+  (is (test-sql/verify-table-exists? config "bar"))
+  (is (test-sql/verify-table-exists? config "quux"))
+  (is (test-sql/verify-table-exists? config "quux2"))
+  (core/rollback-until-just-after config 20111202110600)
+  (is (test-sql/verify-table-exists? config "foo"))
+  (is (not (test-sql/verify-table-exists? config "bar")))
+  (is (not (test-sql/verify-table-exists? config "quux")))
+  (is (not (test-sql/verify-table-exists? config "quux2"))))
+
 (deftest test-migration-ignored-when-already-reserved
   (test-with-store
     (proto/make-store config)
