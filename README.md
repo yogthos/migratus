@@ -386,14 +386,15 @@ This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and
 
    | Function                                | Description              |
    |-----------------------------------------|--------------------------|
-   | `migratus.core/init`                      | Runs a script to initialize the database, e.g: create a new schema.                                                                            |
-   | `migratus.core/create`                    | Create a new migration with the current date.                                                                                                  |
-   | `migratus.core/migrate`                   | Run 'up' for any migrations that have not been run. Returns nil if successful, :ignore if the table is reserved. Supports thread cancellation. |
-   | `migratus.core/rollback`                  | Run 'down' for the last migration that was run.                                                                                                |
-   | `migratus.core/up`                        | Run 'up' for the specified migration ids. Will skip any migration that is already up.                                                          |
-   | `migratus.core/down`                      | Run 'down' for the specified migration ids. Will skip any migration that is already down.                                                      |
-   | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                          |
-   | `migratus.core/migrate-until-just-before` | Run 'up' for for any pending migrations which precede the given migration id (good for testing migrations).                                    |
+   | `migratus.core/init`                      | Runs a script to initialize the database, e.g: create a new schema.                                                                                |
+   | `migratus.core/create`                    | Create a new migration with the current date.                                                                                                      |
+   | `migratus.core/migrate`                   | Run `up` for any migrations that have not been run. Returns `nil` if successful, `:ignore` if the table is reserved. Supports thread cancellation. |
+   | `migratus.core/rollback`                  | Run `down` for the last migration that was run.                                                                                                    |
+   | `migratus.core/rollback-until-just-after` | Run `down` all migrations after `migration-id`. This only considers completed migrations, and will not migrate up.                                 | 
+   | `migratus.core/up`                        | Run `up` for the specified migration ids. Will skip any migration that is already up.                                                              |
+   | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down.                                                          |
+   | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                              |
+   | `migratus.core/migrate-until-just-before` | Run `up` for for any pending migrations which precede the given migration id (good for testing migrations).                                        |
 
 See the docstrings of each function for more details.
 

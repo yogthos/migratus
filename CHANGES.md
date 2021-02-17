@@ -1,3 +1,7 @@
+### 1.3.5
+
+new fearture: [rollback-until-just-after function](https://github.com/yogthos/migratus/pull/201)
+
 ### 1.3.4
 
 new feature: [property substitution](https://github.com/yogthos/migratus/pull/198)
