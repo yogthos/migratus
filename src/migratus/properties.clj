@@ -26,7 +26,7 @@
     text-with-props))
 
 (defn system-properties
-  "read systme properties, accepts an optional collection of strings
+  "Read system properties, accepts an optional collection of strings
    specifying additional property names"
   [property-names]
   (let [props (read-system-env)]
