@@ -218,6 +218,8 @@ Migratus also provides a convenience function for creating migration files:
 
 ```clojure
 (migratus/create config "create-user")
+;; minimal config needed to call create while specifying the destination path
+(migratus/create {:migration-dir "migrations"} "create-user")
 ```
 
 This will result with up/down migration files being created prefixed with the current timestamp, e.g:
