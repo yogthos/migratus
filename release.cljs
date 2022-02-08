@@ -1,12 +1,9 @@
-#!/usr/bin/env lumo
 (ns release.core
-  (:require [cljs.nodejs :as node]
-            [cljs.reader :as edn]
-            [clojure.pprint :refer [pprint]]
+  (:require ["fs" :as fs]
+            [clojure.edn :as edn]            
             [clojure.string :refer [replace-first split]]))
 
-(def fs (node/require "fs"))
-(def exec (.-execSync (node/require "child_process")))
+(def exec (.-execSync (js/require "child_process")))
 
 (defn bump-version [v]
   (let [[x y z] (map js/parseInt (split v #"\."))]
@@ -16,12 +13,12 @@
          :else (str x "." y "." (inc z)))))
 
 (defn write-version [project version]
-  (fs.writeFileSync
+  (fs/writeFileSync
       "project.clj"
       (replace-first project #"\d+\.\d+\.\d+" version)))
 
 (defn increment-version []
-  (let [project (->> "project.clj" (fs.readFileSync) (str))
+  (let [project (->> "project.clj" (fs/readFileSync) (str))
         version (->> project (edn/read-string) (vec) (drop 2) first bump-version)]
     (write-version project version)
     version))

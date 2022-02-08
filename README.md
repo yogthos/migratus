@@ -250,8 +250,11 @@ Create a code-based migration by adding a `.edn` file to your migrations directo
 ```clojure
 {:ns app.migrations.import-users
  :up-fn migrate-up
- :down-fn migrate-down}
+ :down-fn migrate-down
+ :transaction? true}
 ```
+
+Migrations will run within a transaction by default, set `transaction?` to `false` to disable transactions.
 
 Then, in `src/app/migrations/import_users.clj`:
 

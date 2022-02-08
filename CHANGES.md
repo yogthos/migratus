@@ -1,3 +1,7 @@
+### 1.3.6
+
+feature: [:transaction? config flag to toggle whether migrations happen within a transaction](https://github.com/yogthos/migratus/pull/209)
+
 ### 1.3.5
 
 new fearture: [rollback-until-just-after function](https://github.com/yogthos/migratus/pull/201)
