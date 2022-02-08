@@ -6,11 +6,11 @@
 
 ;; up-fn and down-fn here are actually vars; invoking them as fns will deref
 ;; them and invoke the fn bound by the var.
-(defrecord EdnMigration [id name up-fn down-fn]
+(defrecord EdnMigration [id name up-fn down-fn transaction?]
   proto/Migration
   (id [this] id)
   (name [this] name)
-  (tx? [this direction] true)
+  (tx? [this direction] (if (nil? transaction?) true  transaction?))
   (up [this config]
     (when up-fn
       (up-fn config)))
@@ -41,7 +41,7 @@
 
 (defmethod proto/make-migration* :edn
   [_ mig-id mig-name payload config]
-  (let [{:keys [ns up-fn down-fn]
+  (let [{:keys [ns up-fn down-fn transaction?]
          :or   {up-fn "up" down-fn "down"}} (edn/read-string payload)
         mig-ns (to-sym ns)]
     (when-not mig-ns
@@ -50,13 +50,12 @@
     (require mig-ns)
     (->EdnMigration mig-id mig-name
                     (resolve-fn mig-name mig-ns up-fn)
-                    (resolve-fn mig-name mig-ns down-fn))))
-
+                    (resolve-fn mig-name mig-ns down-fn)
+                    transaction?)))
 
 (defmethod proto/get-extension* :edn
   [_]
   "edn")
-
 
 (defmethod proto/migration-files* :edn
   [x migration-name]
