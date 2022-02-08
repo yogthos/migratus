@@ -1,3 +1,4 @@
 {:ns migratus.test.migration.edn.test-script
  :up-fn migrate-up
- :down-fn migrate-down}
+ :down-fn migrate-down
+ :transaction? true}
