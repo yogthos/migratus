@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+bin_dir=$(dirname $(readlink -f $0))
+project_dir=$(dirname "$bin_dir")
+
+cd "$project_dir"
+source "$bin_dir/on-modified"
+
+declare -A commands
+commands['check']='clojure -M:check'
+commands['kondo']='clojure -M:kondo'
+commands['kibit']='clojure -M:kibit'
+commands['cljstyle']='clojure -M:format check'
+
+declare -A jobs
+declare -A codes
+
+function wait_and_get_exit_codes() {
+    EXIT_CODE=0
+    for key in "${!jobs[@]}"; do
+        echo "$key"
+        job="${jobs[$key]}"
+        CODE=0;
+        wait ${job} || CODE=$?
+        codes[$key]="$CODE"
+        if [[ "${CODE}" != "0" ]]; then
+            EXIT_CODE=1;
+        fi
+   done
+}
+
+global_exit_code=0
+
+function lint() {
+    for key in "${!commands[@]}"; do
+        (echo  "${commands[$key]} $1" | bash) &
+        jobs[$key]=$!
+    done
+
+    wait_and_get_exit_codes
+
+    for key in "${!codes[@]}"; do
+        echo "$key : ${codes[$key]}"
+    done
+    if [[ "${EXIT_CODE}" != "0" ]]; then
+        global_exit_code=1;
+    fi
+}
+
+
+on_modified lint
+
+clojure -M:eastwood {:only-modified true}
+
+if [[ "$?" != 0 ]]; then
+    global_exit_code=1;
+fi
+
+
+exit "$global_exit_code"
+ 

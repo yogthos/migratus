@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+bin_dir=$(dirname $(readlink -f $0))
+project_dir=$(dirname "$bin_dir")
+
+cd "$project_dir"
+if [ -f /etc/os-release ]; then
+    source /etc/os-release
+    if [[ "$ID_LIKE" == "arch" ]]; then
+        export JAVA_HOME=/usr/lib/jvm/default
+    fi
+fi
+
+lein test

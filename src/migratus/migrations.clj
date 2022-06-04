@@ -109,9 +109,16 @@
       (find-migration-files migration-dir exclude-scripts properties)
       (find-migration-resources dir migration-dir exclude-scripts properties))))
 
-(defn find-migrations [dir exclude-scripts properties]
+(defn find-migrations*
+  [dir exclude-scripts properties]
   (->> (read-migrations (utils/ensure-trailing-slash dir) exclude-scripts properties)
        (apply utils/deep-merge)))
+
+(defn find-migrations
+  [dir exclude-scripts properties]
+  (let [dirs (if (string? dir) [dir] dir)
+        fm (fn [d] (find-migrations* d exclude-scripts properties))]
+    (into {} (map fm) dirs)))
 
 (defn find-or-create-migration-dir
   ([dir] (find-or-create-migration-dir utils/default-migration-parent dir))
