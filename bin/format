@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# format only modified files
+
+bin_dir=$(dirname $(readlink -f $0))
+project_dir=$(dirname "$bin_dir")
+
+cd "$project_dir"
+source "$bin_dir/on-modified"
+
+function format () { clojure -M:format fix "$1"; }
+
+on_modified format
+ 

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+bin_dir=$(dirname $(readlink -f $0))
+project_dir=$(dirname "$bin_dir")
+
+cd "$project_dir"
+
+clojure -M:test:dev:repl -r
+  #+end_src

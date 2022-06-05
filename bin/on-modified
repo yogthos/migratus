@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# run a script only on clojure modified files
+
+modified_files=`git --no-pager diff --name-only`
+
+sspfiles="${modified_files//$'\n'/ }"
+IFS=' '
+
+read -a strarr <<< "$sspfiles"
+
+function on_modified () {
+for file in "${strarr[@]}";
+do
+    if [[ $file =~ .*\.(clj[sc]?|edn) ]]
+       then
+           printf "processing $file\n"
+           ("$1" "$file")
+           printf "done\n"
+       fi
+done
+}
