@@ -18,7 +18,7 @@
             [migratus.core :as core]
             [clojure.test :refer :all]
             [migratus.database :refer :all]
-            [clojure.tools.logging :as log]
+            [taoensso.timbre :as log]
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils]

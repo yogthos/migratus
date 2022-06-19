@@ -16,7 +16,6 @@
             [migratus.mock :as mock]
             [clojure.test :refer :all]
             [migratus.core :refer :all]
-            migratus.logger
             [migratus.migrations :as mig]
             [migratus.utils :as utils]
             [clojure.java.io :as io])

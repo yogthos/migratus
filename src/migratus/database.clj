@@ -15,7 +15,7 @@
   (:require
     [clojure.java.io :as io]
     [clojure.java.jdbc :as sql]
-    [clojure.tools.logging :as log]
+    [taoensso.timbre :as log]
     [clojure.string :as str]
     [migratus.migration.sql :as sql-mig]
     [migratus.protocols :as proto]

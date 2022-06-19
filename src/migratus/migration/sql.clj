@@ -2,7 +2,7 @@
   (:require
     [clojure.java.jdbc :as sql]
     [clojure.string :as str]
-    [clojure.tools.logging :as log]
+    [taoensso.timbre :as log]
     [migratus.protocols :as proto])
   (:import
     java.sql.SQLException

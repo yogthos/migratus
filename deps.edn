@@ -1,14 +1,13 @@
 {
  :deps
- {org.clojure/clojure {:mvn/version "1.10.1"}
-  org.clojure/java.jdbc {:mvn/version "0.7.11"}
-  org.clojure/tools.logging {:mvn/version "1.1.0"}}
+ {org.clojure/clojure {:mvn/version "1.11.1"}
+  org.clojure/java.jdbc {:mvn/version "0.7.12"}
+  com.taoensso/timbre {:mvn/version "5.2.1"}}
 
  :aliases
  {:dev
-  {:extra-deps {ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
-                com.h2database/h2 {:mvn/version "1.4.200"}
-                hikari-cp/hikari-cp {:mvn/version "2.13.0"}
+  {:extra-deps {com.h2database/h2 {:mvn/version "2.1.214"}
+                hikari-cp/hikari-cp {:mvn/version "2.14.0"}
                 jar-migrations/jar-migrations {:mvn/version "1.0.0"}}}
 
   :repl
@@ -36,7 +35,7 @@
 
   :eastwood
   {:main-opts  ["-m" "eastwood.lint" {:source-paths ["src"]}]
-   :extra-deps {jonase/eastwood {:mvn/version "1.2.3"}}}
+   :extra-deps {jonase/eastwood {:mvn/version "1.2.4"}}}
 
   :format
   {:extra-deps {mvxcvi/cljstyle {:mvn/version "0.15.0"}}

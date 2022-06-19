@@ -1,7 +1,7 @@
 (ns migratus.properties
   (:require
     [clojure.string :as s]
-    [clojure.tools.logging :as log])
+    [taoensso.timbre :as log])
   (:import
     java.util.Date))
 

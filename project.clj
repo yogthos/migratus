@@ -7,8 +7,7 @@
   :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[org.clojure/clojure "1.10.1"]
                  [org.clojure/java.jdbc "0.7.11"]
-                 [org.clojure/tools.logging "1.1.0"]]
+                 [com.taoensso/timbre "5.2.1"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
-                                  [ch.qos.logback/logback-classic "1.2.3"]
                                   [com.h2database/h2 "1.4.200"]
                                   [hikari-cp "2.13.0"]]}})

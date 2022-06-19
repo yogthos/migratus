@@ -1,24 +1,24 @@
-;;;; Copyright © 2011 Paul Stadig
-;;;;
-;;;; Licensed under the Apache License, Version 2.0 (the "License"); you may not
-;;;; use this file except in compliance with the License.  You may obtain a copy
-;;;; of the License at
-;;;;
-;;;;   http://www.apache.org/licenses/LICENSE-2.0
-;;;;
-;;;; Unless required by applicable law or agreed to in writing, software
-;;;; distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-;;;; WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
-;;;; License for the specific language governing permissions and limitations
-;;;; under the License.
+;; Copyright © 2011 Paul Stadig
+;;
+;; Licensed under the Apache License, Version 2.0 (the "License"); you may not
+;; use this file except in compliance with the License.  You may obtain a copy
+;; of the License at
+;;
+;;   http://www.apache.org/licenses/LICENSE-2.0
+;;
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+;; WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
+;; License for the specific language governing permissions and limitations
+;; under the License.
 (ns migratus.core
   (:require
     [clojure.set :as set]
     [clojure.string :as str]
-    [clojure.tools.logging :as log]
+    [migratus.database]
     [migratus.migrations :as mig]
     [migratus.protocols :as proto]
-    migratus.database))
+    [taoensso.timbre :as log]))
 
 (defmacro ^{:private true} assert-args
   [& pairs]
@@ -99,8 +99,8 @@
 
 (defn- migrate* [config store _]
   (let [migrations (->> store
-                        (uncompleted-migrations config)
-                        (sort-by proto/id))]
+                     (uncompleted-migrations config)
+                     (sort-by proto/id))]
     (migrate-up* store migrations)))
 
 (defn migrate
@@ -126,7 +126,7 @@
   (let [completed  (set (proto/completed-ids store))
         ids        (set/intersection (set ids) completed)
         migrations (filter (comp ids proto/id)
-                           (mig/list-migrations config))
+                     (mig/list-migrations config))
         migrations (reverse (sort-by proto/id migrations))]
     (when (seq migrations)
       (log/info "Running down for" (pr-str (vec (map proto/id migrations))))
@@ -145,9 +145,9 @@
     config
     store
     (->> (proto/completed-ids store)
-         sort
-         last
-         vector)))
+      sort
+      last
+      vector)))
 
 (defn- reset* [config store _]
   (run-down config store (->> (proto/completed-ids store) sort)))
@@ -183,16 +183,16 @@
   "List pairs of id and name for migrations selected by the selection-fn."
   [config selection-fn]
   (with-store [store (proto/make-store config)]
-              (->> store
-                   (selection-fn config)
-                   (mapv (juxt proto/id proto/name)))))
+    (->> store
+      (selection-fn config)
+      (mapv (juxt proto/id proto/name)))))
 
 (defn completed-list
   "List completed migrations"
   [config]
   (let [migrations (select-migrations config completed-migrations)]
     (log/debug (apply str "You have " (count migrations) " completed migrations:\n"
-                      (str/join "\n" migrations)))
+                 (str/join "\n" migrations)))
     (mapv second migrations)))
 
 (defn pending-list
@@ -200,7 +200,7 @@
   [config]
   (let [migrations (select-migrations config uncompleted-migrations)]
     (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
-                      (str/join "\n" migrations)))
+                 (str/join "\n" migrations)))
     (mapv second migrations)))
 
 (defn migrate-until-just-before
@@ -209,22 +209,22 @@
   migrations, and will not migrate down."
   [config migration-id]
   (with-store [store (proto/make-store config)]
-              (->> (uncompleted-migrations config store)
-                   (map proto/id)
-                   distinct
-                   sort
-                   (take-while #(< % migration-id))
-                   (apply up config))))
+    (->> (uncompleted-migrations config store)
+      (map proto/id)
+      distinct
+      sort
+      (take-while #(< % migration-id))
+      (apply up config))))
 
 (defn rollback-until-just-after
   "Migrate down all migrations after migration-id. This only considers completed
   migrations, and will not migrate up."
   [config migration-id]
   (with-store [store (proto/make-store config)]
-              (->> (completed-migrations config store)
-                   (map proto/id)
-                   distinct
-                   sort
-                   reverse
-                   (take-while #(> % migration-id))
-                   (apply down config))))
+    (->> (completed-migrations config store)
+      (map proto/id)
+      distinct
+      sort
+      reverse
+      (take-while #(> % migration-id))
+      (apply down config))))
