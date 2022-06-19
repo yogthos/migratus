@@ -11,7 +11,3 @@ pom.xml
 .idea
 migratus.iml
 *.db
-*~
-/.clj-kondo/
-/.eastwood
-/.lsp/
