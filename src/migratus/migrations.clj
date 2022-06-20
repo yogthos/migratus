@@ -125,6 +125,12 @@
         fm (fn [d] (find-migrations* d exclude-scripts properties))]
     (into {} (map fm) dirs)))
 
+(defn find-migrations
+  [dir exclude-scripts properties]
+  (let [dirs (if (string? dir) [dir] dir)
+        fm (fn [d] (find-migrations* d exclude-scripts properties))]
+    (into {} (map fm) dirs)))
+
 (defn find-or-create-migration-dir
   ([dir] (find-or-create-migration-dir utils/default-migration-parent dir))
   ([parent-dir dir]
