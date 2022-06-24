@@ -15,3 +15,4 @@ migratus.iml
 /.clj-kondo/
 /.eastwood
 /.lsp/
+/tmp/
