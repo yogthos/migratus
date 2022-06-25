@@ -1,0 +1,30 @@
+{:paths ["src"]
+ :description "MIGRATE ALL THE THINGS!"
+ :url "http://github.com/yogthos/migratus"
+ :license {:name "Apache License, Version 2.0"
+           :url "http://www.apache.org/licenses/LICENSE-2.0.html"
+           :distribution :repo}
+ :deps {org.clojure/java.jdbc {:mvn/version "0.7.11"}
+        org.clojure/tools.logging {:mvn/version "1.1.0"}}
+ :aliases {:clojure1.10 {:extra-deps
+                         {org.clojure/clojure {:mvn/version "1.10.1"}}}
+           :clojure1.11 {:extra-deps
+                         {org.clojure/clojure {:mvn/version "1.11.1"}}}
+           :dev {:extra-deps
+                 {jar-migrations/jar-migrations {:mvn/version "1.0.0"}
+                  ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
+                  com.h2database/h2 {:mvn/version "1.4.200"}
+                  hikari-cp/hikari-cp {:mvn/version "2.13.0"}}}
+           :test-runner {:extra-paths ["test"]
+                         :extra-deps
+                         {jar-migrations/jar-migrations {:mvn/version "1.0.0"}
+                          ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
+                          com.h2database/h2 {:mvn/version "1.4.200"}
+                          hikari-cp/hikari-cp {:mvn/version "2.13.0"}
+                          lambdaisland/kaocha           {:mvn/version "1.66.1034"}
+                          lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
+                          lambdaisland/kaocha-junit-xml {:mvn/version "0.0.76"}
+                          orchestra/orchestra           {:mvn/version "2021.01.01-1"}
+                          org.clojure/test.check        {:mvn/version "1.1.1"}
+                          org.testcontainers/postgresql {:mvn/version "1.17.2"}}
+                         :main-opts   ["-m" "kaocha.runner" "--reporter" "kaocha.report/documentation"]}}}
