@@ -10,10 +10,10 @@
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
+
 (def test-config {:migration-dir        "migrations/"
-                  :db                   {:classname   "org.h2.Driver"
-                                         :subprotocol "h2"
-                                         :subname     db-store}})
+                  :db                   {:dbtype "h2" 
+                                         :dbname  db-store}})
 
 (defn reset-db []
   (letfn [(delete [f]

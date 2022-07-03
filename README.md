@@ -116,9 +116,8 @@ Additional property can be specified using the `:env` key or by providing a map 
 {:store :database
  :properties {:env ["database.table"]
               :map {:database {:user "bob"}}}
- :db {:classname   "org.h2.Driver"
-      :subprotocol "h2"
-      :subname     "site.db"}}
+ :db {:dbtype   "h2"
+      :dbname   "site.db"}}
 ```
 
 For example, given the following template:
@@ -161,9 +160,8 @@ Next, create a namespace to manage the migrations:
              ;schema initialization in a transaction
              :init-in-transaction? false
              :migration-table-name "foo_bar"
-             :db {:classname   "org.h2.Driver"
-                  :subprotocol "h2"
-                  :subname     "site.db"}})
+             :db {:dbtype "h2"
+                  :dbname "site.db"}})
 
 ;initialize the database using the 'init.sql' script
 (migratus/init config)
@@ -190,9 +188,8 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
   (:require [clojure.java.jdbc :as jdbc]))
 
 (def connection (jdbc/get-connection
-                  {:classname   "org.h2.Driver"
-                   :subprotocol "h2"
-                   :subname     "site.db"}))
+                  {:dbtype "h2"
+                   :dbname "site.db"}))
 
 (def config {:db {:connection connection}})
 ```
@@ -301,9 +298,8 @@ Migratus provides a Leiningen plugin:
 ```clojure
 :migratus {:store :database
            :migration-dir "migrations"
-           :db {:classname "com.mysql.jdbc.Driver"
-                :subprotocol "mysql"
-                :subname "//localhost/migratus"
+           :db {:dbtype "mysql"
+                :dbname "//localhost/migratus"
                 :user "root"
                 :password ""}}
 ```
@@ -340,9 +336,8 @@ To run migrations against a database use a :store of :database, and specify the 
 ```clojure
 {:store :database
  :migration-dir "migrations"
- :db {:classname "com.mysql.jdbc.Driver"
-      :subprotocol "mysql"
-      :subname "//localhost/migratus"
+ :db {:dbtype "mysql"
+      :dbname "migratus"
       :user "root"
       :password ""}}
 ```
@@ -395,7 +390,7 @@ This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and
    | `migratus.core/create`                    | Create a new migration with the current date.                                                                                                      |
    | `migratus.core/migrate`                   | Run `up` for any migrations that have not been run. Returns `nil` if successful, `:ignore` if the table is reserved. Supports thread cancellation. |
    | `migratus.core/rollback`                  | Run `down` for the last migration that was run.                                                                                                    |
-   | `migratus.core/rollback-until-just-after` | Run `down` all migrations after `migration-id`. This only considers completed migrations, and will not migrate up.                                 | 
+   | `migratus.core/rollback-until-just-after` | Run `down` all migrations after `migration-id`. This only considers completed migrations, and will not migrate up.                                 |
    | `migratus.core/up`                        | Run `up` for the specified migration ids. Will skip any migration that is already up.                                                              |
    | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down.                                                          |
    | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                              |
@@ -414,9 +409,8 @@ And add a configuration :migratus key to your `project.clj`.
 ```clojure
 :migratus {:store :database
            :migration-dir "migrations"
-           :db {:classname "com.mysql.jdbc.Driver"
-                :subprotocol "mysql"
-                :subname "//localhost/migratus"
+           :db {:dbtype "mysql"
+                :dbname "migratus"
                 :user "root"
                 :password ""}}
 ```
@@ -452,9 +446,8 @@ Create a [Migratus configuration](https://github.com/yogthos/migratus#configurat
 ```
 {:store :database
  :migration-dir "migrations"
- :db {:classname "com.mysql.jdbc.Driver"
-      :subprotocol "mysql"
-      :subname "//localhost/migratus"
+ :db {:dbtype "mysql"
+      :dbname "migratus"
       :user "root"
       :password ""}}
 ```
@@ -473,7 +466,7 @@ $ clj -M:migrate init
 $ clj -M:migrate migrate
 $ clj -M:migrate create create-user-table
 ```
-	
+
 See [Migratus Usage](https://github.com/yogthos/migratus#usage) for documentation on each command.
 
 ## License
