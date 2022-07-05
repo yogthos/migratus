@@ -4,8 +4,8 @@
             [migratus.core :as core]
             [migratus.database :as db]
             [migratus.migration.sql :refer :all]
-            migratus.mock
-            [migratus.protocols :as proto]))
+            [migratus.protocols :as proto]
+            [migratus.mock :as mock]))
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
@@ -55,3 +55,22 @@
     (is (verify-table-exists? config "bar"))
     (is (not (verify-table-exists? config "quux")))
     (is (not (verify-table-exists? config "quux2")))))
+
+
+(comment
+
+  (do
+    (use 'clojure.tools.trace)
+    (trace-ns migratus.test.migration.sql)
+    (trace-ns migratus.test.database)
+    (trace-ns migratus.database)
+    (trace-ns migratus.migration.sql)
+    (trace-ns migratus.protocols)
+    (trace-ns migratus.core)
+    (trace-ns migratus.mock)
+    (trace-ns next.jdbc)
+    (trace-ns next.jdbc.sql)
+    (trace-ns next.jdbc.protocols))
+
+
+  (run-test test-run-sql-migrations))

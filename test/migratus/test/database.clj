@@ -18,13 +18,11 @@
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
-            [migratus.database :refer :all]
+            [migratus.database :refer :all :as db]
             [clojure.tools.logging :as log]
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
-            [migratus.utils :as utils]
-            [hikari-cp.core :as hk]
-            [migratus.database :as db])
+            [migratus.utils :as utils])
   (:import java.io.File
            java.util.jar.JarFile
            (java.util.concurrent CancellationException)))
@@ -206,15 +204,30 @@
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
 (comment
-  
+
   (use 'clojure.tools.trace)
   (trace-ns migratus.test.migration.sql)
   (trace-ns migratus.test.database)
   (trace-ns migratus.database)
+  (trace-ns migratus.migration.sql)
   (trace-ns migratus.protocols)
   (trace-ns migratus.core)
+  (trace-ns next.jdbc)
+  (trace-ns next.jdbc.sql)
+  (trace-ns next.jdbc.protocols)
 
   (run-test test-rollback-until-just-after)
+
+  (core/migrate config)
+  (db/mark-unreserved (:db config) "foo_bar")
+  (db/mark-reserved (:db config) "foo_bar")
+
+  (jdbc/execute! (:db config) ["select * from foo_bar"])
+  (next.jdbc.sql/insert! (:db config) "foo_bar" {:id -1})
+  (jdbc/execute-one! (:db config) ["insert into foo_bar(id) values (?)" -1] {:return-keys false})
+
+  (run-test test-init)
+
   )
 
 
@@ -242,9 +255,8 @@
         (core/down config 20111202110600)
         (is (not (test-sql/verify-table-exists? config "foo")))))))
 
-(comment 
-  
-(proto/make-store config)
+(comment
+  (run-test test-migration-ignored-when-already-reserved)
 
   )
 

@@ -7,7 +7,6 @@
   :aliases {"test!" ["do" "clean," "test"]}
   :dependencies [[com.github.seancorfield/next.jdbc "1.2.780"]
                  [org.clojure/clojure "1.10.1"]
-                 [org.clojure/java.jdbc "0.7.11"]
                  [org.clojure/tools.logging "1.1.0"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [ch.qos.logback/logback-classic "1.2.3"]

@@ -1,11 +1,12 @@
 (ns migratus.migration.sql
-  (:require
-    [clojure.java.jdbc :as sql]
-    [clojure.string :as str]
-    [clojure.tools.logging :as log]
-    [migratus.protocols :as proto])
+  (:require [next.jdbc :as jdbc]
+            [next.jdbc.prepare :as prepare]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [migratus.protocols :as proto])
   (:import
-    java.sql.SQLException
+    (java.sql Connection
+              SQLException)
     java.util.regex.Pattern))
 
 (def ^Pattern sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
@@ -56,11 +57,26 @@
       (remove empty?))
     commands))
 
-(defn execute-command [config t-con tx? expect-results? commands]
+(defn do-commands
+  "Adapt db-do-commands to jdbc
+   https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/doc/migration-from-clojure-java-jdbc"
+  [connectable commands]
+  (if (instance? Connection connectable)
+    (with-open [stmt (prepare/statement connectable)]
+      ;; We test for (string? commands) because migratus.test.migrations.sql tests fails otherwise.
+      ;; Perhaps it is a bug in migratus.test.mock implementation ?! 
+      (if (string? commands)
+        (run! #(.addBatch stmt %) [commands])
+        (run! #(.addBatch stmt %) commands))
+      (into [] (.executeBatch stmt)))
+    (with-open [conn (jdbc/get-connection connectable)]
+      (do-commands conn commands))))
+
+(defn execute-command [config t-con expect-results? commands]
   (log/trace "executing" commands)
   (cond->
     (try
-      (sql/db-do-commands t-con tx? (parse-commands-sql config commands))
+      (do-commands t-con (parse-commands-sql config commands))
       (catch SQLException e
         (log/error (format "failed to execute command:\n %s" commands))
         (loop [e e]
@@ -74,21 +90,18 @@
     expect-results? (check-expectations commands)))
 
 (defn- run-sql*
-  [config conn tx? expect-results? commands direction]
+  [config conn expect-results? commands direction]
   (log/debug "found" (count commands) (name direction) "migrations")
   (doseq [c commands]
-    (execute-command config conn tx? expect-results? c)))
+    (execute-command config conn expect-results? c)))
 
 (defn run-sql
   [{:keys [conn db modify-sql-fn expect-results?] :as config} sql direction]
   (when-let [commands (mapcat (wrap-modify-sql-fn modify-sql-fn) (split-commands sql expect-results?))]
     (if (use-tx? sql)
-      (sql/with-db-transaction
-        [t-con (or conn db)]
-        (run-sql* config t-con true expect-results? commands direction))
-      (sql/with-db-connection
-        [t-con (or conn db)]
-        (run-sql* config t-con false expect-results? commands direction)))))
+      (jdbc/with-transaction [t-con (or conn db)]
+        (run-sql* config t-con expect-results? commands direction)) 
+      (run-sql* config (or conn db) expect-results? commands direction))))
 
 (defrecord SqlMigration [id name up down]
   proto/Migration
