@@ -14,6 +14,7 @@
 (ns migratus.test.database
   (:require [clojure.java.io :as io]
             [clojure.java.jdbc :as sql]
+            [next.jdbc :as jdbc]
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
@@ -22,7 +23,8 @@
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils]
-            [hikari-cp.core :as hk])
+            [hikari-cp.core :as hk]
+            [migratus.database :as db])
   (:import java.io.File
            java.util.jar.JarFile
            (java.util.concurrent CancellationException)))
@@ -200,6 +202,19 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
+(comment
+  
+  (use 'clojure.tools.trace)
+  (trace-ns migratus.test.migration.sql)
+  (trace-ns migratus.test.database)
+  (trace-ns migratus.database)
+  (trace-ns migratus.protocols)
+  (trace-ns migratus.core)
+
+  (run-test test-rollback-until-just-after)
+  )
+
+
 (deftest test-migration-ignored-when-already-reserved
   (test-with-store
     (proto/make-store config)
@@ -223,6 +238,12 @@
         (mark-unreserved db migration-table-name)
         (core/down config 20111202110600)
         (is (not (test-sql/verify-table-exists? config "foo")))))))
+
+(comment 
+  
+(proto/make-store config)
+
+  )
 
 (defn copy-dir
   [^File from ^File to]
@@ -261,6 +282,11 @@
       (finally
         (utils/recursive-delete migration-dir)))))
 
+
+(comment 
+  
+  (run-test test-migration-ignored-when-already-reserved)
+  )
 
 
 (deftest test-description-and-applied-fields

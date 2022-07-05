@@ -1,6 +1,5 @@
 (ns migratus.test.migration.sql
-  (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
+  (:require [clojure.java.io :as io] 
             [clojure.test :refer :all]
             [migratus.core :as core]
             [migratus.database :as db]
@@ -30,7 +29,7 @@
 (use-fixtures :each setup-test-db)
 
 (defn verify-table-exists? [config table-name]
-  (sql/with-db-connection [db (:db config)]
+  (let [db (:db config)]
     (db/table-exists? db table-name)))
 
 (deftest test-run-sql-migrations

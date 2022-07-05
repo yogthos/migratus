@@ -15,6 +15,8 @@
   (:require
     [clojure.java.io :as io]
     [clojure.java.jdbc :as sql]
+    [next.jdbc :as jdbc] 
+    [next.jdbc.result-set :as rs]
     [clojure.tools.logging :as log]
     [clojure.string :as str]
     [migratus.migration.sql :as sql-mig]
@@ -31,6 +33,14 @@
 
 (defn migration-table-name [config]
   (:migration-table-name config default-migrations-table))
+
+(defn connection-or-spec
+  "Migration code from java.jdbc to next.jdbc .
+   java.jdbc accepts a spec that contains a ^java.sql.Connection as :connection.
+   Return :connection or the db spec."
+  [db]
+  (let [conn (:connection db)]
+    (if conn conn db)))
 
 (def reserved-id -1)
 
@@ -114,15 +124,22 @@
         (find-init-script-file migration-dir init-script-name)
         (find-init-script-resource dir migration-dir init-script-name)))))
 
-(defn connect* [db]
+(defn connect* 
+  "Connects to the store - SQL database in this case.
+   Accepts a ^java.sql.Connection, ^javax.sql.DataSource or a db spec."
+  [db]
   (let [^Connection conn
         (cond
           (instance? Connection db) db
-          (instance? DataSource db) (try (.getConnection ^DataSource db)
-                                         (catch Exception e
-                                           (log/error e (str "Error getting DB connection from source" db))))
+          ;; TODO: ieugen: next.jdbc can get connection from DataSource, so we can drop this case perhaps
+          ;; https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/api/next.jdbc#get-connection
+          ;; (instance? DataSource db) (try (.getConnection ^DataSource db)
+          ;;                                (catch Exception e
+          ;;                                  (log/error e (str "Error getting DB connection from source" db))))
           :else (try
-                  (sql/get-connection db)
+                  ;; @ieugen: We can set auto-commit here as next.jdbc supports it. 
+                  ;; But I guess we need to conside the case when we get a Connection directly
+                  (jdbc/get-connection db)
                   (catch Exception e
                     (log/error e (str "Error creating DB connection for "
                                       (utils/censor-password db))))))]
@@ -138,10 +155,11 @@
     (when-not (.isClosed conn)
       (.close conn))))
 
-(defn completed-ids* [db table-name]
-  (sql/with-db-transaction
-    [t-con db]
-    (->> (sql/query t-con (str "select id from " table-name " where id != " reserved-id))
+(defn completed-ids* [db table-name] 
+  (let [t-con (connection-or-spec db)] 
+    (->> (jdbc/execute! t-con
+                        [(str "select id from " table-name " where id != " reserved-id)]
+                        {:builder-fn rs/as-unqualified-lower-maps})
          (map :id)
          (doall))))
 
@@ -154,14 +172,13 @@
   driver does *not* tell you whether the table is on the current schema search
   path.)"
   [db table-name]
-  (sql/with-db-transaction
-    [t-con db]
-    (try
-      (sql/db-set-rollback-only! t-con)
-      (sql/query t-con [(str "SELECT 1 FROM " table-name)])
-      true
-      (catch SQLException _
-        false))))
+  (try
+    ;; TODO: @ieugen: do we need :rollback-only here ?
+    (let [db (connection-or-spec db)]
+      (jdbc/execute! db [(str "SELECT 1 FROM " table-name)]))
+    true
+    (catch SQLException _
+      false)))
 
 (defn migration-table-up-to-date?
   [db table-name]

@@ -469,6 +469,18 @@ $ clj -M:migrate create create-user-table
 
 See [Migratus Usage](https://github.com/yogthos/migratus#usage) for documentation on each command.
 
+## Development
+
+```bash
+
+# Run tests via deps.edn (tools-deps), not project.clj (leiningen)
+clojure  -M:clojure1.11:dev:test-runner
+# Other options
+clojure  -M:clojure1.11:dev:test-runner --fail-fast
+
+clojure  -M:clojure1.11:dev:test-runner --focus migratus.test.database
+```
+
 ## License
 
 Copyright © 2016 Paul Stadig, Dmitri Sotnikov
