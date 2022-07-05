@@ -13,8 +13,8 @@
 ;;;; under the License.
 (ns migratus.test.database
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
             [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
@@ -36,8 +36,11 @@
 
 (defn verify-data [config table-name]
   (let [db     (connect* (:db config))
-        result (sql/query db [(str "SELECT * from " table-name)])]
-    (.close (:connection db))
+        conn   (:connection db)
+        result (jdbc/execute! conn
+                              [(str "SELECT * from " table-name)]
+                              {:builder-fn rs/as-unqualified-lower-maps})]
+    (.close conn)
     result))
 
 (defn test-with-store [store & commands]
@@ -79,7 +82,7 @@
               (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
      (proto/make-store (-> (dissoc config :migration-table-name)
-                           (assoc :db (sql/get-connection (:db config)))))
+                           (assoc :db (jdbc/get-connection (:db config)))))
      (fn [_]
        (test-sql/verify-table-exists? (dissoc config :migration-table-name)
                                       default-migrations-table))))
