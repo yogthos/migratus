@@ -185,7 +185,7 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 
 ```clojure
 (ns my-migrations
-  (:require [clojure.java.jdbc :as jdbc]))
+  (:require [next.jdbc :as jdbc]))
 
 (def connection (jdbc/get-connection
                   {:dbtype "h2"
@@ -323,7 +323,7 @@ Migratus is configured via a configuration map that you pass in as its first par
 To run migrations against a database use a :store of :database, and specify the database connection configuration in the :db key of the configuration map.
 
 * `:migration-dir` - directory where migration files are found
-* `:db` - clojure.java.jdbc database connection descriptor
+* `:db` - next.jdbc database connection descriptor (spec)
 * `:command-separator` - the separator will be used to split the commands within each transaction when specified
 * `:expect-results?` - allows comparing migration query results using the `-- expect n` comment
 * `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
