@@ -13,6 +13,7 @@
 ;;;; under the License.
 (ns migratus.database
   (:require [clojure.java.io :as io]
+            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [migratus.migration.sql :as sql-mig]
             [migratus.properties :as props]
@@ -27,8 +28,13 @@
 
 (def default-migrations-table "schema_migrations")
 
-(defn migration-table-name [config]
-  (:migration-table-name config default-migrations-table))
+(defn migration-table-name
+  "Makes migration table name available from config.
+   Sanitizes the table name to avoid possible SQL injection."
+  [config]
+  (let [table-name (:migration-table-name config default-migrations-table)
+        sanitized (str/replace table-name #"\W" "")]
+    sanitized))
 
 (defn connection-or-spec
   "Migration code from java.jdbc to next.jdbc .
@@ -50,7 +56,8 @@
   (sql/delete! (connection-or-spec db) table-name ["id=?" reserved-id]))
 
 (defn complete? [db table-name id]
-  (first (sql/query (connection-or-spec db) [(str "SELECT * from " table-name " WHERE id=?") id])))
+  (first (sql/query (connection-or-spec db)
+                    [(str "SELECT * from " table-name " WHERE id=?") id])))
 
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
@@ -149,9 +156,9 @@
 
 (defn completed-ids* [db table-name] 
   (let [t-con (connection-or-spec db)] 
-    (->> (jdbc/execute! t-con
-                        [(str "select id from " table-name " where id != " reserved-id)]
-                        {:builder-fn rs/as-unqualified-lower-maps})
+    (->> (sql/query t-con
+                    [(str "select id from " table-name " where id != " reserved-id)]
+                    {:builder-fn rs/as-unqualified-lower-maps})
          (map :id)
          (doall))))
 
@@ -167,7 +174,7 @@
   (try
     ;; TODO: @ieugen: do we need :rollback-only here ?
     (let [db (connection-or-spec db)]
-      (jdbc/execute! db [(str "SELECT 1 FROM " table-name)]))
+      (sql/query db [(str "SELECT 1 FROM " table-name)]))
     true
     (catch SQLException _
       false)))

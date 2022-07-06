@@ -16,6 +16,7 @@
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
             [next.jdbc.quoted :as q]
+            [next.jdbc.sql :as sql]
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
@@ -36,9 +37,9 @@
 (defn verify-data [config table-name]
   (let [db     (connect* (:db config))
         conn   (:connection db)
-        result (jdbc/execute! conn
-                              [(str "SELECT * from " table-name)]
-                              {:builder-fn rs/as-unqualified-lower-maps})]
+        result (sql/query conn
+                          [(str "SELECT * from " table-name)]
+                          {:builder-fn rs/as-unqualified-lower-maps})]
     (.close conn)
     result))
 
