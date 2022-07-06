@@ -469,16 +469,20 @@ $ clj -M:migrate create create-user-table
 
 See [Migratus Usage](https://github.com/yogthos/migratus#usage) for documentation on each command.
 
-## Development
+## Working on migratus itself
 
-```bash
+You can use either `lein` or `clj` for now as it has both project definitions.
 
-# Run tests via deps.edn (tools-deps), not project.clj (leiningen)
-clojure  -M:clojure1.11:dev:test-runner
-# Other options
-clojure  -M:clojure1.11:dev:test-runner --fail-fast
+Run tests with kaocha:
 
-clojure  -M:clojure1.11:dev:test-runner --focus migratus.test.database
+```
+   #  https://cljdoc.org/d/lambdaisland/kaocha/1.68.1059/doc/4-running-kaocha-cli
+
+   bin/kaocha --test-help
+
+   bin/kaocha --fail-fast
+
+   bin/kaocha --fail-fast --focus migratus.test.migration.sql/test-run-sql-migrations
 ```
 
 ## License
