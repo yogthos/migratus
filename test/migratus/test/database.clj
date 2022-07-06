@@ -15,6 +15,7 @@
   (:require [clojure.java.io :as io]
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
+            [next.jdbc.quoted :as q]
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
@@ -226,7 +227,13 @@
   (next.jdbc.sql/insert! (:db config) "foo_bar" {:id -1})
   (jdbc/execute-one! (:db config) ["insert into foo_bar(id) values (?)" -1] {:return-keys false})
 
+  (jdbc/execute! (:db config) 
+                 [(str "CREATE TABLE " (q/ansi "table")
+                       "(id BIGINT UNIQUE NOT NULL, applied TIMESTAMP,
+                        description VARCHAR(1024) )")])
   (run-test test-init)
+  (run-test test-rollback-until-just-after)
+  (run-test test-backing-out-bad-migration-no-tx)
 
   )
 

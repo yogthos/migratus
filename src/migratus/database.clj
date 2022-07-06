@@ -12,21 +12,18 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.database
-  (:require
-    [clojure.java.io :as io]
-    [next.jdbc :as jdbc] 
-    [next.jdbc.result-set :as rs]
-    [next.jdbc.sql :as sql]
-    [clojure.tools.logging :as log]
-    [migratus.migration.sql :as sql-mig]
-    [migratus.protocols :as proto]
-    [migratus.properties :as props]
-    [migratus.utils :as utils])
-  (:import
-    java.io.File
-    [javax.sql DataSource]
-    [java.sql Connection SQLException]
-    [java.util.jar JarEntry JarFile]))
+  (:require [clojure.java.io :as io]
+            [clojure.tools.logging :as log]
+            [migratus.migration.sql :as sql-mig]
+            [migratus.properties :as props]
+            [migratus.protocols :as proto]
+            [migratus.utils :as utils]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
+            [next.jdbc.sql :as sql])
+  (:import java.io.File
+           [java.sql Connection SQLException]
+           [java.util.jar JarEntry JarFile]))
 
 (def default-migrations-table "schema_migrations")
 
@@ -131,11 +128,6 @@
   (let [^Connection conn
         (cond
           (instance? Connection db) db
-          ;; TODO: ieugen: next.jdbc can get connection from DataSource, so we can drop this case perhaps
-          ;; https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/api/next.jdbc#get-connection
-          ;; (instance? DataSource db) (try (.getConnection ^DataSource db)
-          ;;                                (catch Exception e
-          ;;                                  (log/error e (str "Error getting DB connection from source" db))))
           :else (try
                   ;; @ieugen: We can set auto-commit here as next.jdbc supports it. 
                   ;; But I guess we need to conside the case when we get a Connection directly
@@ -143,7 +135,7 @@
                   (catch Exception e
                     (log/error e (str "Error creating DB connection for "
                                       (utils/censor-password db))))))]
-    ;; set autocommit to false is necessary for transactional mode
+    ;; Mutate Connection: set autocommit to false is necessary for transactional mode
     ;; and must be enabled for non transactional mode
     (if (:transaction? db)
       (.setAutoCommit conn false)
@@ -206,10 +198,10 @@
   (log/info "creating migration table" (str "'" table-name "'"))
   (let [timestamp-column-type (datetime-backend? db)]
     (jdbc/with-transaction [t-con (connection-or-spec db)]
-      (sql-mig/do-commands
+      (jdbc/execute!
        t-con
        (modify-sql-fn
-        (str "CREATE TABLE " table-name
+        (str "CREATE TABLE " table-name 
              " (id BIGINT UNIQUE NOT NULL, applied " timestamp-column-type
              ", description VARCHAR(1024) )"))))))
 
@@ -218,11 +210,11 @@
   [db modify-sql-fn table-name]
   (log/info "updating migration table" (str "'" table-name "'"))
   (jdbc/with-transaction [t-con (connection-or-spec db)] 
-    (sql-mig/do-commands
+    (jdbc/execute-batch!
      t-con
-     (modify-sql-fn
-      [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
-       (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")]))))
+     [(modify-sql-fn
+       [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
+        (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")])])))
 
 
 (defn init-schema! [db table-name modify-sql-fn]
