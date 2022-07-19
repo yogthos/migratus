@@ -1,7 +1,10 @@
 #kaocha/v1
  {:tests [{:id :unit
            :test-paths ["test"]
-           :ns-patterns ["migratus\\.test.*"]}]
+           :ns-patterns ["migratus\\.test\\..*"]}
+          {:id :testcontainers
+           :test-paths ["test"]
+           :ns-patterns ["migratus\\.testcontainers\\..*"]}]
   :plugins [:kaocha.plugin/junit-xml
             :kaocha.plugin/cloverage
             :kaocha.plugin.alpha/spec-test-check]

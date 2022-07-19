@@ -10,6 +10,8 @@
                  [org.clojure/tools.logging "1.1.0"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [ch.qos.logback/logback-classic "1.2.3"]
+                                  [clj-test-containers/clj-test-containers "0.7.1"]
                                   [com.h2database/h2 "2.1.214"]
                                   [hikari-cp/hikari-cp "2.13.0"]
-                                  [org.clojure/tools.trace "0.7.11"]]}})
+                                  [org.clojure/tools.trace "0.7.11"]
+                                  [org.postgresql/postgresql "42.2.5"]]}})
