@@ -191,7 +191,7 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
                   {:dbtype "h2"
                    :dbname "site.db"}))
 
-(def config {:db {:connection connection}})
+(def config {:db connection})
 ```
 
 ```clojure
@@ -202,7 +202,7 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 (def datasource-options {:adapter "h2"
                          :url     "jdbc:h2:./site.db"})
 
-(def config {:db {:datasource (hk/make-datasource datasource-options)}})
+(def config {:db (hk/make-datasource datasource-options)})
 ```
 
 #### Running as native image (Postgres only)
@@ -323,7 +323,7 @@ Migratus is configured via a configuration map that you pass in as its first par
 To run migrations against a database use a :store of :database, and specify the database connection configuration in the :db key of the configuration map.
 
 * `:migration-dir` - directory where migration files are found
-* `:db` - next.jdbc database connection descriptor (spec)
+* `:db` - One of `java.sql.Connection` or `javax.sql.DataSource` instance or a `next.jdbc` database spec. See next.jdbc docs for the version you are using: https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/api/next.jdbc#get-datasource
 * `:command-separator` - the separator will be used to split the commands within each transaction when specified
 * `:expect-results?` - allows comparing migration query results using the `-- expect n` comment
 * `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
@@ -340,21 +340,6 @@ To run migrations against a database use a :store of :database, and specify the 
       :dbname "migratus"
       :user "root"
       :password ""}}
-```
-
-or:
-
-```clojure
-{:store :database
- :db {:connection-uri "jdbc:sqlite:foo_dev.db"}}
-```
-
-or:
-
-```clojure
-{:store :database
- :migration-dir "migrations"
- :db ~(get (System/getenv) "DATABASE_URL")}
 ```
 
 The `:migration-dir` key specifies the directory on the classpath in which to find SQL migration files. Each file should be named with the following pattern `[id]-[name].[direction].sql` where id is a unique integer `id` (ideally it should be a timestamp) for the migration, name is some human readable description of the migration, and direction is either `up` or `down`.
@@ -456,7 +441,7 @@ Or (recommended) `migratus.clj`, allowing credentials to be taken from the envir
 
 ```
 {:store :database
- :db (get (System/getenv) "JDBC_DATABASE_URL")}
+ :db {:jdbcUrl (get (System/getenv) "JDBC_DATABASE_URL")}}
 ```
 
 Then run, for example:
