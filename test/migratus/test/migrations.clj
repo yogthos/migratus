@@ -31,10 +31,10 @@
   (is (number? (get (props/load-properties {:properties {}}) "${migratus.timestamp}")))
   (let [props (props/load-properties
                 {:properties
-                 {:env ["java.home"]
+                 {:env ["path"]
                   :map {:foo "bar"
                         :baz {:bar "foo"}}}})]
-    (is (seq (get props "${java.home}")))
+    (is (seq (get props "${path}")))
     (is (= "bar" (get props "${foo}")))
     (is (= "foo" (get props "${baz.bar}")))))
 

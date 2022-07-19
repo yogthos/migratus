@@ -12,49 +12,63 @@
 ;;;; License for the specific language governing permissions and limitations
 ;;;; under the License.
 (ns migratus.database
-  (:require
-    [clojure.java.io :as io]
-    [clojure.java.jdbc :as sql]
-    [clojure.tools.logging :as log]
-    [clojure.string :as str]
-    [migratus.migration.sql :as sql-mig]
-    [migratus.protocols :as proto]
-    [migratus.properties :as props]
-    [migratus.utils :as utils])
-  (:import
-    java.io.File
-    [javax.sql DataSource]
-    [java.sql Connection SQLException]
-    [java.util.jar JarEntry JarFile]))
+  (:require [clojure.java.io :as io]
+            [clojure.string :as str]
+            [clojure.tools.logging :as log]
+            [migratus.migration.sql :as sql-mig]
+            [migratus.properties :as props]
+            [migratus.protocols :as proto]
+            [migratus.utils :as utils]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
+            [next.jdbc.sql :as sql])
+  (:import java.io.File
+           [java.sql Connection SQLException]
+           [java.util.jar JarEntry JarFile]))
 
 (def default-migrations-table "schema_migrations")
 
-(defn migration-table-name [config]
-  (:migration-table-name config default-migrations-table))
+(defn migration-table-name
+  "Makes migration table name available from config.
+   Sanitizes the table name to avoid possible SQL injection."
+  [config]
+  (let [table-name (:migration-table-name config default-migrations-table)
+        sanitized (str/replace table-name #"\W" "")]
+    sanitized))
+
+(defn connection-or-spec
+  "Migration code from java.jdbc to next.jdbc .
+   java.jdbc accepts a spec that contains a ^java.sql.Connection as :connection.
+   Return :connection or the db spec."
+  [db]
+  (let [conn (:connection db)]
+    (if conn conn db)))
 
 (def reserved-id -1)
 
 (defn mark-reserved [db table-name]
   (boolean
-    (try
-      (sql/insert! db table-name {:id reserved-id})
-      (catch Exception _))))
+    (try 
+      (sql/insert! (connection-or-spec db) table-name  {:id reserved-id} {:return-keys false})
+      (catch Exception _e))))
 
 (defn mark-unreserved [db table-name]
-  (sql/delete! db table-name ["id=?" reserved-id]))
+  (sql/delete! (connection-or-spec db) table-name ["id=?" reserved-id]))
 
 (defn complete? [db table-name id]
-  (first (sql/query db [(str "SELECT * from " table-name " WHERE id=?") id])))
+  (first (sql/query (connection-or-spec db)
+                    [(str "SELECT * from " table-name " WHERE id=?") id])))
 
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
-  (sql/insert! db table-name {:id          id
-                              :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
-                              :description description}))
+  (sql/insert! (connection-or-spec db)
+                table-name {:id          id
+                            :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
+                            :description description}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
-  (sql/delete! db table-name ["id=?" id]))
+  (sql/delete! (connection-or-spec db) table-name ["id=?" id]))
 
 (defn migrate-up* [db {:keys [tx-handles-ddl?] :as config} {:keys [name] :as migration}]
   (let [id         (proto/id migration)
@@ -114,19 +128,21 @@
         (find-init-script-file migration-dir init-script-name)
         (find-init-script-resource dir migration-dir init-script-name)))))
 
-(defn connect* [db]
+(defn connect* 
+  "Connects to the store - SQL database in this case.
+   Accepts a ^java.sql.Connection, ^javax.sql.DataSource or a db spec."
+  [db]
   (let [^Connection conn
         (cond
           (instance? Connection db) db
-          (instance? DataSource db) (try (.getConnection ^DataSource db)
-                                         (catch Exception e
-                                           (log/error e (str "Error getting DB connection from source" db))))
           :else (try
-                  (sql/get-connection db)
+                  ;; @ieugen: We can set auto-commit here as next.jdbc supports it. 
+                  ;; But I guess we need to conside the case when we get a Connection directly
+                  (jdbc/get-connection db)
                   (catch Exception e
                     (log/error e (str "Error creating DB connection for "
                                       (utils/censor-password db))))))]
-    ;; set autocommit to false is necessary for transactional mode
+    ;; Mutate Connection: set autocommit to false is necessary for transactional mode
     ;; and must be enabled for non transactional mode
     (if (:transaction? db)
       (.setAutoCommit conn false)
@@ -138,10 +154,11 @@
     (when-not (.isClosed conn)
       (.close conn))))
 
-(defn completed-ids* [db table-name]
-  (sql/with-db-transaction
-    [t-con db]
-    (->> (sql/query t-con (str "select id from " table-name " where id != " reserved-id))
+(defn completed-ids* [db table-name] 
+  (let [t-con (connection-or-spec db)] 
+    (->> (sql/query t-con
+                    [(str "select id from " table-name " where id != " reserved-id)]
+                    {:builder-fn rs/as-unqualified-lower-maps})
          (map :id)
          (doall))))
 
@@ -154,19 +171,17 @@
   driver does *not* tell you whether the table is on the current schema search
   path.)"
   [db table-name]
-  (sql/with-db-transaction
-    [t-con db]
-    (try
-      (sql/db-set-rollback-only! t-con)
-      (sql/query t-con [(str "SELECT 1 FROM " table-name)])
-      true
-      (catch SQLException _
-        false))))
+  (try
+    ;; TODO: @ieugen: do we need :rollback-only here ?
+    (let [db (connection-or-spec db)]
+      (sql/query db [(str "SELECT 1 FROM " table-name)]))
+    true
+    (catch SQLException _
+      false)))
 
 (defn migration-table-up-to-date?
   [db table-name]
-  (sql/with-db-transaction
-    [t-con db]
+  (jdbc/with-transaction [t-con (connection-or-spec db)]
     (try
       (sql/query t-con [(str "SELECT applied,description FROM " table-name)])
       true
@@ -179,6 +194,7 @@
   [db]
   (let [^Connection conn (:connection db)
         db-name          (.. conn getMetaData getDatabaseProductName)]
+    ;; TODO: @ieugen: we could leverage honeysql here but it might be a heavy extra dependency?! 
     (if (= "Microsoft SQL Server" db-name)
       "DATETIME"
       "TIMESTAMP")))
@@ -188,24 +204,24 @@
   [db modify-sql-fn table-name]
   (log/info "creating migration table" (str "'" table-name "'"))
   (let [timestamp-column-type (datetime-backend? db)]
-    (sql/with-db-transaction [t-con db]
-      (sql/db-do-commands
-        t-con
-        (modify-sql-fn
-          (sql/create-table-ddl table-name [[:id "BIGINT" "UNIQUE" "NOT NULL"]
-                                            [:applied timestamp-column-type "" ""]
-                                            [:description "VARCHAR(1024)" "" ""]]))))))
+    (jdbc/with-transaction [t-con (connection-or-spec db)]
+      (jdbc/execute!
+       t-con
+       (modify-sql-fn
+        (str "CREATE TABLE " table-name 
+             " (id BIGINT UNIQUE NOT NULL, applied " timestamp-column-type
+             ", description VARCHAR(1024) )"))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
   [db modify-sql-fn table-name]
   (log/info "updating migration table" (str "'" table-name "'"))
-  (sql/with-db-transaction
-    [t-con db]
-    (sql/db-do-commands t-con
-                        (modify-sql-fn
-                          [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
-                           (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")]))))
+  (jdbc/with-transaction [t-con (connection-or-spec db)] 
+    (jdbc/execute-batch!
+     t-con
+     [(modify-sql-fn
+       [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
+        (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")])])))
 
 
 (defn init-schema! [db table-name modify-sql-fn]
@@ -225,9 +241,11 @@
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
+    ;; TODO: @ieugen Why was db-do-prepared used here ? 
+    ;; Do we need to care about `transaction?` in next.jdbc ? 
     (if transaction?
-      (sql/db-do-prepared conn (modify-sql-fn init-script))
-      (sql/db-do-prepared conn false (modify-sql-fn init-script) {}))
+      (jdbc/execute! conn (modify-sql-fn init-script))
+      (jdbc/execute! conn (modify-sql-fn init-script) {}))
     (catch Throwable t
       (log/error t "failed to initialize the database with:\n" init-script "\n")
       (throw t))))
@@ -242,10 +260,9 @@
                                slurp
                                (inject-properties properties))]
     (if transaction?
-      (sql/with-db-transaction
-        [t-con db]
+      (jdbc/with-transaction [t-con (connection-or-spec db)]
         (run-init-script! init-script-name init-script t-con modify-sql-fn transaction?))
-      (run-init-script! init-script-name init-script db modify-sql-fn transaction?))
+      (run-init-script! init-script-name init-script (connection-or-spec db) modify-sql-fn transaction?))
     (log/error "could not locate the initialization script '" init-script-name "'")))
 
 (defrecord Database [connection config]
@@ -265,15 +282,19 @@
   (completed-ids [this]
     (completed-ids* @connection (migration-table-name config)))
   (migrate-up [this migration]
-    (if (proto/tx? migration :up)
-      (sql/with-db-transaction [t-con @connection]
-        (migrate-up* t-con config migration))
-      (migrate-up* (:db config) config migration)))
+              (log/info "Connection is " @connection
+                        "Config is" config)
+              (if (proto/tx? migration :up)
+                (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+                  (migrate-up* t-con config migration))
+                (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
-    (if (proto/tx? migration :down)
-      (sql/with-db-transaction [t-con @connection]
-        (migrate-down* t-con config migration))
-      (migrate-down* (:db config) config migration)))
+                (log/info "Connection is " @connection
+                          "Config is" config)
+                (if (proto/tx? migration :down)
+                  (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+                    (migrate-down* t-con config migration))
+                  (migrate-down* (:db config) config migration)))
   (connect [this]
     (reset! connection (connect* (:db config)))
     (init-schema! @connection
