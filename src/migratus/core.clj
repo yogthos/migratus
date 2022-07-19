@@ -59,7 +59,7 @@
       (proto/disconnect store))))
 
 (defn require-plugin [{:keys [store]}]
-  (if-not store
+  (when-not store
     (throw (Exception. "Store is not configured")))
   (let [plugin (symbol (str "migratus." (name store)))]
     (require plugin)))
