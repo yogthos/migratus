@@ -1,18 +1,17 @@
 (ns migratus.test.migration.sql
-  (:require [clojure.java.io :as io] 
+  (:require [clojure.java.io :as io]
             [clojure.test :refer :all]
             [migratus.core :as core]
             [migratus.database :as db]
-            [migratus.migration.sql :refer :all]
-            [migratus.protocols :as proto]
-            [migratus.mock :as mock]))
+            [migratus.migration.sql :refer :all]))
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
+(def db-spec {:dbtype "h2"
+              :dbname  db-store})
 
-(def test-config {:migration-dir        "migrations/"
-                  :db                   {:dbtype "h2" 
-                                         :dbname  db-store}})
+(def test-config {:migration-dir "migrations/"
+                  :db            db-spec})
 
 (defn reset-db []
   (letfn [(delete [f]
@@ -58,19 +57,22 @@
 
 
 (comment
+  (use 'clojure.tools.trace)
 
-  (do
-    (use 'clojure.tools.trace)
-    (trace-ns migratus.test.migration.sql)
-    (trace-ns migratus.test.database)
-    (trace-ns migratus.database)
-    (trace-ns migratus.migration.sql)
-    (trace-ns migratus.protocols)
-    (trace-ns migratus.core)
-    (trace-ns migratus.mock)
-    (trace-ns next.jdbc)
-    (trace-ns next.jdbc.sql)
-    (trace-ns next.jdbc.protocols))
+  (trace-ns clojure.test)
+  (trace-ns migratus.test.migration.sql)
+  (trace-ns migratus.test.database)
+  (trace-ns migratus.database)
+  (trace-ns migratus.migration.sql)
+  (trace-ns migratus.protocols)
+  (trace-ns migratus.core)
+  (trace-ns migratus.mock)
+  (trace-ns next.jdbc)
+  (trace-ns next.jdbc.sql)
+  (trace-ns next.jdbc.protocols)
 
 
-  (run-test test-run-sql-migrations))
+  (run-test test-run-sql-migrations)
+
+  0
+  )

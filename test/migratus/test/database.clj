@@ -26,6 +26,7 @@
             [migratus.test.migration.sql :as test-sql]
             [migratus.utils :as utils])
   (:import java.io.File
+           java.sql.Connection
            java.util.jar.JarFile
            (java.util.concurrent CancellationException)))
 
@@ -52,6 +53,36 @@
       (proto/disconnect store))))
 
 (use-fixtures :each test-sql/setup-test-db)
+
+(def db-mem {:dbtype "h2:mem"
+             :name "mem-db"})
+
+(deftest test-connect*-returns-a-connection
+  (testing "connect* works with a ^java.sql.Connection"
+    (let [ds (jdbc/get-datasource db-mem)]
+      (with-open [connection (jdbc/get-connection ds)]
+        (let [res (db/connect* connection)]
+          (is (map? res) "connect* response is a map")
+          (is (contains? res :connection) "connect* response contains :connection")
+          (is (instance? Connection (:connection res))
+              "connect* response has a ^java.sql.Connection")
+          (is (= connection (:connection res))
+              "connect* response contains the same connection we passed")))))
+  
+  (testing "connect* works with a ^javax.sql.DataSource"
+    (let [ds (jdbc/get-datasource db-mem)
+          res (db/connect* ds)]
+      (is (map? res) "connect* response is a map")
+      (is (contains? res :connection) "connect* response contains :connection")
+      (is (instance? Connection (:connection res))
+          "connect* response has a ^java.sql.Connection")))
+
+  (testing "connect* works with a db spec"
+    (let [res (db/connect* db-mem)]
+      (is (map? res) "connect* response is a map")
+      (is (contains? res :connection) "connect* response contains :connection")
+      (is (instance? Connection (:connection res))
+          "connect* response has a ^java.sql.Connection"))))
 
 (deftest test-find-init-script-resource
   (testing "finds init.sql under migrations/ in a JAR file"
