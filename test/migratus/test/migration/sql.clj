@@ -1,19 +1,17 @@
 (ns migratus.test.migration.sql
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
             [clojure.test :refer :all]
             [migratus.core :as core]
             [migratus.database :as db]
-            [migratus.migration.sql :refer :all]
-            migratus.mock
-            [migratus.protocols :as proto]))
+            [migratus.migration.sql :refer :all]))
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
-(def test-config {:migration-dir        "migrations/"
-                  :db                   {:classname   "org.h2.Driver"
-                                         :subprotocol "h2"
-                                         :subname     db-store}})
+(def db-spec {:dbtype "h2"
+              :dbname  db-store})
+
+(def test-config {:migration-dir "migrations/"
+                  :db            db-spec})
 
 (defn reset-db []
   (letfn [(delete [f]
@@ -30,7 +28,7 @@
 (use-fixtures :each setup-test-db)
 
 (defn verify-table-exists? [config table-name]
-  (sql/with-db-connection [db (:db config)]
+  (let [db (:db config)]
     (db/table-exists? db table-name)))
 
 (deftest test-run-sql-migrations
@@ -56,3 +54,25 @@
     (is (verify-table-exists? config "bar"))
     (is (not (verify-table-exists? config "quux")))
     (is (not (verify-table-exists? config "quux2")))))
+
+
+(comment
+  (use 'clojure.tools.trace)
+
+  (trace-ns clojure.test)
+  (trace-ns migratus.test.migration.sql)
+  (trace-ns migratus.test.database)
+  (trace-ns migratus.database)
+  (trace-ns migratus.migration.sql)
+  (trace-ns migratus.protocols)
+  (trace-ns migratus.core)
+  (trace-ns migratus.mock)
+  (trace-ns next.jdbc)
+  (trace-ns next.jdbc.sql)
+  (trace-ns next.jdbc.protocols)
+
+
+  (run-test test-run-sql-migrations)
+
+  0
+  )

@@ -13,17 +13,20 @@
 ;;;; under the License.
 (ns migratus.test.database
   (:require [clojure.java.io :as io]
-            [clojure.java.jdbc :as sql]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
+            [next.jdbc.quoted :as q]
+            [next.jdbc.sql :as sql]
             [migratus.protocols :as proto]
             [migratus.core :as core]
             [clojure.test :refer :all]
-            [migratus.database :refer :all]
+            [migratus.database :refer :all :as db]
             [clojure.tools.logging :as log]
             [migratus.test.migration.edn :as test-edn]
             [migratus.test.migration.sql :as test-sql]
-            [migratus.utils :as utils]
-            [hikari-cp.core :as hk])
+            [migratus.utils :as utils])
   (:import java.io.File
+           java.sql.Connection
            java.util.jar.JarFile
            (java.util.concurrent CancellationException)))
 
@@ -34,8 +37,11 @@
 
 (defn verify-data [config table-name]
   (let [db     (connect* (:db config))
-        result (sql/query db [(str "SELECT * from " table-name)])]
-    (.close (:connection db))
+        conn   (:connection db)
+        result (sql/query conn
+                          [(str "SELECT * from " table-name)]
+                          {:builder-fn rs/as-unqualified-lower-maps})]
+    (.close conn)
     result))
 
 (defn test-with-store [store & commands]
@@ -47,6 +53,36 @@
       (proto/disconnect store))))
 
 (use-fixtures :each test-sql/setup-test-db)
+
+(def db-mem {:dbtype "h2:mem"
+             :name "mem-db"})
+
+(deftest test-connect*-returns-a-connection
+  (testing "connect* works with a ^java.sql.Connection"
+    (let [ds (jdbc/get-datasource db-mem)]
+      (with-open [connection (jdbc/get-connection ds)]
+        (let [res (db/connect* connection)]
+          (is (map? res) "connect* response is a map")
+          (is (contains? res :connection) "connect* response contains :connection")
+          (is (instance? Connection (:connection res))
+              "connect* response has a ^java.sql.Connection")
+          (is (= connection (:connection res))
+              "connect* response contains the same connection we passed")))))
+  
+  (testing "connect* works with a ^javax.sql.DataSource"
+    (let [ds (jdbc/get-datasource db-mem)
+          res (db/connect* ds)]
+      (is (map? res) "connect* response is a map")
+      (is (contains? res :connection) "connect* response contains :connection")
+      (is (instance? Connection (:connection res))
+          "connect* response has a ^java.sql.Connection")))
+
+  (testing "connect* works with a db spec"
+    (let [res (db/connect* db-mem)]
+      (is (map? res) "connect* response is a map")
+      (is (contains? res :connection) "connect* response contains :connection")
+      (is (instance? Connection (:connection res))
+          "connect* response has a ^java.sql.Connection"))))
 
 (deftest test-find-init-script-resource
   (testing "finds init.sql under migrations/ in a JAR file"
@@ -77,7 +113,7 @@
               (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
      (proto/make-store (-> (dissoc config :migration-table-name)
-                           (assoc :db (sql/get-connection (:db config)))))
+                           (assoc :db (jdbc/get-connection (:db config)))))
      (fn [_]
        (test-sql/verify-table-exists? (dissoc config :migration-table-name)
                                       default-migrations-table))))
@@ -200,6 +236,40 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
+(comment
+
+  (use 'clojure.tools.trace)
+  (trace-ns migratus.test.migration.sql)
+  (trace-ns migratus.test.database)
+  (trace-ns migratus.database)
+  (trace-ns migratus.migration.sql)
+  (trace-ns migratus.protocols)
+  (trace-ns migratus.core)
+  (trace-ns next.jdbc)
+  (trace-ns next.jdbc.sql)
+  (trace-ns next.jdbc.protocols)
+
+  (run-test test-rollback-until-just-after)
+
+  (core/migrate config)
+  (db/mark-unreserved (:db config) "foo_bar")
+  (db/mark-reserved (:db config) "foo_bar")
+
+  (jdbc/execute! (:db config) ["select * from foo_bar"])
+  (next.jdbc.sql/insert! (:db config) "foo_bar" {:id -1})
+  (jdbc/execute-one! (:db config) ["insert into foo_bar(id) values (?)" -1] {:return-keys false})
+
+  (jdbc/execute! (:db config) 
+                 [(str "CREATE TABLE " (q/ansi "table")
+                       "(id BIGINT UNIQUE NOT NULL, applied TIMESTAMP,
+                        description VARCHAR(1024) )")])
+  (run-test test-init)
+  (run-test test-rollback-until-just-after)
+  (run-test test-backing-out-bad-migration-no-tx)
+
+  )
+
+
 (deftest test-migration-ignored-when-already-reserved
   (test-with-store
     (proto/make-store config)
@@ -223,6 +293,11 @@
         (mark-unreserved db migration-table-name)
         (core/down config 20111202110600)
         (is (not (test-sql/verify-table-exists? config "foo")))))))
+
+(comment
+  (run-test test-migration-ignored-when-already-reserved)
+
+  )
 
 (defn copy-dir
   [^File from ^File to]
@@ -261,6 +336,11 @@
       (finally
         (utils/recursive-delete migration-dir)))))
 
+
+(comment 
+  
+  (run-test test-migration-ignored-when-already-reserved)
+  )
 
 
 (deftest test-description-and-applied-fields
