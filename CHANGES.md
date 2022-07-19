@@ -1,3 +1,12 @@
+### 1.3.8
+
+new feature: [Provide deps.edn and kaocha test runner](https://github.com/yogthos/migratus/pull/212)
+new feature: [Port migratus to next.jdbc](https://github.com/yogthos/migratus/pull/214)
+
+### 1.3.7
+
+new feature: [Multi migration dirs](https://github.com/yogthos/migratus/pull/210)
+
 ### 1.3.6
 
 feature: [:transaction? config flag to toggle whether migrations happen within a transaction](https://github.com/yogthos/migratus/pull/209)
