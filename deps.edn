@@ -14,19 +14,15 @@
                  :extra-deps
                  {jar-migrations/jar-migrations {:mvn/version "1.0.0"}
                   ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
+                  clj-test-containers/clj-test-containers {:mvn/version "0.7.1"}
                   com.h2database/h2 {:mvn/version "2.1.214"}
                   hikari-cp/hikari-cp {:mvn/version "2.13.0"}
-                  org.clojure/tools.trace {:mvn/version "0.7.11"}}}
+                  org.clojure/tools.trace {:mvn/version "0.7.11"}
+                  org.postgresql/postgresql {:mvn/version "42.2.5"}}}
            :test-runner {:extra-paths ["test"]
                          :extra-deps
-                         {jar-migrations/jar-migrations {:mvn/version "1.0.0"}
-                          ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
-                          com.h2database/h2 {:mvn/version "2.1.214"}
-                          hikari-cp/hikari-cp {:mvn/version "2.13.0"}
-                          lambdaisland/kaocha           {:mvn/version "1.66.1034"}
+                         {lambdaisland/kaocha           {:mvn/version "1.66.1034"}
                           lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                           lambdaisland/kaocha-junit-xml {:mvn/version "0.0.76"}
-                          orchestra/orchestra           {:mvn/version "2021.01.01-1"}
-                          org.clojure/test.check        {:mvn/version "1.1.1"}
-                          org.testcontainers/postgresql {:mvn/version "1.17.2"}}
+                          orchestra/orchestra           {:mvn/version "2021.01.01-1"}}
                          :main-opts   ["-m" "kaocha.runner" "--reporter" "kaocha.report/documentation"]}}}

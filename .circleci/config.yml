@@ -1,22 +1,29 @@
+version: 2.1
 jobs:
   build:
-    docker:
-      - image: clojure:lein-2.8.0
-    working_directory: /root/migratus
+    parameters:
+      clojure-tag:
+        type: string
+    machine:
+      image: ubuntu-2204:2022.04.2
+    working_directory: /home/circleci/migratus
     steps:
       - checkout
       - restore_cache:
           keys:
             - v1-dependency-jars-{{ checksum "project.clj" }}
             - v1-dependency-jars
-      - run: lein test
+      - run: docker run --rm -u root -v $PWD:/root/migratus -v /var/run/docker.sock:/var/run/docker.sock -v $PWD/.m2:/root/.m2 -v $PWD/.lein:/root/.lein -w=/root/migratus cimg/clojure:<< parameters.clojure-tag >> lein test
       - save_cache:
           key: v1-dependency-jars-{{ checksum "project.clj" }}
           paths:
             - /root/.m2
+            - /root/.lein
 
 workflows:
-  version: 2
   build:
     jobs:
-      - build
+      - build:
+          matrix:
+            parameters:
+              clojure-tag: ["1.10-openjdk-8.0", "1.11-openjdk-8.0", "1.11-openjdk-11.0", "1.11-openjdk-17.0"]

@@ -3,7 +3,9 @@
             [clojure.test :refer :all]
             [migratus.core :as core]
             [migratus.database :as db]
-            [migratus.migration.sql :refer :all]))
+            [migratus.migration.sql :refer :all]
+            [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]))
 
 (def db-store (str (.getName (io/file ".")) "/site.db"))
 
@@ -12,6 +14,15 @@
 
 (def test-config {:migration-dir "migrations/"
                   :db            db-spec})
+
+(defn db-tables-and-views
+  "Fetch tables and views (database metadata) from DB.
+   Returns a collection of table metadata."
+  [datasource]
+  (with-open [con (jdbc/get-connection datasource)]
+    (-> (.getMetaData con)
+        (.getTables nil nil nil (into-array ["TABLE" "VIEW"]))
+        (rs/datafiable-result-set datasource))))
 
 (defn reset-db []
   (letfn [(delete [f]

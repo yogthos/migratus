@@ -1,6 +1,11 @@
+### Unreleased
+
+new feature: Run basic tests against PostgreSQL using testcontainers
+
 ### 1.3.8
 
 new feature: [Provide deps.edn and kaocha test runner](https://github.com/yogthos/migratus/pull/212)
+
 new feature: [Port migratus to next.jdbc](https://github.com/yogthos/migratus/pull/214)
 
 ### 1.3.7

@@ -468,6 +468,9 @@ Run tests with kaocha:
    bin/kaocha --fail-fast
 
    bin/kaocha --fail-fast --focus migratus.test.migration.sql/test-run-sql-migrations
+
+   # Run only integration tests - defined in tests.edn
+   bin/kaocha testcontainers
 ```
 
 ## License
