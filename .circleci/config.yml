@@ -20,7 +20,10 @@ jobs:
             echo $PWD
             docker run --rm -u root -v $PWD:/home/circleci/migratus -v /var/run/docker.sock:/var/run/docker.sock -v /home/circleci/.m2:/home/circleci/.m2 -v /home/circleci/.lein:/home/circleci/.lein -w=/home/circleci/migratus cimg/clojure:<< parameters.clojure-tag >> bin/kaocha
             ls -lah
+            # Change permissions for migratus
             sudo chown -R circleci:circleci /home/circleci/migratus
+            # Make sure .m2 and .lein have also right permissions
+            sudo chown -R circleci:circleci /home/circleci/
             ls -lah
 
       - store_test_results:
