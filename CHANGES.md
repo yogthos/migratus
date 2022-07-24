@@ -2,6 +2,10 @@
 
 new feature: Run basic tests against PostgreSQL using testcontainers
 
+new feature: Circle CI matrix runner - run against multiple clojure and jdk versions
+
+new feature: Circle CI junit reports, run tests with kaocha
+
 ### 1.3.8
 
 new feature: [Provide deps.edn and kaocha test runner](https://github.com/yogthos/migratus/pull/212)

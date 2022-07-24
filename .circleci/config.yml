@@ -13,12 +13,23 @@ jobs:
           keys:
             - v1-dependency-jars-{{ checksum "project.clj" }}
             - v1-dependency-jars
-      - run: docker run --rm -u root -v $PWD:/root/migratus -v /var/run/docker.sock:/var/run/docker.sock -v $PWD/.m2:/root/.m2 -v $PWD/.lein:/root/.lein -w=/root/migratus cimg/clojure:<< parameters.clojure-tag >> lein test
+      - run:
+          name: run tests
+          command: |
+            whoami
+            echo $PWD
+            docker run --rm -u root -v $PWD:/home/circleci/migratus -v /var/run/docker.sock:/var/run/docker.sock -v /home/circleci/.m2:/home/circleci/.m2 -v /home/circleci/.lein:/home/circleci/.lein -w=/home/circleci/migratus cimg/clojure:<< parameters.clojure-tag >> bin/kaocha
+            ls -lah
+            sudo chown -R circleci:circleci /home/circleci/migratus
+            ls -lah
+
+      - store_test_results:
+          path: /home/circleci/migratus/target/test-reports/
       - save_cache:
           key: v1-dependency-jars-{{ checksum "project.clj" }}
           paths:
-            - /root/.m2
-            - /root/.lein
+            - /home/circleci/.m2
+            - /home/circleci/.lein
 
 workflows:
   build:
