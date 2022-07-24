@@ -10,4 +10,4 @@
             :kaocha.plugin.alpha/spec-test-check]
   :reporter [kaocha.report/documentation
              kaocha.report/dots]
-  :kaocha.plugin.junit-xml/target-file "target/junit.xml"}
+  :kaocha.plugin.junit-xml/target-file "target/test-reports/junit.xml"}
