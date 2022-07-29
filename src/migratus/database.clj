@@ -283,14 +283,14 @@
     (completed-ids* @connection (migration-table-name config)))
   (migrate-up [this migration]
               (log/info "Connection is " @connection
-                        "Config is" config)
+                        "Config is" (update config :db utils/censor-password))
               (if (proto/tx? migration :up)
                 (jdbc/with-transaction [t-con (connection-or-spec @connection)]
                   (migrate-up* t-con config migration))
                 (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
                 (log/info "Connection is " @connection
-                          "Config is" config)
+                          "Config is" (update config :db utils/censor-password))
                 (if (proto/tx? migration :down)
                   (jdbc/with-transaction [t-con (connection-or-spec @connection)]
                     (migrate-down* t-con config migration))
