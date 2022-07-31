@@ -192,6 +192,10 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
                    :dbname "site.db"}))
 
 (def config {:db {:connection connection}})
+
+;; With next.jdbc >= 1.2.790 you can use {:connection-uri ...} format (as well as raw {:datasource ...} without :user/:password).
+(def config {:db {:connection-uri ...}})
+
 ```
 
 ```clojure

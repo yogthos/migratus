@@ -6,6 +6,10 @@ new feature: Circle CI matrix runner - run against multiple clojure and jdk vers
 
 new feature: Circle CI junit reports, run tests with kaocha
 
+bug fix: [Pass :connection and :datasource through :db](https://github.com/yogthos/migratus/issues/181)
+
+enhancement: [Upgrade to next.jdbc 1.2.790 - Can pass {:connection-uri ...}](https://github.com/yogthos/migratus/issues/221)
+
 ### 1.3.8
 
 new feature: [Provide deps.edn and kaocha test runner](https://github.com/yogthos/migratus/pull/212)
