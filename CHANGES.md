@@ -1,5 +1,8 @@
 ### Unreleased
 
+
+### 1.4.0
+
 new feature: Run basic tests against PostgreSQL using testcontainers
 
 new feature: Circle CI matrix runner - run against multiple clojure and jdk versions
