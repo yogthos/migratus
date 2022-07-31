@@ -61,7 +61,7 @@
   (testing "connect* works with a ^java.sql.Connection"
     (let [ds (jdbc/get-datasource db-mem)]
       (with-open [connection (jdbc/get-connection ds)]
-        (let [res (db/connect* connection)]
+        (let [res (db/connect* {:connection connection})]
           (is (map? res) "connect* response is a map")
           (is (contains? res :connection) "connect* response contains :connection")
           (is (instance? Connection (:connection res))
@@ -71,7 +71,7 @@
   
   (testing "connect* works with a ^javax.sql.DataSource"
     (let [ds (jdbc/get-datasource db-mem)
-          res (db/connect* ds)]
+          res (db/connect* {:datasource ds})]
       (is (map? res) "connect* response is a map")
       (is (contains? res :connection) "connect* response contains :connection")
       (is (instance? Connection (:connection res))
@@ -113,7 +113,7 @@
               (dissoc config :migration-table-name) default-migrations-table)))
     (test-with-store
      (proto/make-store (-> (dissoc config :migration-table-name)
-                           (assoc :db (jdbc/get-connection (:db config)))))
+                           (assoc :db {:connection (jdbc/get-connection (:db config))})))
      (fn [_]
        (test-sql/verify-table-exists? (dissoc config :migration-table-name)
                                       default-migrations-table))))

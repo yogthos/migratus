@@ -36,12 +36,7 @@
                     :migration-dir "migrations-postgres"
                     :init-script "init.sql"
                     :migration-table-name "foo_bar"
-                    :db {:dbtype   "postgresql"
-                         :dbname   "postgres"
-                         :user     "postgres"
-                         :password "pw"
-                         :host     (:host initialized-pg-container)
-                         :port     (get (:mapped-ports initialized-pg-container) 5432)}}]
+                    :db {:datasource ds}}]
         (is (= [] (test-sql/db-tables-and-views ds)) "db is empty before migrations")
 
         ;; init 

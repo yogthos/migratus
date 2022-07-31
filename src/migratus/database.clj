@@ -24,6 +24,7 @@
             [next.jdbc.sql :as sql])
   (:import java.io.File
            [java.sql Connection SQLException]
+           [javax.sql DataSource]
            [java.util.jar JarEntry JarFile]))
 
 (def default-migrations-table "schema_migrations")
@@ -128,13 +129,24 @@
         (find-init-script-file migration-dir init-script-name)
         (find-init-script-resource dir migration-dir init-script-name)))))
 
+(defn connection-from-datasource [ds]
+  (try (.getConnection ^DataSource ds)
+       (catch Exception e
+         (log/error e (str "Error getting DB connection from source" ds)))))
+
 (defn connect* 
   "Connects to the store - SQL database in this case.
    Accepts a ^java.sql.Connection, ^javax.sql.DataSource or a db spec."
   [db]
+  (assert (map? db) "db must be a map")
   (let [^Connection conn
         (cond
-          (instance? Connection db) db
+          (:connection db) (let [c (:connection db)]
+                             (assert (instance? Connection c) "c is not a Connection")
+                             c)
+          (:datasource db) (let [ds (:datasource db)]
+                             (assert (instance? DataSource ds) "ds is not a DataSource")
+                             (connection-from-datasource ds))
           :else (try
                   ;; @ieugen: We can set auto-commit here as next.jdbc supports it. 
                   ;; But I guess we need to conside the case when we get a Connection directly
