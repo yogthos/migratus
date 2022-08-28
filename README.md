@@ -276,6 +276,9 @@ Then, in `src/app/migrations/import_users.clj`:
   migrations can be configurable).
 - You can omit the up or down migration by setting `:up-fn` or
   `down-fn` to `nil` in the EDN file.
+- The `:up-fn` and `:down-fn` entries can optionally be a vector containing the
+  migration function followed by additional args to be passed after
+  the config map, e.g. `{..., :up-fn [migrate-up "arg1" :arg2], ...}`.
 
 ### Generate code-based migration files
 

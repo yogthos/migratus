@@ -6,17 +6,17 @@
 
 ;; up-fn and down-fn here are actually vars; invoking them as fns will deref
 ;; them and invoke the fn bound by the var.
-(defrecord EdnMigration [id name up-fn down-fn transaction?]
+(defrecord EdnMigration [id name up-fn down-fn transaction? up-args down-args]
   proto/Migration
   (id [this] id)
   (name [this] name)
-  (tx? [this direction] (if (nil? transaction?) true  transaction?))
+  (tx? [this direction] (if (nil? transaction?) true transaction?))
   (up [this config]
     (when up-fn
-      (up-fn config)))
+      (apply up-fn config up-args)))
   (down [this config]
     (when down-fn
-      (down-fn config))))
+      (apply down-fn config down-args))))
 
 (defn to-sym
   "Converts x to a non-namespaced symbol, throwing if x is namespaced"
@@ -43,7 +43,9 @@
   [_ mig-id mig-name payload config]
   (let [{:keys [ns up-fn down-fn transaction?]
          :or   {up-fn "up" down-fn "down"}} (edn/read-string payload)
-        mig-ns (to-sym ns)]
+        mig-ns (to-sym ns)
+        [up-fn & up-args] (cond-> up-fn (not (coll? up-fn)) vector)
+        [down-fn & down-args] (cond-> down-fn (not (coll? down-fn)) vector)]
     (when-not mig-ns
       (throw (IllegalArgumentException.
                (format "Invalid migration %s: no namespace" mig-name))))
@@ -51,7 +53,9 @@
     (->EdnMigration mig-id mig-name
                     (resolve-fn mig-name mig-ns up-fn)
                     (resolve-fn mig-name mig-ns down-fn)
-                    transaction?)))
+                    transaction?
+                    up-args
+                    down-args)))
 
 (defmethod proto/get-extension* :edn
   [_]
