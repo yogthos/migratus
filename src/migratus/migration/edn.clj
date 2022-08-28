@@ -6,17 +6,17 @@
 
 ;; up-fn and down-fn here are actually vars; invoking them as fns will deref
 ;; them and invoke the fn bound by the var.
-(defrecord EdnMigration [id name up-fn down-fn transaction?]
+(defrecord EdnMigration [id name up-fn down-fn transaction? up-args down-args]
   proto/Migration
   (id [this] id)
   (name [this] name)
-  (tx? [this direction] (if (nil? transaction?) true  transaction?))
+  (tx? [this direction] (if (nil? transaction?) true transaction?))
   (up [this config]
     (when up-fn
-      (up-fn config)))
+      (apply up-fn config up-args)))
   (down [this config]
     (when down-fn
-      (down-fn config))))
+      (apply down-fn config down-args))))
 
 (defn to-sym
   "Converts x to a non-namespaced symbol, throwing if x is namespaced"
@@ -41,7 +41,7 @@
 
 (defmethod proto/make-migration* :edn
   [_ mig-id mig-name payload config]
-  (let [{:keys [ns up-fn down-fn transaction?]
+  (let [{:keys [ns up-fn down-fn transaction? up-args down-args]
          :or   {up-fn "up" down-fn "down"}} (edn/read-string payload)
         mig-ns (to-sym ns)]
     (when-not mig-ns
@@ -51,7 +51,9 @@
     (->EdnMigration mig-id mig-name
                     (resolve-fn mig-name mig-ns up-fn)
                     (resolve-fn mig-name mig-ns down-fn)
-                    transaction?)))
+                    transaction?
+                    (or up-args [])
+                    (or down-args []))))
 
 (defmethod proto/get-extension* :edn
   [_]

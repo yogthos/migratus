@@ -1,0 +1,6 @@
+{:ns migratus.test.migration.edn.test-script-args
+ :up-fn migrate-up
+ :up-args ["hello-with-args.txt" "Hello, world, with args!"]
+ :down-fn migrate-down
+ :down-args ["hello-with-args.txt"]
+ :transaction? true}
