@@ -41,9 +41,11 @@
 
 (defmethod proto/make-migration* :edn
   [_ mig-id mig-name payload config]
-  (let [{:keys [ns up-fn down-fn transaction? up-args down-args]
+  (let [{:keys [ns up-fn down-fn transaction?]
          :or   {up-fn "up" down-fn "down"}} (edn/read-string payload)
-        mig-ns (to-sym ns)]
+        mig-ns (to-sym ns)
+        [up-fn & up-args] (cond-> up-fn (not (coll? up-fn)) vector)
+        [down-fn & down-args] (cond-> down-fn (not (coll? down-fn)) vector)]
     (when-not mig-ns
       (throw (IllegalArgumentException.
                (format "Invalid migration %s: no namespace" mig-name))))
@@ -52,8 +54,8 @@
                     (resolve-fn mig-name mig-ns up-fn)
                     (resolve-fn mig-name mig-ns down-fn)
                     transaction?
-                    (or up-args [])
-                    (or down-args []))))
+                    up-args
+                    down-args)))
 
 (defmethod proto/get-extension* :edn
   [_]
