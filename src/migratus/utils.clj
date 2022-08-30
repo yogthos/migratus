@@ -39,13 +39,19 @@
     (str dir "/")
     dir))
 
-(defn jar-file [^URL url]
-  (some-> url
-          (.getFile)
+(defn jar-name
+  [^String s]
+  (some-> s
+          (str/replace "+" "%2B")
           (URLDecoder/decode "UTF-8")
           (.split "!/")
           ^String (first)
-          (.replaceFirst "file:" "")
+          (.replaceFirst "file:" "")))
+
+(defn jar-file [^URL url]
+  (some-> url
+          (.getFile)
+          (jar-name)
           (JarFile.)))
 
 (defn find-migration-dir
