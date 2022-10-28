@@ -1,5 +1,7 @@
 ### Unreleased
 
+### 1.4.5
+[remove sanitation of migration table name](https://github.com/yogthos/migratus/pull/231)
 
 ### 1.4.0
 
