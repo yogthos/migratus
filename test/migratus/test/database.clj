@@ -105,7 +105,16 @@
     (test-with-store
       (proto/make-store config)
       (fn [config]
-        (is (test-sql/verify-table-exists? config "foo_bar"))))))
+        (is (test-sql/verify-table-exists? config "foo_bar")))))
+  (test-sql/reset-db)
+  (testing "should use complex table name"
+    (let [table-name "U&\"\\00d6ffnungszeit\""
+          config (assoc config :migration-table-name table-name)]
+      (is (not (test-sql/verify-table-exists? config table-name)))
+      (test-with-store
+        (proto/make-store config)
+        (fn [config]
+          (is (test-sql/verify-table-exists? config table-name)))))))
 
 (deftest test-make-store-pass-conn
   (testing "should create default table name"

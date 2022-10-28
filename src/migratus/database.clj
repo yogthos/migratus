@@ -13,7 +13,6 @@
 ;;;; under the License.
 (ns migratus.database
   (:require [clojure.java.io :as io]
-            [clojure.string :as str]
             [clojure.tools.logging :as log]
             [migratus.migration.sql :as sql-mig]
             [migratus.properties :as props]
@@ -30,12 +29,9 @@
 (def default-migrations-table "schema_migrations")
 
 (defn migration-table-name
-  "Makes migration table name available from config.
-   Sanitizes the table name to avoid possible SQL injection."
+  "Makes migration table name available from config."
   [config]
-  (let [table-name (:migration-table-name config default-migrations-table)
-        sanitized (str/replace table-name #"\W" "")]
-    sanitized))
+  (:migration-table-name config default-migrations-table))
 
 (defn connection-or-spec
   "Migration code from java.jdbc to next.jdbc .
