@@ -78,11 +78,11 @@
   (log/debug "Looking for migrations in" migration-dir)
   (->> (for [f (filter (fn [^File f] (.isFile f))
                        (file-seq migration-dir))
-             :let [file-name (.getName ^File f)]]
+             :let [file-name (.getName ^File f)]
+             :when (not (utils/script-excluded? file-name migration-dir exclude-scripts))]
          (if-let [mig (parse-name file-name)]
            (migration-map mig (slurp f) properties)
-           (when-not (exclude-scripts (.getName ^File f))
-             (warn-on-invalid-migration file-name))))
+           (warn-on-invalid-migration file-name)))
        (remove nil?)))
 
 
@@ -94,13 +94,13 @@
              :let [entry-name       (.replaceAll (.getName ^JarEntry entry) dir "")
                    last-slash-index (str/last-index-of entry-name "/")
                    file-name        (subs entry-name (if-not last-slash-index 0
-                                                                              (+ 1 last-slash-index)))]]
+                                                                              (+ 1 last-slash-index)))]
+             :when (not (utils/script-excluded? file-name jar exclude-scripts))]
          (if-let [mig (parse-name file-name)]
            (let [w (StringWriter.)]
              (io/copy (.getInputStream ^JarFile jar entry) w)
              (migration-map mig (.toString w) properties))
-           (when-not (exclude-scripts file-name)
-             (warn-on-invalid-migration file-name))))
+           (warn-on-invalid-migration file-name)))
        (remove nil?)))
 
 (defn read-migrations [dir exclude-scripts properties]
