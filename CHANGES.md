@@ -1,4 +1,6 @@
-### Unreleased
+### 1.4.6
+
+[ability to exclude scripts based on globs](https://github.com/yogthos/migratus/pull/232)
 
 ### 1.4.5
 [remove sanitation of migration table name](https://github.com/yogthos/migratus/pull/231)
