@@ -5,7 +5,8 @@
   (:import
     java.io.File
     java.util.jar.JarFile
-    [java.net URL URLDecoder]))
+    [java.net URL URLDecoder URI]
+    [java.nio.file FileSystems FileSystemNotFoundException]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -27,10 +28,26 @@
   (get config :init-script default-init-script-name))
 
 (defn get-exclude-scripts
-  "Returns a set of script names to exclude when finding migrations"
+  "Returns a set of script name globs to exclude when finding migrations"
   [config]
   (into #{(get-init-script config)}
         (get config :exclude-scripts)))
+
+(defn script-excluded?
+  "Returns true if the script should be excluded according
+  to the collection of globs in exclude-scripts."
+  [script migration-dir exclude-scripts]
+  (when (seq exclude-scripts)
+    (let [fs (if (instance? File migration-dir)
+               (.getFileSystem (.toPath migration-dir))
+               (let [uri (URI. (str "jar:file:" (.getName ^JarFile migration-dir)))]
+                 (try
+                   (FileSystems/getFileSystem uri)
+                   (catch FileSystemNotFoundException _
+                     (FileSystems/newFileSystem uri {})))))
+          path (.getPath fs script (make-array String 0))]
+      (some #(.matches (.getPathMatcher fs (str "glob:" %)) path)
+            exclude-scripts))))
 
 (defn ensure-trailing-slash
   "Put a trailing slash on the dirname if not present"

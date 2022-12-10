@@ -39,23 +39,25 @@
     (is (= "foo" (get props "${baz.bar}")))))
 
 (deftest test-find-migrations
-  (is (= {"20111202113000"
-          {"create-bar-table"
-           {:sql
-            {:up   "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n"
-             :down "DROP TABLE IF EXISTS bar;\n"}}}
-          "20111202110600"
-          {"create-foo-table"
-           {:sql
-            {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n"
-             :down "DROP TABLE IF EXISTS foo;\n"}}}
-          "20120827170200"
-          {"multiple-statements"
-           {:sql
-            {:up   multi-stmt-up
-             :down multi-stmt-down}}}}
-        (sut/find-migrations "migrations" #{"init.sql"} nil))
-    "single migrations dir")
+  (let [create-migrations {"20111202113000"
+                           {"create-bar-table"
+                            {:sql
+                             {:up   "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n"
+                              :down "DROP TABLE IF EXISTS bar;\n"}}}
+                           "20111202110600"
+                           {"create-foo-table"
+                            {:sql
+                             {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n"
+                              :down "DROP TABLE IF EXISTS foo;\n"}}}}
+        migrations (assoc create-migrations "20120827170200"
+                                            {"multiple-statements"
+                                             {:sql
+                                              {:up   multi-stmt-up
+                                               :down multi-stmt-down}}})]
+    (is (= migrations (sut/find-migrations "migrations" ["init.sql"] nil))
+        "single migrations dir")
+    (is (= create-migrations (sut/find-migrations "migrations" ["init.sql" "*-multiple-*"] nil))
+        "single migrations dir with glob exclusions"))
   (is (= {"20220604110500"
           {"create-foo1-table"
            {:sql
@@ -76,12 +78,12 @@
            {:sql
             {:down "DROP TABLE IF EXISTS foo2;",
              :up "CREATE TABLE IF NOT EXISTS foo2(id bigint);"}}}}
-        (sut/find-migrations ["migrations1" "migrations2"] #{} nil))
+         (sut/find-migrations ["migrations1" "migrations2"] [] nil))
     "multiple migrations dirs")
   (is (= {"20111202110600" {"create-foo-table" {:sql {:up   "CREATE TABLE IF NOT EXISTS foo(id bigint);\n",
                                                       :down "DROP TABLE IF EXISTS TEST_SCHEMA.foo;\n"}},
                             "create-schema"    {:sql {:up "CREATE SCHEMA TEST_SCHEMA\n"}}}}
-        (sut/find-migrations "migrations-with-props" #{} {"${migratus.schema}" "TEST_SCHEMA"}))))
+         (sut/find-migrations "migrations-with-props" [] {"${migratus.schema}" "TEST_SCHEMA"}))))
 
 (deftest test-find-jar-migrations
   (let [dir "migrations-in-jar"
