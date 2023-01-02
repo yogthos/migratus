@@ -68,7 +68,7 @@
   (let [completed? (set (proto/completed-ids store))]
     (filter (comp completed? proto/id) (mig/list-migrations config))))
 
-(defn uncompleted-migrations 
+(defn uncompleted-migrations
   "Returns a list of uncompleted migrations.
    Fetch list of applied migrations from db and existing migrations from migrations dir."
   [config store]
@@ -148,8 +148,7 @@
     config
     store
     (->> (proto/completed-ids store)
-         sort
-         last
+         first
          vector)))
 
 (defn- reset* [config store _]
