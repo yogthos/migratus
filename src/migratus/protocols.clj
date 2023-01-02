@@ -26,7 +26,8 @@
   (init [this]
     "Initialize the data store.")
   (completed-ids [this]
-    "Seq of ids of completed migrations.")
+    "Seq of ids of completed migrations in descending order of applied
+    date.")
   (migrate-up [this migration]
     "Run and record an up migration")
   (migrate-down [this migration]

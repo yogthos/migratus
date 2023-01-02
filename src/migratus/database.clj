@@ -45,7 +45,7 @@
 
 (defn mark-reserved [db table-name]
   (boolean
-    (try 
+    (try
       (sql/insert! (connection-or-spec db) table-name  {:id reserved-id} {:return-keys false})
       (catch Exception _e))))
 
@@ -130,7 +130,7 @@
        (catch Exception e
          (log/error e (str "Error getting DB connection from source" ds)))))
 
-(defn connect* 
+(defn connect*
   "Connects to the store - SQL database in this case.
    Accepts a ^java.sql.Connection, ^javax.sql.DataSource or a db spec."
   [db]
@@ -144,7 +144,7 @@
                              (assert (instance? DataSource ds) "ds is not a DataSource")
                              (connection-from-datasource ds))
           :else (try
-                  ;; @ieugen: We can set auto-commit here as next.jdbc supports it. 
+                  ;; @ieugen: We can set auto-commit here as next.jdbc supports it.
                   ;; But I guess we need to conside the case when we get a Connection directly
                   (jdbc/get-connection db)
                   (catch Exception e
@@ -162,11 +162,12 @@
     (when-not (.isClosed conn)
       (.close conn))))
 
-(defn completed-ids* [db table-name] 
-  (let [t-con (connection-or-spec db)] 
+(defn completed-ids* [db table-name]
+  (let [t-con (connection-or-spec db)]
     (->> (sql/query t-con
                     [(str "select id from " table-name " where id != " reserved-id)]
                     {:builder-fn rs/as-unqualified-lower-maps})
+         (sort-by :applied #(.compareTo %2 %1))
          (map :id)
          (doall))))
 
@@ -202,7 +203,7 @@
   [db]
   (let [^Connection conn (:connection db)
         db-name          (.. conn getMetaData getDatabaseProductName)]
-    ;; TODO: @ieugen: we could leverage honeysql here but it might be a heavy extra dependency?! 
+    ;; TODO: @ieugen: we could leverage honeysql here but it might be a heavy extra dependency?!
     (if (= "Microsoft SQL Server" db-name)
       "DATETIME"
       "TIMESTAMP")))
@@ -216,7 +217,7 @@
       (jdbc/execute!
        t-con
        (modify-sql-fn
-        (str "CREATE TABLE " table-name 
+        (str "CREATE TABLE " table-name
              " (id BIGINT UNIQUE NOT NULL, applied " timestamp-column-type
              ", description VARCHAR(1024) )"))))))
 
@@ -224,7 +225,7 @@
   "Updates the schema for the migration table via t-con in db in table-name"
   [db modify-sql-fn table-name]
   (log/info "updating migration table" (str "'" table-name "'"))
-  (jdbc/with-transaction [t-con (connection-or-spec db)] 
+  (jdbc/with-transaction [t-con (connection-or-spec db)]
     (jdbc/execute-batch!
      t-con
      [(modify-sql-fn
@@ -249,8 +250,8 @@
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
-    ;; TODO: @ieugen Why was db-do-prepared used here ? 
-    ;; Do we need to care about `transaction?` in next.jdbc ? 
+    ;; TODO: @ieugen Why was db-do-prepared used here ?
+    ;; Do we need to care about `transaction?` in next.jdbc ?
     (if transaction?
       (jdbc/execute! conn (modify-sql-fn init-script))
       (jdbc/execute! conn (modify-sql-fn init-script) {}))
