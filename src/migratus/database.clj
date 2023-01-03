@@ -165,7 +165,7 @@
 (defn completed-ids* [db table-name]
   (let [t-con (connection-or-spec db)]
     (->> (sql/query t-con
-                    [(str "select id from " table-name " where id != " reserved-id)]
+                    [(str "select id, applied from " table-name " where id != " reserved-id)]
                     {:builder-fn rs/as-unqualified-lower-maps})
          (sort-by :applied #(.compareTo %2 %1))
          (map :id)
