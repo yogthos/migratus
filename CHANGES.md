@@ -1,3 +1,6 @@
+### 1.4.7
+[update rollback behavior to roll back last applied migration when no arguments provided](https://github.com/yogthos/migratus/issues/199)
+
 ### 1.4.6
 
 [ability to exclude scripts based on globs](https://github.com/yogthos/migratus/pull/232)
