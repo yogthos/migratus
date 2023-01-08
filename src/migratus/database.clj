@@ -59,9 +59,9 @@
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
   (sql/insert! (connection-or-spec db)
-                table-name {:id          id
-                            :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
-                            :description description}))
+               table-name {:id          id
+                           :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
+                           :description description}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
@@ -128,7 +128,8 @@
 (defn connection-from-datasource [ds]
   (try (.getConnection ^DataSource ds)
        (catch Exception e
-         (log/error e (str "Error getting DB connection from source" ds)))))
+         (log/error e (str "Error getting DB connection from source" ds))
+         (throw e))))
 
 (defn connect*
   "Connects to the store - SQL database in this case.
@@ -149,7 +150,8 @@
                   (jdbc/get-connection db)
                   (catch Exception e
                     (log/error e (str "Error creating DB connection for "
-                                      (utils/censor-password db))))))]
+                                      (utils/censor-password db)))
+                    (throw e))))]
     ;; Mutate Connection: set autocommit to false is necessary for transactional mode
     ;; and must be enabled for non transactional mode
     (if (:transaction? db)
