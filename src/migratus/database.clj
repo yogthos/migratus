@@ -169,7 +169,7 @@
     (->> (sql/query t-con
                     [(str "select id, applied from " table-name " where id != " reserved-id)]
                     {:builder-fn rs/as-unqualified-lower-maps})
-         (sort-by :applied #(.compareTo %2 %1))
+         (sort-by :applied #(compare %2 %1))
          (map :id)
          (doall))))
 
