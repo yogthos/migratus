@@ -1,3 +1,12 @@
+### 1.5.0
+return the names when creating migrations with `migratus.core/create`
+
+### 1.4.9
+[Fix error if any migration lacked an applied date](https://github.com/yogthos/migratus/pull/237)
+
+### 1.4.8
+[Re-throw connection error](https://github.com/yogthos/migratus/pull/236)
+
 ### 1.4.7
 [update rollback behavior to roll back last applied migration when no arguments provided](https://github.com/yogthos/migratus/issues/199)
 
