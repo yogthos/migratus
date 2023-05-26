@@ -1,3 +1,6 @@
+### 1.5.1
+fixed handling lazy for in migration creation
+
 ### 1.5.0
 return the names when creating migrations with `migratus.core/create`
 
