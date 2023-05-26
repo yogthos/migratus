@@ -160,11 +160,13 @@
 
 (defn create [config name migration-type]
   (let [migration-dir  (find-or-create-migration-dir
-                         (utils/get-parent-migration-dir config)
-                         (utils/get-migration-dir config))
+                        (utils/get-parent-migration-dir config)
+                        (utils/get-migration-dir config))
         migration-name (->kebab-case (str (timestamp) name))]
-    (doseq [mig-file (proto/migration-files* migration-type migration-name)]
-      (.createNewFile (io/file migration-dir mig-file)))))
+    (for [mig-file (proto/migration-files* migration-type migration-name)]
+      (let [file (io/file migration-dir mig-file)]
+        (.createNewFile file)
+        (.getName (io/file migration-dir mig-file))))))
 
 (defn destroy [config name]
   (let [migration-dir  (utils/find-migration-dir
