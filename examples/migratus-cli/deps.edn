@@ -1,0 +1,9 @@
+{:path ["src"]
+ :deps {migratus/migratus {:local/root "../.."}
+        com.github.seancorfield/next.jdbc {:mvn/version "1.3.874"}
+        com.h2database/h2 {:mvn/version "1.4.199"}
+        org.clojure/tools.cli {:mvn/version "1.0.219"}}
+ 
+ :aliases {:migrate {:extra-deps {com.github.paulbutcher/clj-migratus {:git/tag "v1.0.0"
+                                                                       :git/sha "67d0fe5"}}
+                     :main-opts ["-m" "clj-migratus"]}}}
