@@ -1,76 +1,83 @@
 (ns migratus-cli.core
   (:require [clojure.tools.cli :refer [parse-opts]]
             [next.jdbc :as jdbc]
-            [migratus.core :as migratus :refer :all]))
+            [migratus.core :as migratus :refer :all]
+            [clojure.string :as str]))
 
 (def cli-options
-  [["-i" "--init CONFIG" "Initialize the data store"]
-   ["-c" "--create CONFIG NAME" "Create a new migration with the current date"]
-   ["-m" "--migrate CONFIG" "Bring up any migrations that are not completed. Returns nil if successful, :ignore if the table is reserved, :failure otherwise. Supports thread cancellation."]
-   ["-r" "--rollback CONFIG" "Rollback the last migration that was successfully applied."]
-   [nil "--reset CONFIG" "Reset the database by down-ing all migrations successfully applied, then up-ing all migratinos."]
-   [nil "--rollback-until-just-after CONFIG ID" "Migrate down all migrations after migration-id. This only considers completed migrations, and will not migrate up."]
-   ["-u" "--up CONFIG IDS" "Bring up the migrations identified by ids. Any migrations that are already complete will be skipped."]
-   ["-d" "--down CONFIG IDS" "Bring down the migrations identified by ids. Any migrations that are not completed will be skipped."]
-   [nil "--pending-list CONFIG" "List pending migrations"]
-   [nil "--migrate-until-just-before CONFIG ID" "Run all migrations preceding migration-id. This is useful when testing that a migration behaves as expected on fixture data. This only considers uncompleted migrations, and will not migrate down."]
+  [[nil "--config" "Configuration file path" :default "migratus.edn"]
+   [nil "--until-just-after" "Migrate down all migrations after migration-id. This only considers completed migrations, and will not migrate up."]
+   [nil "--until-just-before" "Run all migrations preceding migration-id. This is useful when testing that a migration behaves as expected on fixture data. This only considers uncompleted migrations, and will not migrate down."]
    ["-h" "--help"]])
 
-#_(defn -main
-[& args]
-   "I don't do a whole lot ... yet."
-(let [arguments (parse-opts args cli-options)
-      options (:options arguments)
-      summary (:summary arguments)]
-  (if (:help options)
-    (println summary)
-    (println arguments))))
+(defn usage [options-summary]
+  (->> ["Usage: migratus action [options]"
+        ""
+        "Actions:"
+        "  init"
+        "  create"
+        "  migrate"
+        "  reset"
+        "  rollback"
+        "  up"
+        "  down"
+        "  list"
+        ""
+        "options:"
+        options-summary]
+       (str/join \newline)))
 
-(def datasource-config {:dbtype "h2:mem"
-                        :dbname "users"})
-(def ds (jdbc/get-datasource datasource-config))
-(def config {:store                :database
-             :migration-dir        "migrations/"
-             :db {:datasource ds}})
+(defn error-msg [errors]
+  (str "The following errors occurred while parsing your command:\n\n"
+       (str/join  \newline errors)))
+
+(defn no-match-message
+  "No matching clause message info"
+  [arguments summary]
+  (println "Migratus API does not support this action(s) : " arguments "\n\n" 
+       (str/join (usage summary))))
 
 (defn -main [& args]
-  (let [arguments (parse-opts args cli-options)
-        options (:options arguments)
-        summary (:summary arguments)
-        command (first args)]
-    (if (:help options)
-      (println summary)
-      (condp = command
-        "-i" (init config)
-        "-c" (create config (second args))
-        "-m" (migrate config)
-        "-r" (rollback config)
-        "--reset" (reset config)
-        "--rollback-until-just-after" (rollback-until-just-after config (second args))
-        "-u" (up config (rest args))
-        "-d" (down config (rest args))
-        "--pending-list" (println (pending-list config))
-        "--migrate-until-just-before" (migrate-until-just-before config (second args))))
-    ))
-
+  (let [{:keys [options arguments _errors summary]} (parse-opts args cli-options :in-order true)
+        cfg (:config options)
+        action (first arguments)]
+    (case action
+      "init" (init cfg)
+      "create" (create cfg (second arguments))
+      "migrate" (if (some? (some #(= "--until-just-before" %) arguments))
+                  (migrate-until-just-before cfg (last arguments))
+                  (migrate cfg))
+      "rollback" (if (some? (some #(= "--until-just-after" %) arguments))
+                   (rollback-until-just-after cfg (last arguments))
+                   (rollback cfg))
+      "reset" (reset cfg)
+      "up" (up cfg (rest arguments))
+      "down" (down cfg (rest arguments))
+      "list" (case (second arguments)
+               "--available" (println "CALLED: migratus list --available ");; TODO: add functions
+               "--applyed" (println "CALLED: migratus list --applyed ")
+               "--pending" (println "CALLED: migratus list --pending")
+               (println "Default: (pending-list cfg)"))
+      
+      (no-match-message arguments options))))
 
 (comment
   (def datasource-config {:dbtype "h2:mem"
                           :dbname "users"})
+  (true? 3)
   (def ds (jdbc/get-datasource datasource-config))
   (def config {:store                :database
                :migration-dir        "migrations/"
                :db {:datasource ds}})
-  
-  ()
-
-
+  (some #(= "--g" %) ["--g"])
   (migratus/create config "example2")
   (migratus/migrate config)
   (migratus/down config 20230619102313)
   (jdbc/execute! ds ["select * from users"])
   (jdbc/execute! ds ["select * from schema_migrations"])
-  0)
+  (usage cli-options)
+  0
+  )
 
 
 
