@@ -87,6 +87,7 @@
 (defn run-list [cfg [_ & args]]
   (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
     (cond
+      
       errors (error-msg errors)
       (:applyed options) (log/info "listing applyed migrations")
       (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
@@ -134,6 +135,32 @@
      (doseq [h handlers]
        (.removeHandler main-logger h))
      (.addHandler main-logger handler))))
+
+(defn my-custom-fn [record]
+  (let [fmt "%5$s"
+        instant (.getInstant record)
+        date (-> instant (.atZone ZoneOffset/UTC))
+        level (.getLevel record)
+        src (.getSourceClassName record)
+        msg (.getMessage record)
+        thr (.getThrown record)
+        logger (.getLoggerName record)]
+    (clojure.core/format fmt date src logger level msg thr)))
+
+(defn simple-formatter [format-fn]
+  (proxy [SimpleFormatter] []
+    (format [record]
+      (format-fn record))))
+
+(defn set-logger-format []
+  (let [main-logger (Logger/getLogger "")
+        _ (.setUseParentHandlers main-logger false)
+        handler (ConsoleHandler.)
+        formatter (simple-formatter my-custom-fn)
+        _ (.setFormatter handler formatter)
+        handlers (.getHandlers main-logger)]
+    (doseq [h handlers] (.removeHandler main-logger h))
+    (.addHandler main-logger handler)))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
