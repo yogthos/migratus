@@ -1,3 +1,6 @@
+### 1.5.2
+[CLI options](https://github.com/yogthos/migratus/pull/244)
+
 ### 1.5.1
 fixed handling lazy for in migration creation
 
