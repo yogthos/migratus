@@ -136,31 +136,44 @@
        (.removeHandler main-logger h))
      (.addHandler main-logger handler))))
 
-(defn my-custom-fn [record]
-  (let [fmt "%5$s"
-        instant (.getInstant record)
-        date (-> instant (.atZone ZoneOffset/UTC))
-        level (.getLevel record)
-        src (.getSourceClassName record)
-        msg (.getMessage record)
-        thr (.getThrown record)
-        logger (.getLoggerName record)]
-    (clojure.core/format fmt date src logger level msg thr)))
+(defn simple-formatter
+  "Clojure bridge for java.util.logging.SimpleFormatter.
+   Can register a clojure fn as a logger formatter.
 
-(defn simple-formatter [format-fn]
-  (proxy [SimpleFormatter] []
-    (format [record]
-      (format-fn record))))
+   * format-fn - clojure fn that receives the record to send to logging."
+  (^SimpleFormatter [format-fn]
+   (proxy [SimpleFormatter] []
+     (format [record]
+       (format-fn record)))))
 
-(defn set-logger-format []
-  (let [main-logger (Logger/getLogger "")
-        _ (.setUseParentHandlers main-logger false)
-        handler (ConsoleHandler.)
-        formatter (simple-formatter my-custom-fn)
-        _ (.setFormatter handler formatter)
-        handlers (.getHandlers main-logger)]
-    (doseq [h handlers] (.removeHandler main-logger h))
-    (.addHandler main-logger handler)))
+(defn format-log-record
+  "Format jul logger record."
+  (^String [^LogRecord record]
+   (let [fmt "%5$s"
+         instant (.getInstant record)
+         date (-> instant (.atZone ZoneOffset/UTC))
+         level (.getLevel record)
+         src (.getSourceClassName record)
+         msg (.getMessage record)
+         thr (.getThrown record)
+         logger (.getLoggerName record)]
+     (core/format fmt date src logger level msg thr))))
+
+(defn set-logger-format
+  "Configure JUL logger to use a custom log formatter.
+
+   * formatter - instance of java.util.logging.Formatter"
+  ([]
+   (set-logger-format (simple-formatter format-log-record)))
+  ([^Formatter formatter]
+   (let [main-logger (doto (Logger/getLogger "")
+                       (.setUseParentHandlers false))
+         handler (doto (ConsoleHandler.)
+                   (.setFormatter formatter))
+         handlers (.getHandlers main-logger)]
+     (doseq [h handlers]
+       (.removeHandler main-logger h))
+     (.addHandler main-logger handler))))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
