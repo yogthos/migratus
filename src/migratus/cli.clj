@@ -1,11 +1,13 @@
 (ns migratus.cli
-  (:require [clojure.java.io :as io]
+  (:require [clojure.core :as core]
+            [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.tools.logging :as log]
             [migratus.core :as migratus])
   (:import [java.time ZoneOffset]
-           [java.util.logging ConsoleHandler Logger SimpleFormatter]))
+           [java.util.logging ConsoleHandler Logger LogRecord
+            Formatter SimpleFormatter]))
 
 (def global-cli-options
   [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
@@ -52,23 +54,21 @@
   (log/info "Migratus API does not support this action(s) : " arguments "\n\n"
             (str/join (usage summary))))
 
-(defn run-migrate [cfg args]
-  (let [rargs (rest args)
-        {:keys [options arguments errors summary]} (parse-opts rargs migrate-cli-options :in-order true)]
+(defn run-migrate [cfg [_ & args]]
+  (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)]
     (cond
       errors (error-msg errors)
       (:until-just-before options)
       (do (log/info "configuration is: \n" cfg "\n"
                     "arguments:" (rest arguments))
           (migratus/migrate-until-just-before cfg (rest arguments)))
-      (empty? rargs)
+      (empty? args)
       (do (log/info "calling (migrate cfg) \n configuration is: \n" cfg)
           (migratus/migrate cfg))
-      :else (no-match-message rargs summary))))
+      :else (no-match-message args summary))))
 
-(defn run-rollback [cfg args]
-  (let [rargs (rest args)
-        {:keys [options arguments errors summary]} (parse-opts rargs rollback-cli-options :in-order true)]
+(defn run-rollback [cfg [_ & args]]
+  (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)]
     (cond
       
       errors (error-msg errors)
@@ -78,50 +78,62 @@
                     "args:" (rest arguments))
           (migratus/rollback-until-just-after cfg (rest arguments)))
       
-      (empty? rargs)
+      (empty? args)
       (do (log/info "configuration is: \n" cfg)
           (migratus/rollback cfg))
       
-      :else (no-match-message rargs summary))))
+      :else (no-match-message args summary))))
 
-(defn run-list [cfg args]
-  (let [rargs (rest args)
-        {:keys [options _arguments errors summary]} (parse-opts rargs list-cli-options :in-order true)]
+(defn run-list [cfg [_ & args]]
+  (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
     (cond
       errors (error-msg errors)
       (:applyed options) (log/info "listing applyed migrations")
       (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
                              (migratus/pending-list cfg))
       (:available options) (log/info "listing available migrations")
-      (empty? rargs) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
+      (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
                          (migratus/pending-list cfg))
-      :else (no-match-message rargs summary))))
+      :else (no-match-message args summary))))
 
-(defn my-custom-fn [record]
-  (let [fmt "%5$s"
-        instant (.getInstant record)
-        date (-> instant (.atZone ZoneOffset/UTC))
-        level (.getLevel record)
-        src (.getSourceClassName record)
-        msg (.getMessage record)
-        thr (.getThrown record)
-        logger (.getLoggerName record)]
-    (clojure.core/format fmt date src logger level msg thr)))
+(defn simple-formatter
+  "Clojure bridge for java.util.logging.SimpleFormatter.
+   Can register a clojure fn as a logger formatter.
 
-(defn simple-formatter [format-fn]
-  (proxy [SimpleFormatter] []
-    (format [record]
-      (format-fn record))))
+   * format-fn - clojure fn that receives the record to send to logging."
+  (^SimpleFormatter [format-fn]
+   (proxy [SimpleFormatter] []
+     (format [record]
+       (format-fn record)))))
 
-(defn set-logger-format []
-  (let [main-logger (Logger/getLogger "")
-        _ (.setUseParentHandlers main-logger false)
-        handler (ConsoleHandler.)
-        formatter (simple-formatter my-custom-fn)
-        _ (.setFormatter handler formatter)
-        handlers (.getHandlers main-logger)]
-    (doseq [h handlers] (.removeHandler main-logger h))
-    (.addHandler main-logger handler)))
+(defn format-log-record
+  "Format jul logger record."
+  (^String [^LogRecord record]
+   (let [fmt "%5$s"
+         instant (.getInstant record)
+         date (-> instant (.atZone ZoneOffset/UTC))
+         level (.getLevel record)
+         src (.getSourceClassName record)
+         msg (.getMessage record)
+         thr (.getThrown record)
+         logger (.getLoggerName record)]
+     (core/format fmt date src logger level msg thr))))
+
+(defn set-logger-format
+  "Configure JUL logger to use a custom log formatter.
+
+   * formatter - instance of java.util.logging.Formatter"
+  ([]
+   (set-logger-format (simple-formatter format-log-record)))
+  ([^Formatter formatter]
+   (let [main-logger (doto (Logger/getLogger "")
+                       (.setUseParentHandlers false))
+         handler (doto (ConsoleHandler.)
+                   (.setFormatter formatter))
+         handlers (.getHandlers main-logger)]
+     (doseq [h handlers]
+       (.removeHandler main-logger h))
+     (.addHandler main-logger handler))))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
@@ -129,9 +141,9 @@
         config-path (.getAbsolutePath (io/file config))
         cfg (read-string (slurp config-path))
         action (first arguments)]
-
-    (set-logger-format)
     
+    (set-logger-format)
+
     (cond
       (:help options) (usage summary)
       (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
