@@ -6,11 +6,20 @@
             [clojure.tools.logging :as log]
             [migratus.core :as migratus])
   (:import [java.time ZoneOffset]
-           [java.util.logging ConsoleHandler Logger LogRecord
-            Formatter SimpleFormatter]))
+           [java.util.logging
+            ConsoleHandler
+            Formatter
+            Level
+            LogRecord
+            Logger
+            SimpleFormatter]))
 
 (def global-cli-options
   [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
+   ["-v" nil "Verbosity level; may be specified multiple times to increase value"
+    :id :verbosity
+    :default 0
+    :update-fn inc]
    ["-h" "--help"]])
 
 (def migrate-cli-options
@@ -56,6 +65,7 @@
 
 (defn run-migrate [cfg [_ & args]]
   (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)]
+    
     (cond
       errors (error-msg errors)
       (:until-just-before options)
@@ -120,17 +130,28 @@
          logger (.getLoggerName record)]
      (core/format fmt date src logger level msg thr))))
 
+(defn verbose-log-level [v]
+  (case v
+    0  java.util.logging.Level/SEVERE   ;; :error :fatal
+    1  java.util.logging.Level/WARNING  ;; :warn
+    2  java.util.logging.Level/INFO     ;; :info
+    3  java.util.logging.Level/FINE     ;; :debug
+    4  java.util.logging.Level/FINEST   ;; :trace
+    java.util.logging.Level/INFO))
+
 (defn set-logger-format
   "Configure JUL logger to use a custom log formatter.
 
    * formatter - instance of java.util.logging.Formatter"
-  ([]
-   (set-logger-format (simple-formatter format-log-record)))
-  ([^Formatter formatter]
+  ([verbosity]
+   (set-logger-format verbosity (simple-formatter format-log-record)))
+  ([verbosity ^Formatter formatter]
    (let [main-logger (doto (Logger/getLogger "")
-                       (.setUseParentHandlers false))
+                       (.setUseParentHandlers false)
+                       (.setLevel (verbose-log-level verbosity)))
          handler (doto (ConsoleHandler.)
-                   (.setFormatter formatter))
+                   (.setFormatter formatter)
+                   (.setLevel (verbose-log-level verbosity)))
          handlers (.getHandlers main-logger)]
      (doseq [h handlers]
        (.removeHandler main-logger h))
@@ -178,11 +199,11 @@
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
         config (:config options)
+        verbosity (:verbosity options)
         config-path (.getAbsolutePath (io/file config))
         cfg (read-string (slurp config-path))
         action (first arguments)]
-    
-    (set-logger-format)
+    (set-logger-format verbosity)
 
     (cond
       (:help options) (usage summary)
@@ -197,6 +218,3 @@
               "down" (migratus/down cfg (rest arguments))
               "list" (run-list cfg arguments)
               (no-match-message arguments summary)))))
-
-
-
