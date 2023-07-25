@@ -184,9 +184,9 @@
   "Configure JUL logger to use a custom log formatter.
 
    * formatter - instance of java.util.logging.Formatter"
-  ([]
-   (set-logger-format (simple-formatter format-log-record)))
-  ([^Formatter formatter]
+  ([verbosity]
+   (set-logger-format verbosity (simple-formatter format-log-record)))
+  ([verbosity ^Formatter formatter]
    (let [main-logger (doto (Logger/getLogger "")
                        (.setUseParentHandlers false))
          handler (doto (ConsoleHandler.)
