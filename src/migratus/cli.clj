@@ -15,7 +15,7 @@
             SimpleFormatter]))
 
 (def global-cli-options
-  [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
+  [[nil "--config NAME" "Configuration file name" ]
    ["-v" nil "Verbosity level; may be specified multiple times to increase value"
     :id :verbosity
     :default 0
@@ -196,24 +196,27 @@
      (.addHandler main-logger handler))))
 
 (defn -main [& args]
-  (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
-        config (:config options)
-        verbosity (:verbosity options)
-        config-path (.getAbsolutePath (io/file config))
-        cfg (read-string (slurp config-path))
-        action (first arguments)]
-    (set-logger-format verbosity)
+  (try (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
+             config (:config options)
+             verbosity (:verbosity options)
+             config-path (.getAbsolutePath (io/file config))
+             cfg (read-string (slurp config-path))
+             action (first arguments)]
+         (set-logger-format verbosity)
 
-    (cond
-      (:help options) (usage summary)
-      (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
-      :else (case action
-              "init" (migratus/init cfg)
-              "create" (migratus/create cfg (second arguments))
-              "migrate" (run-migrate cfg arguments)
-              "rollback" (run-rollback cfg arguments)
-              "reset" (migratus/reset cfg)
-              "up" (migratus/up cfg (rest arguments))
-              "down" (migratus/down cfg (rest arguments))
-              "list" (run-list cfg arguments)
-              (no-match-message arguments summary)))))
+         (cond
+           (:help options) (usage summary)
+           (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
+           :else (case action
+                   "init" (migratus/init cfg)
+                   "create" (migratus/create cfg (second arguments))
+                   "migrate" (run-migrate cfg arguments)
+                   "rollback" (run-rollback cfg arguments)
+                   "reset" (migratus/reset cfg)
+                   "up" (migratus/up cfg (rest arguments))
+                   "down" (migratus/down cfg (rest arguments))
+                   "list" (run-list cfg arguments)
+                   (no-match-message arguments summary))))
+       (catch Exception e (log/info "Migratus config file missing" (.getMessage e)))))
+
+
