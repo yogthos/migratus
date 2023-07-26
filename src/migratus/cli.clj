@@ -203,7 +203,6 @@
              cfg (read-string (slurp config-path))
              action (first arguments)]
          (set-logger-format verbosity)
-
          (cond
            (:help options) (usage summary)
            (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
@@ -217,6 +216,6 @@
                    "down" (migratus/down cfg (rest arguments))
                    "list" (run-list cfg arguments)
                    (no-match-message arguments summary))))
-       (catch Exception e (log/info "Migratus config file missing" (.getMessage e)))))
+       (catch java.io.FileNotFoundException e (log/info "Missing config file" (.getMessage e) "\nYou can use --config path_to_file to specify a path to config file"))))
 
 
