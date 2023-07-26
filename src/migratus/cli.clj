@@ -195,27 +195,35 @@
        (.removeHandler main-logger h))
      (.addHandler main-logger handler))))
 
+(defn load-config!
+  "Returns the content of config file as a clojure map datastructure"
+  [^String config]
+  (let [config-path (.getAbsolutePath (io/file config))]
+    (try
+      (read-string (slurp config-path))
+      (catch java.io.FileNotFoundException e
+        (log/info "Missing config file" (.getMessage e)
+                  "\nYou can use --config path_to_file to specify a path to config file")))))
+
 (defn -main [& args]
-  (try (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
-             config (:config options)
-             verbosity (:verbosity options)
-             config-path (.getAbsolutePath (io/file config))
-             cfg (read-string (slurp config-path))
-             action (first arguments)]
-         (set-logger-format verbosity)
-         (cond
-           (:help options) (usage summary)
-           (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
-           :else (case action
-                   "init" (migratus/init cfg)
-                   "create" (migratus/create cfg (second arguments))
-                   "migrate" (run-migrate cfg arguments)
-                   "rollback" (run-rollback cfg arguments)
-                   "reset" (migratus/reset cfg)
-                   "up" (migratus/up cfg (rest arguments))
-                   "down" (migratus/down cfg (rest arguments))
-                   "list" (run-list cfg arguments)
-                   (no-match-message arguments summary))))
-       (catch java.io.FileNotFoundException e (log/info "Missing config file" (.getMessage e) "\nYou can use --config path_to_file to specify a path to config file"))))
+  (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
+        config (:config options)
+        verbosity (:verbosity options)
+        cfg (load-config! config)
+        action (first arguments)]
+    (set-logger-format verbosity)
+    (cond
+      (:help options) (usage summary)
+      (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
+      :else (case action
+              "init" (migratus/init cfg)
+              "create" (migratus/create cfg (second arguments))
+              "migrate" (run-migrate cfg arguments)
+              "rollback" (run-rollback cfg arguments)
+              "reset" (migratus/reset cfg)
+              "up" (migratus/up cfg (rest arguments))
+              "down" (migratus/down cfg (rest arguments))
+              "list" (run-list cfg arguments)
+              (no-match-message arguments summary)))))
 
 
