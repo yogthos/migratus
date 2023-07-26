@@ -132,12 +132,9 @@
 
 (defn verbose-log-level [v]
   (case v
-    0  java.util.logging.Level/SEVERE   ;; :error :fatal
-    1  java.util.logging.Level/WARNING  ;; :warn
-    2  java.util.logging.Level/INFO     ;; :info
-    3  java.util.logging.Level/FINE     ;; :debug
-    4  java.util.logging.Level/FINEST   ;; :trace
-    java.util.logging.Level/INFO))
+    0  java.util.logging.Level/INFO  ;; :info
+    1  java.util.logging.Level/FINE  ;; :debug
+    java.util.logging.Level/FINEST)) ;; :trace
 
 (defn set-logger-format
   "Configure JUL logger to use a custom log formatter.
@@ -188,9 +185,11 @@
    (set-logger-format verbosity (simple-formatter format-log-record)))
   ([verbosity ^Formatter formatter]
    (let [main-logger (doto (Logger/getLogger "")
-                       (.setUseParentHandlers false))
+                       (.setUseParentHandlers false)
+                       (.setLevel (verbose-log-level verbosity)))
          handler (doto (ConsoleHandler.)
-                   (.setFormatter formatter))
+                   (.setFormatter formatter)
+                   (.setLevel (verbose-log-level verbosity)))
          handlers (.getHandlers main-logger)]
      (doseq [h handlers]
        (.removeHandler main-logger h))
