@@ -9,13 +9,12 @@
            [java.util.logging
             ConsoleHandler
             Formatter
-            Level
             LogRecord
             Logger
             SimpleFormatter]))
 
 (def global-cli-options
-  [[nil "--config NAME" "Configuration file name" ]
+  [[nil "--config NAME" "Configuration file name"]
    ["-v" nil "Verbosity level; may be specified multiple times to increase value"
     :id :verbosity
     :default 0
@@ -65,7 +64,7 @@
 
 (defn run-migrate [cfg [_ & args]]
   (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)]
-    
+
     (cond
       errors (error-msg errors)
       (:until-just-before options)
@@ -80,31 +79,31 @@
 (defn run-rollback [cfg [_ & args]]
   (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)]
     (cond
-      
+
       errors (error-msg errors)
 
       (:until-just-after options)
       (do (log/info "configuration is: \n" cfg "\n"
                     "args:" (rest arguments))
           (migratus/rollback-until-just-after cfg (rest arguments)))
-      
+
       (empty? args)
       (do (log/info "configuration is: \n" cfg)
           (migratus/rollback cfg))
-      
+
       :else (no-match-message args summary))))
 
 (defn run-list [cfg [_ & args]]
   (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
     (cond
-      
+
       errors (error-msg errors)
       (:applyed options) (log/info "listing applyed migrations")
       (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
                              (migratus/pending-list cfg))
       (:available options) (log/info "listing available migrations")
       (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
-                         (migratus/pending-list cfg))
+                        (migratus/pending-list cfg))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
@@ -135,47 +134,6 @@
     0  java.util.logging.Level/INFO  ;; :info
     1  java.util.logging.Level/FINE  ;; :debug
     java.util.logging.Level/FINEST)) ;; :trace
-
-(defn set-logger-format
-  "Configure JUL logger to use a custom log formatter.
-
-   * formatter - instance of java.util.logging.Formatter"
-  ([verbosity]
-   (set-logger-format verbosity (simple-formatter format-log-record)))
-  ([verbosity ^Formatter formatter]
-   (let [main-logger (doto (Logger/getLogger "")
-                       (.setUseParentHandlers false)
-                       (.setLevel (verbose-log-level verbosity)))
-         handler (doto (ConsoleHandler.)
-                   (.setFormatter formatter)
-                   (.setLevel (verbose-log-level verbosity)))
-         handlers (.getHandlers main-logger)]
-     (doseq [h handlers]
-       (.removeHandler main-logger h))
-     (.addHandler main-logger handler))))
-
-(defn simple-formatter
-  "Clojure bridge for java.util.logging.SimpleFormatter.
-   Can register a clojure fn as a logger formatter.
-
-   * format-fn - clojure fn that receives the record to send to logging."
-  (^SimpleFormatter [format-fn]
-   (proxy [SimpleFormatter] []
-     (format [record]
-       (format-fn record)))))
-
-(defn format-log-record
-  "Format jul logger record."
-  (^String [^LogRecord record]
-   (let [fmt "%5$s"
-         instant (.getInstant record)
-         date (-> instant (.atZone ZoneOffset/UTC))
-         level (.getLevel record)
-         src (.getSourceClassName record)
-         msg (.getMessage record)
-         thr (.getThrown record)
-         logger (.getLoggerName record)]
-     (core/format fmt date src logger level msg thr))))
 
 (defn set-logger-format
   "Configure JUL logger to use a custom log formatter.
