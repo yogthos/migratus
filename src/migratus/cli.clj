@@ -62,30 +62,32 @@
   (log/info "Migratus API does not support this action(s) : " arguments "\n\n"
             (str/join (usage summary))))
 
-(defn run-migrate [cfg [_ & args]]
-  (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)]
+(defn run-migrate [cfg args]
+  (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)
+        rest-args (rest arguments)]
 
     (cond
       errors (error-msg errors)
       (:until-just-before options)
       (do (log/info "configuration is: \n" cfg "\n"
-                    "arguments:" (rest arguments))
-          (migratus/migrate-until-just-before cfg (rest arguments)))
+                    "arguments:" rest-args)
+          (migratus/migrate-until-just-before cfg rest-args))
       (empty? args)
       (do (log/info "calling (migrate cfg) \n configuration is: \n" cfg)
           (migratus/migrate cfg))
       :else (no-match-message args summary))))
 
-(defn run-rollback [cfg [_ & args]]
-  (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)]
+(defn run-rollback [cfg args]
+  (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)
+        rest-args (rest arguments)]
+    
     (cond
-
       errors (error-msg errors)
 
       (:until-just-after options)
       (do (log/info "configuration is: \n" cfg "\n"
-                    "args:" (rest arguments))
-          (migratus/rollback-until-just-after cfg (rest arguments)))
+                    "args:" rest-args)
+          (migratus/rollback-until-just-after cfg rest-args))
 
       (empty? args)
       (do (log/info "configuration is: \n" cfg)
@@ -93,7 +95,7 @@
 
       :else (no-match-message args summary))))
 
-(defn run-list [cfg [_ & args]]
+(defn run-list [cfg args]
   (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
     (cond
 
@@ -163,14 +165,16 @@
         (log/info "Missing config file" (.getMessage e)
                   "\nYou can use --config path_to_file to specify a path to config file")))))
 
-(defn up [cfg action [_ & args]]
+(defn up [cfg args]
   (if (empty? args)
-    (log/info "To run action" action "you must provide a migration-id as a parameter:" action "<migration-id>")
+    (log/info "To run action up you must provide a migration-id as a parameter:
+                   up <migration-id>")
     (migratus/up cfg args)))
 
-(defn down [cfg action [_ & args]]
+(defn down [cfg args]
   (if (empty? args)
-    (log/info "To run action" action "you must provide a migration-id as a parameter:" action "<migration-id>")
+    (log/info "To run action down you must provide a migration-id as a parameter:
+                   down <migration-id>")
     (migratus/down cfg args)))
 
 (defn -main [& args]
@@ -178,7 +182,8 @@
         config (:config options)
         verbosity (:verbosity options)
         cfg (load-config! config)
-        action (first arguments)]
+        action (first arguments)
+        rest-args (rest arguments)]
     (set-logger-format verbosity)
     (cond
       (:help options) (usage summary)
@@ -186,11 +191,11 @@
       :else (case action
               "init" (migratus/init cfg)
               "create" (migratus/create cfg (second arguments))
-              "migrate" (run-migrate cfg arguments)
-              "rollback" (run-rollback cfg arguments)
+              "migrate" (run-migrate cfg rest-args)
+              "rollback" (run-rollback cfg rest-args)
               "reset" (migratus/reset cfg)
-              "up" (up cfg action arguments)
-              "down" (down cfg action arguments)
-              "list" (run-list cfg arguments)
+              "up" (up cfg rest-args)
+              "down" (down cfg rest-args)
+              "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
 
