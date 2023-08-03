@@ -163,26 +163,25 @@
         (log/info "Missing config file" (.getMessage e)
                   "\nYou can use --config path_to_file to specify a path to config file")))))
 
-(defn up [cfg arguments]
-  (let [args (rest arguments)]
-    (if (empty? args)
-      (log/info "To run action up you must provide a migration-id as a parameter:
-                 up <migration-id>")
-      (migratus/up cfg args))))
+(defn up [cfg args]
+  (if (empty? args)
+    (log/info "To run action up you must provide a migration-id as a parameter:
+                   up <migration-id>")
+    (migratus/up cfg args)))
 
-(defn down [cfg arguments]
-  (let [args (rest arguments)]
-    (if (empty? args)
-      (log/info "To run action down you must provide a migration-id as a parameter:
-                 down <migration-id>")
-      (migratus/down cfg args))))
+(defn down [cfg args]
+  (if (empty? args)
+    (log/info "To run action down you must provide a migration-id as a parameter:
+                   down <migration-id>")
+    (migratus/down cfg args)))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
         config (:config options)
         verbosity (:verbosity options)
         cfg (load-config! config)
-        action (first arguments)]
+        action (first arguments)
+        rest-args (rest arguments)]
     (set-logger-format verbosity)
     (cond
       (:help options) (usage summary)
@@ -193,8 +192,8 @@
               "migrate" (run-migrate cfg arguments)
               "rollback" (run-rollback cfg arguments)
               "reset" (migratus/reset cfg)
-              "up" (up cfg arguments)
-              "down" (down cfg arguments)
+              "up" (up cfg rest-args)
+              "down" (down cfg rest-args)
               "list" (run-list cfg arguments)
               (no-match-message arguments summary)))))
 
