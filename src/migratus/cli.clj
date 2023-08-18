@@ -100,10 +100,12 @@
     (cond
 
       errors (error-msg errors)
-      (:applyed options) (log/info "listing applyed migrations")
+      (:applyed options) (do (log/info "listing applyed migrations")
+                             (migratus/completed-list cfg))
       (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
                              (migratus/pending-list cfg))
-      (:available options) (log/info "listing available migrations")
+      (:available options) (do (log/info "listing available migrations")
+                               (migratus/all-migrations cfg))
       (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
                         (migratus/pending-list cfg))
       :else (no-match-message args summary))))
@@ -169,13 +171,13 @@
   (if (empty? args)
     (log/info "To run action up you must provide a migration-id as a parameter:
                    up <migration-id>")
-    (migratus/up cfg args)))
+    (map #(migratus/up cfg %) args)))
 
 (defn down [cfg args]
   (if (empty? args)
     (log/info "To run action down you must provide a migration-id as a parameter:
                    down <migration-id>")
-    (migratus/down cfg args)))
+    (map #(migratus/down cfg %) args)))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
@@ -198,4 +200,3 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
-

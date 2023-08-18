@@ -68,6 +68,42 @@
   (let [completed? (set (proto/completed-ids store))]
     (filter (comp completed? proto/id) (mig/list-migrations config))))
 
+(defn gather-migrations 
+  "Returns a list of all migrations from migration dir and db
+  with enriched data:
+    - date and time when was applied;
+    - description;"
+  [config store]
+  (let [completed-migrations (vec (proto/completed store))
+        available-migrations (mig/list-migrations config)
+        merged-migrations-data (apply merge completed-migrations available-migrations)
+        grouped-migrations-by-id (group-by :id merged-migrations-data)]
+    (map (fn [[_ v]] (apply merge v)) grouped-migrations-by-id)))
+
+(defn all-mig-print-fmt [data]
+  (log/info (clojure.core/format "%-16s %-22s %-20s %s", "|MIGRATION-ID" "|NAME" "|APPLIED" "|DESCRIPTION"))
+  (log/info (clojure.core/format "%-16s %-22s %-20s %s", (apply str (repeat 15 "-")) (apply str (repeat 21 "-")) (apply str (repeat 20 "-"))(apply str (repeat 25 "-"))))
+  (doall
+   (map
+    (fn [e]
+      (let [{:keys [id name applied description]} e
+            description? (if (nil? description)
+                           "no description provided"
+                           description)
+            applied? (if (nil? applied)
+                       "pending"
+                       applied)
+            fmt-applied (if (nil? applied) "|%3$-20s" "|%3$tY-%3$tm-%3$td %3$-9tT")
+            fmt-str (str "|%1$-15s |%2$-22s" fmt-applied  "|%4$s")]
+        (log/info (clojure.core/format fmt-str, id, name, applied?, description?)))) data)))
+
+(defn all-migrations [config]
+  (let [store (proto/make-store config)]
+    (proto/connect store)
+    (let [data (gather-migrations config store)]
+      (all-mig-print-fmt data))
+    (proto/disconnect store)))
+
 (defn uncompleted-migrations
   "Returns a list of uncompleted migrations.
    Fetch list of applied migrations from db and existing migrations from migrations dir."

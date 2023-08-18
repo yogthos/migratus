@@ -28,6 +28,9 @@
   (completed-ids [this]
     "Seq of ids of completed migrations in descending order of applied
     date.")
+  (completed [this]
+    "Seq of applied migrations in descending order of applied
+      date.")
   (migrate-up [this migration]
     "Run and record an up migration")
   (migrate-down [this migration]
