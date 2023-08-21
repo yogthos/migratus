@@ -80,12 +80,12 @@
         grouped-migrations-by-id (group-by :id merged-migrations-data)]
     (map (fn [[_ v]] (apply merge v)) grouped-migrations-by-id)))
 
-(defn all-migrations [config cli-format-fn]
-  (let [store (proto/make-store config)]
-    (proto/connect store)
-    (let [data (gather-migrations config store)]
-      (cli-format-fn data))
-    (proto/disconnect store)))
+(defn all-migrations [config]
+  (with-store
+    [store (proto/make-store config)]
+    (->> store
+         (gather-migrations config)
+         (map (fn [e] {:id (:id e) :name (:name e) :applied (:applied e)})))))
 
 (defn uncompleted-migrations
   "Returns a list of uncompleted migrations.

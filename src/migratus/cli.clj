@@ -4,7 +4,8 @@
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.tools.logging :as log]
-            [migratus.core :as migratus])
+            [migratus.core :as migratus]
+            [cheshire.core :as cheshire])
   (:import [java.time ZoneOffset]
            [java.util.logging
             ConsoleHandler
@@ -33,6 +34,8 @@
   [[nil "--available" "List all migrations, applyed and non applyed"]
    [nil "--pending" "List pending migrations"]
    [nil "--applyed" "List applyed migrations"]
+   [nil "--format FILE-FORMAT" "Option to write to file format as json edn"
+    :validate [#(boolean (some (set (list %)) #{"edn" "json"})) "Unsupported format. Valid options: edn, json."]]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -95,9 +98,27 @@
 
       :else (no-match-message args summary))))
 
+(defn simplified-mig-data [mig]
+  (let [{:keys [id name applied]} mig
+        applied-fmt (if (nil? applied) "%s" "%1$tY-%1$tm-%1$td %1$tT")
+        dt-format (core/format applied-fmt, applied)]
+    {:id id :name name :applied dt-format}))
+
+(defn write-migrations! [data ff]
+  (case ff
+    "edn" (do (log/info (str "Writing to file all-migrations." ff))
+              (->> data
+                   (map simplified-mig-data)
+                   (interpose \newline)
+                   (apply str)
+                   (spit "all-migrations.edn")))
+    "json" (do (log/info (str "Writing to file all-migrations." ff))
+               (spit "all-migrations.json" (cheshire/generate-string data {:pretty true})))
+    (log/info "Unsupported file format: " ff "\n Supported formats: json, edn" )))
+
 (defn all-mig-print-fmt [data]
-  (log/info (clojure.core/format "%-16s %-22s %-20s", "|MIGRATION-ID" "|NAME" "|APPLIED"))
-  (log/info (clojure.core/format "%-16s %-22s %-20s", (apply str (repeat 15 "-")) (apply str (repeat 21 "-")) (apply str (repeat 20 "-"))))
+  (log/info (core/format "%-16s %-22s %-20s", "|MIGRATION-ID" "|NAME" "|APPLIED"))
+  (log/info (core/format "%-16s %-22s %-20s", (apply str (repeat 15 "-")) (apply str (repeat 21 "-")) (apply str (repeat 20 "-"))))
   (doall
    (map
     (fn [e]
@@ -107,20 +128,22 @@
                        applied)
             fmt-applied (if (nil? applied) "|%3$-20s" "|%3$tY-%3$tm-%3$td %3$-9tT")
             fmt-str (str "|%1$-15s |%2$-22s" fmt-applied)]
-        (log/info (clojure.core/format fmt-str, id, name, applied?)))) data)))
+        (log/info (core/format fmt-str, id, name, applied?)))) data)))
 
 (defn run-list [cfg args]
-  (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
+  (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)
+        ff (:format options)]
     (cond
-
       errors (error-msg errors)
-      (:applyed options) (do (log/info "listing applyed migrations")
+      (:applyed options) (do (log/info "Listing applyed migrations:")
                              (migratus/completed-list cfg))
-      (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
+      (:pending options) (do (log/info "Listing pending migrations, configuration is: \n" cfg)
                              (migratus/pending-list cfg))
-      (:available options) (do (log/info "listing available migrations")
-                               (migratus/all-migrations cfg all-mig-print-fmt ))
-      (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
+      (:available options) (do (log/info "Listing available migrations")
+                               (let [migs (migratus/all-migrations cfg)]
+                                 (when ff (write-migrations! migs ff))
+                                 (all-mig-print-fmt migs)))
+      (empty? args) (do (log/info "Calling (pending-list cfg) with config: \n" cfg)
                         (migratus/pending-list cfg))
       :else (no-match-message args summary))))
 
@@ -220,4 +243,3 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
-
