@@ -80,7 +80,7 @@
 (defn run-rollback [cfg args]
   (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)
         rest-args (rest arguments)]
-    
+
     (cond
       errors (error-msg errors)
 
@@ -95,6 +95,20 @@
 
       :else (no-match-message args summary))))
 
+(defn all-mig-print-fmt [data]
+  (log/info (clojure.core/format "%-16s %-22s %-20s", "|MIGRATION-ID" "|NAME" "|APPLIED"))
+  (log/info (clojure.core/format "%-16s %-22s %-20s", (apply str (repeat 15 "-")) (apply str (repeat 21 "-")) (apply str (repeat 20 "-"))))
+  (doall
+   (map
+    (fn [e]
+      (let [{:keys [id name applied]} e
+            applied? (if (nil? applied)
+                       "pending"
+                       applied)
+            fmt-applied (if (nil? applied) "|%3$-20s" "|%3$tY-%3$tm-%3$td %3$-9tT")
+            fmt-str (str "|%1$-15s |%2$-22s" fmt-applied)]
+        (log/info (clojure.core/format fmt-str, id, name, applied?)))) data)))
+
 (defn run-list [cfg args]
   (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
     (cond
@@ -105,7 +119,7 @@
       (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
                              (migratus/pending-list cfg))
       (:available options) (do (log/info "listing available migrations")
-                               (migratus/all-migrations cfg))
+                               (migratus/all-migrations cfg all-mig-print-fmt ))
       (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
                         (migratus/pending-list cfg))
       :else (no-match-message args summary))))
@@ -182,6 +196,8 @@
     (->> args
          (map #(parse-long %))
          (apply migratus/down cfg))))
+
+
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
