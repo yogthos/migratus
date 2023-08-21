@@ -171,13 +171,17 @@
   (if (empty? args)
     (log/info "To run action up you must provide a migration-id as a parameter:
                    up <migration-id>")
-    (map #(migratus/up cfg %) args)))
+    (->> args
+         (map #(parse-long %))
+         (apply migratus/up cfg))))
 
 (defn down [cfg args]
   (if (empty? args)
     (log/info "To run action down you must provide a migration-id as a parameter:
                    down <migration-id>")
-    (map #(migratus/down cfg %) args)))
+    (->> args
+         (map #(parse-long %))
+         (apply migratus/down cfg))))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
@@ -200,3 +204,4 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
+
