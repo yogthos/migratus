@@ -106,14 +106,14 @@
 
 (defn write-migrations! [data ff]
   (case ff
-    "edn" (do (log/info (str "Writing to file all-migrations." ff))
+    "edn" (do (log/info (str "Writing to file list-migrations." ff))
               (->> data
                    (map simplified-mig-data)
                    (interpose \newline)
                    (apply str)
-                   (spit "all-migrations.edn")))
-    "json" (do (log/info (str "Writing to file all-migrations." ff))
-               (spit "all-migrations.json" (cheshire/generate-string data {:pretty true})))
+                   (spit "list-migrations.edn")))
+    "json" (do (log/info (str "Writing to file list-migrations." ff))
+               (spit "list-migrations.json" (cheshire/generate-string data {:pretty true})))
     nil))
 
 (defn c-width
@@ -169,6 +169,7 @@
         pending-migs (filter (fn [mig] (= nil (:applied mig))) (migratus/all-migrations cfg))
         applied-migs (filter (fn [mig] (not= nil (:applied mig))) (migratus/all-migrations cfg))
         ff (:format options)]
+    (log/info "OPTSS" options)
     (cond
       errors (error-msg errors)
       (:applied options) (do (log/info "Listing applied migrations:")
