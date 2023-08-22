@@ -106,10 +106,18 @@
           local-datetime (.atZone instant zone-id)]
       local-datetime)))
 
+(defn formatted-date [date]
+  (if (nil? date)
+    nil
+    (core/format "%1tFT%<tTZ", date)))
+
 (defn parsed-migrations-data [cfg]
   (let [all-migrations (migratus/all-migrations cfg)]
-    (map (fn [m] (let [{:keys [id name applied]} m]
-                   {:id id :name name :applied (util-date-to-local-datetime applied)})) all-migrations)))
+    (map (fn [m] (let [{:keys [id name applied]} m
+                       to-local-date (if (nil? applied)
+                                       nil (util-date-to-local-datetime applied))
+                       date-str (formatted-date to-local-date)]
+                   {:id id :name name :applied date-str})) all-migrations)))
 
 (defn pending-migrations [cfg]
   (filter (fn [mig] (= nil (:applied mig))) (parsed-migrations-data cfg)))
@@ -117,28 +125,16 @@
 (defn applied-migrations [cfg]
   (filter (fn [mig] (not= nil (:applied mig))) (parsed-migrations-data cfg)))
 
-(defn simplified-mig-data [mig]
-  (let [{:keys [id name applied]} mig
-        applied-fmt (if (nil? applied) "%s" "%1$tY-%1$tm-%1$td %1$tT")
-        dt-format (core/format applied-fmt, applied)]
-    {:id id :name name :applied dt-format}))
+(defn cli-print-migrations-edn! [data]
+  (log/info data))
 
-(defn write-migrations-edn! [data]
-  (log/info "Writing to file list-migrations.edn")
-  (->> data
-       (map simplified-mig-data)
-       (interpose \newline)
-       (apply str)
-       (spit "list-migrations.edn")))
+(defn cli-print-migrations-json! [data]
+  (log/info (cheshire/generate-string data)))
 
-(defn write-migrations-json! [data]
-  (log/info (str "Writing to file list-migrations.json"))
-  (spit "list-migrations.json" (cheshire/generate-string data {:pretty true})))
-
-(defn write-migrations! [data ff]
-  (case ff
-    "edn" (write-migrations-edn! data)
-    "json" (write-migrations-json! data)
+(defn cli-print-migrations! [data f]
+  (case f
+    "edn" (cli-print-migrations-edn! data)
+    "json" (cli-print-migrations-json! data)
     nil))
 
 (defn col-width
@@ -152,10 +148,10 @@
 
 
 (defn mig-print-fmt [data]
-  (log/info (table-line 66))
-  (log/info (core/format "%-18s%-24s%-22s%s",
+  (log/info (table-line 67))
+  (log/info (core/format "%-18s%-25s%-22s%s",
                          "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
-  (log/info (table-line 66))
+  (log/info (table-line 67))
   (doall
    (map
     (fn [e]
@@ -163,10 +159,9 @@
             applied? (if (nil? applied)
                        "pending"
                        applied)
-            fmt-applied (if (nil? applied) "| %3$-20s" "| %3$tFT%<tTZ")
-            fmt-str (str "| %1$-15s | %2$-22s" fmt-applied "%4$s")]
+            fmt-str "| %1$-15s | %2$-22s | %3$-20s%4$s"]
         (log/info (core/format fmt-str, id, name, applied? " |")))) data))
-  (log/info (table-line 66)))
+  (log/info (table-line 67)))
 
 (defn pending-mig-print-fmt [data]
   (log/info (table-line 43))
@@ -191,17 +186,21 @@
     (cond
       errors (error-msg errors)
       applied (do (log/info "Listing applied migrations:")
-                             (when f (write-migrations! applied-migs f))
-                             (mig-print-fmt applied-migs))
+                  (if f
+                    (cli-print-migrations! applied-migs f)
+                    (mig-print-fmt applied-migs)))
       pending (do (log/info "Listing pending migrations:")
-                             (when f (write-migrations! pending-migs f))
-                             (pending-mig-print-fmt pending-migs))
+                  (if f
+                    (cli-print-migrations! pending-migs f)
+                    (pending-mig-print-fmt pending-migs)))
       available (do (log/info "Listing available migrations")
-                               (when f (write-migrations! available-migs f))
-                               (mig-print-fmt available-migs))
+                    (if f
+                      (cli-print-migrations! available-migs f)
+                      (mig-print-fmt available-migs)))
       (or (empty? args) f) (do (log/info "Listing pending migrations:")
-                               (when f (write-migrations! pending-migs f))
-                               (pending-mig-print-fmt pending-migs))
+                               (if f
+                                 (cli-print-migrations! pending-migs f)
+                                 (pending-mig-print-fmt pending-migs)))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
@@ -300,8 +299,6 @@
               (no-match-message arguments summary)))))
 
 (comment 
- (let [m {:name "nas" :age "30"}
-       {n :name} m
-       {:keys [age]} m]
-   (str age))
+ (let [m '({:id 20230724092402, :name alabala2, :applied "2023-08-18T10:16:18Z"} {:id 20230814132747, :name ccccc, :applied "2023-08-17T14:38:24Z"})]
+   (cheshire/generate-string m))
  0)
