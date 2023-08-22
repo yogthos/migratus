@@ -129,7 +129,7 @@
 
 (defn all-mig-print-fmt [data]
   (log/info (core/format "%-16s %-22s %-20s", 
-                         "|MIGRATION-ID" "|NAME" "|APPLIED"))
+                         "| MIGRATION-ID" "| NAME" "| APPLIED"))
   (log/info (core/format "%-16s %-22s %-20s", 
                          (c-width 15) (c-width 21) (c-width 20)))
   (doall
@@ -139,32 +139,32 @@
             applied? (if (nil? applied)
                        "pending"
                        applied)
-            fmt-applied (if (nil? applied) "|%3$-20s" "|%3$tY-%3$tm-%3$td %3$-9tT")
-            fmt-str (str "|%1$-15s |%2$-22s" fmt-applied)]
+            fmt-applied (if (nil? applied) "| %3$-20s" "| %3$tY-%3$tm-%3$td %3$-9tT")
+            fmt-str (str "| %1$-15s | %2$-22s" fmt-applied)]
         (log/info (core/format fmt-str, id, name, applied?)))) data)))
 
 (defn applied-mig-print-fmt [data]
   (log/info (core/format "%-16s %-22s %-20s",
-                         "|MIGRATION-ID" "|NAME" "|APPLIED"))
+                         "| MIGRATION-ID" "| NAME" "| APPLIED"))
   (log/info (core/format "%-16s %-22s %-20s",
                          (c-width 15) (c-width 21) (c-width 20)))
   (doall
    (map
     (fn [e]
       (let [{:keys [id name applied]} e
-            fmt-str "|%1$-15s |%2$-22s |%3$tY-%3$tm-%3$td %3$-9tT"]
+            fmt-str "| %1$-15s | %2$-22s | %3$tY-%3$tm-%3$td %3$-9tT"]
         (log/info (core/format fmt-str, id, name, applied)))) data)))
 
 (defn pending-mig-print-fmt [data]
   (log/info (core/format "%-16s %-22s",
-                         "|MIGRATION-ID" "|NAME"))
+                         "| MIGRATION-ID" "| NAME"))
   (log/info (core/format "%-16s %-22s", 
                          (c-width 15) (c-width 21)))
   (doall
    (map
     (fn [e]
       (let [{:keys [id name]} e
-            fmt-str "|%1$-15s |%2$-22s"]
+            fmt-str "| %1$-15s | %2$-22s"]
         (log/info (core/format fmt-str, id, name)))) data)))
 
 
