@@ -104,16 +104,22 @@
         dt-format (core/format applied-fmt, applied)]
     {:id id :name name :applied dt-format}))
 
+(defn write-migrations-edn! [data]
+  (log/info "Writing to file list-migrations.edn")
+  (->> data
+       (map simplified-mig-data)
+       (interpose \newline)
+       (apply str)
+       (spit "list-migrations.edn")))
+
+(defn write-migrations-json! [data]
+  (log/info (str "Writing to file list-migrations.json"))
+  (spit "list-migrations.json" (cheshire/generate-string data {:pretty true})))
+
 (defn write-migrations! [data ff]
   (case ff
-    "edn" (do (log/info (str "Writing to file list-migrations." ff))
-              (->> data
-                   (map simplified-mig-data)
-                   (interpose \newline)
-                   (apply str)
-                   (spit "list-migrations.edn")))
-    "json" (do (log/info (str "Writing to file list-migrations." ff))
-               (spit "list-migrations.json" (cheshire/generate-string data {:pretty true})))
+    "edn" (write-migrations-edn! data)
+    "json" (write-migrations-json! data)
     nil))
 
 (defn c-width
@@ -169,7 +175,6 @@
         pending-migs (filter (fn [mig] (= nil (:applied mig))) (migratus/all-migrations cfg))
         applied-migs (filter (fn [mig] (not= nil (:applied mig))) (migratus/all-migrations cfg))
         ff (:format options)]
-    (log/info "OPTSS" options)
     (cond
       errors (error-msg errors)
       (:applied options) (do (log/info "Listing applied migrations:")
