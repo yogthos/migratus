@@ -298,7 +298,3 @@
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
 
-(comment 
- (let [m '({:id 20230724092402, :name alabala2, :applied "2023-08-18T10:16:18Z"} {:id 20230814132747, :name ccccc, :applied "2023-08-17T14:38:24Z"})]
-   (cheshire/generate-string m))
- 0)
