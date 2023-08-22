@@ -31,9 +31,9 @@
    ["-h" "--help"]])
 
 (def list-cli-options
-  [[nil "--available" "List all migrations, applyed and non applyed"]
+  [[nil "--available" "List all migrations, applied and non applied"]
    [nil "--pending" "List pending migrations"]
-   [nil "--applyed" "List applyed migrations"]
+   [nil "--applied" "List applied migrations"]
    [nil "--format FILE-FORMAT" "Option to write to file format as json edn"
     :validate [#(boolean (some (set (list %)) #{"edn" "json"})) "Unsupported format. Valid options: edn, json."]]
    ["-h" "--help"]])
@@ -171,7 +171,7 @@
         ff (:format options)]
     (cond
       errors (error-msg errors)
-      (:applyed options) (do (log/info "Listing applyed migrations:")
+      (:applied options) (do (log/info "Listing applied migrations:")
                              (when ff (write-migrations! applied-migs ff))
                              (applied-mig-print-fmt applied-migs))
       (:pending options) (do (log/info "Listing pending migrations:")
