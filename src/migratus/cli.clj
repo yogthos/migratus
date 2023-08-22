@@ -1,12 +1,12 @@
 (ns migratus.cli
-  (:require [clojure.core :as core]
+  (:require [cheshire.core :as cheshire]
+            [clojure.core :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.tools.logging :as log]
-            [migratus.core :as migratus]
-            [cheshire.core :as cheshire])
-  (:import [java.time ZoneOffset]
+            [migratus.core :as migratus])
+  (:import [java.time ZoneId ZoneOffset]
            [java.util.logging
             ConsoleHandler
             Formatter
@@ -98,6 +98,25 @@
 
       :else (no-match-message args summary))))
 
+(defn util-date-to-local-datetime [util-date]
+  (if (= util-date nil)
+    nil
+    (let [instant (.toInstant util-date)
+          zone-id (ZoneId/systemDefault)
+          local-datetime (.atZone instant zone-id)]
+      local-datetime)))
+
+(defn parsed-migrations-data [cfg]
+  (let [all-migrations (migratus/all-migrations cfg)]
+    (map (fn [m] (let [{:keys [id name applied]} m]
+                   {:id id :name name :applied (util-date-to-local-datetime applied)})) all-migrations)))
+
+(defn pending-migrations [cfg]
+  (filter (fn [mig] (= nil (:applied mig))) (parsed-migrations-data cfg)))
+
+(defn applied-migrations [cfg]
+  (filter (fn [mig] (not= nil (:applied mig))) (parsed-migrations-data cfg)))
+
 (defn simplified-mig-data [mig]
   (let [{:keys [id name applied]} mig
         applied-fmt (if (nil? applied) "%s" "%1$tY-%1$tm-%1$td %1$tT")
@@ -122,16 +141,21 @@
     "json" (write-migrations-json! data)
     nil))
 
-(defn c-width
+(defn col-width
   "Set column width for CLI table"
   [n]
   (apply str (repeat n "-")))
 
-(defn all-mig-print-fmt [data]
-  (log/info (core/format "%-16s %-22s %-20s", 
-                         "| MIGRATION-ID" "| NAME" "| APPLIED"))
-  (log/info (core/format "%-16s %-22s %-20s", 
-                         (c-width 15) (c-width 21) (c-width 20)))
+(defn table-line [n]
+  (let [str (str "%-" n "s")]
+    (core/format str, (col-width n))))
+
+
+(defn mig-print-fmt [data]
+  (log/info (table-line 66))
+  (log/info (core/format "%-18s%-24s%-22s%s",
+                         "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
+  (log/info (table-line 66))
   (doall
    (map
     (fn [e]
@@ -139,56 +163,45 @@
             applied? (if (nil? applied)
                        "pending"
                        applied)
-            fmt-applied (if (nil? applied) "| %3$-20s" "| %3$tY-%3$tm-%3$td %3$-9tT")
-            fmt-str (str "| %1$-15s | %2$-22s" fmt-applied)]
-        (log/info (core/format fmt-str, id, name, applied?)))) data)))
-
-(defn applied-mig-print-fmt [data]
-  (log/info (core/format "%-16s %-22s %-20s",
-                         "| MIGRATION-ID" "| NAME" "| APPLIED"))
-  (log/info (core/format "%-16s %-22s %-20s",
-                         (c-width 15) (c-width 21) (c-width 20)))
-  (doall
-   (map
-    (fn [e]
-      (let [{:keys [id name applied]} e
-            fmt-str "| %1$-15s | %2$-22s | %3$tY-%3$tm-%3$td %3$-9tT"]
-        (log/info (core/format fmt-str, id, name, applied)))) data)))
+            fmt-applied (if (nil? applied) "| %3$-20s" "| %3$tFT%<tTZ")
+            fmt-str (str "| %1$-15s | %2$-22s" fmt-applied "%4$s")]
+        (log/info (core/format fmt-str, id, name, applied? " |")))) data))
+  (log/info (table-line 66)))
 
 (defn pending-mig-print-fmt [data]
-  (log/info (core/format "%-16s %-22s",
-                         "| MIGRATION-ID" "| NAME"))
-  (log/info (core/format "%-16s %-22s", 
-                         (c-width 15) (c-width 21)))
+  (log/info (table-line 43))
+  (log/info (core/format "%-17s%-24s%s",
+                         "| MIGRATION-ID" "| NAME" " |"))
+  (log/info (table-line 43))
   (doall
    (map
     (fn [e]
       (let [{:keys [id name]} e
-            fmt-str "| %1$-15s | %2$-22s"]
-        (log/info (core/format fmt-str, id, name)))) data)))
-
-
+            fmt-str "| %1$-15s| %2$-22s%3$s"]
+        (log/info (core/format fmt-str, id, name, " |")))) data))
+  (log/info (table-line 43)))
 
 (defn run-list [cfg args]
-  (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)
-        available-migs (migratus/all-migrations cfg)
-        pending-migs (filter (fn [mig] (= nil (:applied mig))) (migratus/all-migrations cfg))
-        applied-migs (filter (fn [mig] (not= nil (:applied mig))) (migratus/all-migrations cfg))
-        ff (:format options)]
+  (let [{:keys [options errors summary]} (parse-opts args list-cli-options :in-order true)
+        {:keys [available pending applied]} options
+        {f :format} options
+        available-migs (parsed-migrations-data cfg)
+        pending-migs (pending-migrations cfg)
+        applied-migs (applied-migrations cfg)]
     (cond
       errors (error-msg errors)
-      (:applied options) (do (log/info "Listing applied migrations:")
-                             (when ff (write-migrations! applied-migs ff))
-                             (applied-mig-print-fmt applied-migs))
-      (:pending options) (do (log/info "Listing pending migrations:")
-                             (when ff (write-migrations! pending-migs ff))
+      applied (do (log/info "Listing applied migrations:")
+                             (when f (write-migrations! applied-migs f))
+                             (mig-print-fmt applied-migs))
+      pending (do (log/info "Listing pending migrations:")
+                             (when f (write-migrations! pending-migs f))
                              (pending-mig-print-fmt pending-migs))
-      (:available options) (do (log/info "Listing available migrations")
-                               (when ff (write-migrations! available-migs ff))
-                               (all-mig-print-fmt available-migs))
-      (or (empty? args) (:format options)) (do (log/info "Listing pending migrations:")
-                        (when ff (write-migrations! pending-migs ff))
-                        (pending-mig-print-fmt pending-migs))
+      available (do (log/info "Listing available migrations")
+                               (when f (write-migrations! available-migs f))
+                               (mig-print-fmt available-migs))
+      (or (empty? args) f) (do (log/info "Listing pending migrations:")
+                               (when f (write-migrations! pending-migs f))
+                               (pending-mig-print-fmt pending-migs))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
@@ -264,8 +277,6 @@
          (map #(parse-long %))
          (apply migratus/down cfg))))
 
-
-
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
         config (:config options)
@@ -287,3 +298,10 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
+
+(comment 
+ (let [m {:name "nas" :age "30"}
+       {n :name} m
+       {:keys [age]} m]
+   (str age))
+ 0)
