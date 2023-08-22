@@ -114,11 +114,18 @@
                    (spit "all-migrations.edn")))
     "json" (do (log/info (str "Writing to file all-migrations." ff))
                (spit "all-migrations.json" (cheshire/generate-string data {:pretty true})))
-    (log/info "Unsupported file format: " ff "\n Supported formats: json, edn" )))
+    nil))
+
+(defn c-width
+  "Set column width for CLI table"
+  [n]
+  (apply str (repeat n "-")))
 
 (defn all-mig-print-fmt [data]
-  (log/info (core/format "%-16s %-22s %-20s", "|MIGRATION-ID" "|NAME" "|APPLIED"))
-  (log/info (core/format "%-16s %-22s %-20s", (apply str (repeat 15 "-")) (apply str (repeat 21 "-")) (apply str (repeat 20 "-"))))
+  (log/info (core/format "%-16s %-22s %-20s", 
+                         "|MIGRATION-ID" "|NAME" "|APPLIED"))
+  (log/info (core/format "%-16s %-22s %-20s", 
+                         (c-width 15) (c-width 21) (c-width 20)))
   (doall
    (map
     (fn [e]
@@ -130,21 +137,52 @@
             fmt-str (str "|%1$-15s |%2$-22s" fmt-applied)]
         (log/info (core/format fmt-str, id, name, applied?)))) data)))
 
+(defn applied-mig-print-fmt [data]
+  (log/info (core/format "%-16s %-22s %-20s",
+                         "|MIGRATION-ID" "|NAME" "|APPLIED"))
+  (log/info (core/format "%-16s %-22s %-20s",
+                         (c-width 15) (c-width 21) (c-width 20)))
+  (doall
+   (map
+    (fn [e]
+      (let [{:keys [id name applied]} e
+            fmt-str "|%1$-15s |%2$-22s |%3$tY-%3$tm-%3$td %3$-9tT"]
+        (log/info (core/format fmt-str, id, name, applied)))) data)))
+
+(defn pending-mig-print-fmt [data]
+  (log/info (core/format "%-16s %-22s",
+                         "|MIGRATION-ID" "|NAME"))
+  (log/info (core/format "%-16s %-22s", 
+                         (c-width 15) (c-width 21)))
+  (doall
+   (map
+    (fn [e]
+      (let [{:keys [id name]} e
+            fmt-str "|%1$-15s |%2$-22s"]
+        (log/info (core/format fmt-str, id, name)))) data)))
+
+
+
 (defn run-list [cfg args]
   (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)
+        available-migs (migratus/all-migrations cfg)
+        pending-migs (filter (fn [mig] (= nil (:applied mig))) (migratus/all-migrations cfg))
+        applied-migs (filter (fn [mig] (not= nil (:applied mig))) (migratus/all-migrations cfg))
         ff (:format options)]
     (cond
       errors (error-msg errors)
       (:applyed options) (do (log/info "Listing applyed migrations:")
-                             (migratus/completed-list cfg))
-      (:pending options) (do (log/info "Listing pending migrations, configuration is: \n" cfg)
-                             (migratus/pending-list cfg))
+                             (when ff (write-migrations! applied-migs ff))
+                             (applied-mig-print-fmt applied-migs))
+      (:pending options) (do (log/info "Listing pending migrations:")
+                             (when ff (write-migrations! pending-migs ff))
+                             (pending-mig-print-fmt pending-migs))
       (:available options) (do (log/info "Listing available migrations")
-                               (let [migs (migratus/all-migrations cfg)]
-                                 (when ff (write-migrations! migs ff))
-                                 (all-mig-print-fmt migs)))
-      (empty? args) (do (log/info "Calling (pending-list cfg) with config: \n" cfg)
-                        (migratus/pending-list cfg))
+                               (when ff (write-migrations! available-migs ff))
+                               (all-mig-print-fmt available-migs))
+      (or (empty? args) (:format options)) (do (log/info "Listing pending migrations:")
+                        (when ff (write-migrations! pending-migs ff))
+                        (pending-mig-print-fmt pending-migs))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
