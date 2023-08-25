@@ -1,5 +1,5 @@
 (ns migratus.cli
-  (:require [cheshire.core :as cheshire]
+  (:require [clojure.data.json :as json]
             [clojure.core :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]
@@ -125,16 +125,10 @@
 (defn applied-migrations [cfg]
   (filter (fn [mig] (not= nil (:applied mig))) (parsed-migrations-data cfg)))
 
-(defn cli-print-migrations-edn! [data]
-  (log/info data))
-
-(defn cli-print-migrations-json! [data]
-  (log/info (cheshire/generate-string data)))
-
 (defn cli-print-migrations! [data f]
   (case f
-    "edn" (cli-print-migrations-edn! data)
-    "json" (cli-print-migrations-json! data)
+    "edn" (log/info data)
+    "json" (log/info (json/write-str data))
     nil))
 
 (defn col-width
