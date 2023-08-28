@@ -14,6 +14,9 @@
             Logger
             SimpleFormatter]))
 
+(defn validate-format [s]
+  (boolean (some (set (list s)) #{"plain" "edn" "json"})))
+
 (def global-cli-options
   [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
    ["-v" nil "Verbosity level; may be specified multiple times to increase value"
@@ -34,8 +37,8 @@
   [[nil "--available" "List all migrations, applied and non applied"]
    [nil "--pending" "List pending migrations"]
    [nil "--applied" "List applied migrations"]
-   [nil "--format FILE-FORMAT" "Option to write to file format as json edn"
-    :validate [#(boolean (some (set (list %)) #{"edn" "json"})) "Unsupported format. Valid options: edn, json."]]
+   [nil "--format FORMAT" "Option to print in plain text (default), edn or json" :default "plain"
+    :validate [#(validate-format %) "Unsupported format. Valid options: plain (default), edn, json."]]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -128,12 +131,6 @@
   (let [keep-applied-migs (fn [mig] (not= nil (:applied mig)))]
     (filter keep-applied-migs (parsed-migrations-data cfg))))
 
-(defn cli-print-migrations! [data f]
-  (case f
-    "edn" (log/info data)
-    "json" (log/info (json/write-str data))
-    nil))
-
 (defn col-width
   "Set column width for CLI table"
   [n]
@@ -172,6 +169,21 @@
   (doseq [d data] (format-pending-mig-data d))
   (log/info (table-line 43)))
 
+(defn cli-print-migs! [data f & format-opts]
+  (let [opts format-opts
+        pending? (:pending opts)]
+    (case f
+      "plain" (if pending?
+                (pending-mig-print-fmt data)
+                (mig-print-fmt data))
+      "edn" (log/info data)
+      "json" (log/info (json/write-str data))
+      nil)))
+
+(defn list-pending-migrations [migs format]
+  (log/info "Listing pending migrations:")
+  (cli-print-migs! migs format {:pending true}))
+
 (defn run-list [cfg args]
   (let [{:keys [options errors summary]} (parse-opts args list-cli-options :in-order true)
         {:keys [available pending applied]} options
@@ -182,21 +194,11 @@
     (cond
       errors (error-msg errors)
       applied (do (log/info "Listing applied migrations:")
-                  (if f
-                    (cli-print-migrations! applied-migs f)
-                    (mig-print-fmt applied-migs)))
-      pending (do (log/info "Listing pending migrations:")
-                  (if f
-                    (cli-print-migrations! pending-migs f)
-                    (pending-mig-print-fmt pending-migs)))
+                  (cli-print-migs! applied-migs f))
+      pending (list-pending-migrations pending-migs f)
       available (do (log/info "Listing available migrations")
-                    (if f
-                      (cli-print-migrations! available-migs f)
-                      (mig-print-fmt available-migs)))
-      (or (empty? args) f) (do (log/info "Listing pending migrations:")
-                               (if f
-                                 (cli-print-migrations! pending-migs f)
-                                 (pending-mig-print-fmt pending-migs)))
+                    (cli-print-migs! available-migs f))
+      (or (empty? args) f) (list-pending-migrations pending-migs f)
       :else (no-match-message args summary))))
 
 (defn simple-formatter
@@ -293,3 +295,4 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
+
