@@ -114,8 +114,7 @@
 
 (defn parse-migration-applied-date [m]
   (let [{:keys [id name applied]} m
-        to-local-date (if (nil? applied)
-                        nil (util-date-to-local-datetime applied))
+        to-local-date (when (some? applied) (util-date-to-local-datetime applied))
         date-str (formatted-date to-local-date)]
     {:id id :name name :applied date-str}))
 
@@ -124,7 +123,7 @@
     (map parse-migration-applied-date all-migrations)))
 
 (defn pending-migrations [cfg]
-  (let [keep-pending-migs (fn [mig] (= nil (:applied mig)))]
+  (let [keep-pending-migs (fn [mig] (nil? (:applied mig)))]
     (filter keep-pending-migs (parsed-migrations-data cfg))))
 
 (defn applied-migrations [cfg]
