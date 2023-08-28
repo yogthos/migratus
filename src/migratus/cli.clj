@@ -99,17 +99,15 @@
       :else (no-match-message args summary))))
 
 (defn util-date-to-local-datetime [util-date]
-  (if (= util-date nil)
-    nil
+  (when (some? util-date)
     (let [instant (.toInstant util-date)
           zone-id (ZoneId/systemDefault)
           local-datetime (.atZone instant zone-id)]
       local-datetime)))
 
 (defn formatted-date [date]
-  (if (nil? date)
-    nil
-    (core/format "%1tFT%<tTZ", date)))
+  (when (some? date)
+    (format "%1tFT%<tTZ", date)))
 
 (defn parsed-migrations-data [cfg]
   (let [all-migrations (migratus/all-migrations cfg)]
