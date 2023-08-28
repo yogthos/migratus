@@ -109,13 +109,16 @@
   (when (some? date)
     (format "%1tFT%<tTZ", date)))
 
+(defn parse-migration-applied-date [m]
+  (let [{:keys [id name applied]} m
+        to-local-date (if (nil? applied)
+                        nil (util-date-to-local-datetime applied))
+        date-str (formatted-date to-local-date)]
+    {:id id :name name :applied date-str}))
+
 (defn parsed-migrations-data [cfg]
   (let [all-migrations (migratus/all-migrations cfg)]
-    (map (fn [m] (let [{:keys [id name applied]} m
-                       to-local-date (if (nil? applied)
-                                       nil (util-date-to-local-datetime applied))
-                       date-str (formatted-date to-local-date)]
-                   {:id id :name name :applied date-str})) all-migrations)))
+    (map parse-migration-applied-date all-migrations)))
 
 (defn pending-migrations [cfg]
   (filter (fn [mig] (= nil (:applied mig))) (parsed-migrations-data cfg)))
@@ -138,6 +141,18 @@
   (let [str (str "%-" n "s")]
     (core/format str, (col-width n))))
 
+(defn format-mig-data [m]
+  (let [{:keys [id name applied]} m
+        applied? (if (nil? applied)
+                   "pending"
+                   applied)
+        fmt-str "| %1$-15s | %2$-22s | %3$-20s%4$s"]
+    (log/info (core/format fmt-str, id, name, applied? " |"))))
+
+(defn format-pending-mig-data [m]
+  (let [{:keys [id name]} m
+        fmt-str "| %1$-15s| %2$-22s%3$s"]
+    (log/info (core/format fmt-str, id, name, " |"))))
 
 (defn mig-print-fmt [data]
   (log/info (table-line 67))
@@ -145,14 +160,7 @@
                          "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
   (log/info (table-line 67))
   (doall
-   (map
-    (fn [e]
-      (let [{:keys [id name applied]} e
-            applied? (if (nil? applied)
-                       "pending"
-                       applied)
-            fmt-str "| %1$-15s | %2$-22s | %3$-20s%4$s"]
-        (log/info (core/format fmt-str, id, name, applied? " |")))) data))
+   (map format-mig-data data))
   (log/info (table-line 67)))
 
 (defn pending-mig-print-fmt [data]
@@ -161,11 +169,7 @@
                          "| MIGRATION-ID" "| NAME" " |"))
   (log/info (table-line 43))
   (doall
-   (map
-    (fn [e]
-      (let [{:keys [id name]} e
-            fmt-str "| %1$-15s| %2$-22s%3$s"]
-        (log/info (core/format fmt-str, id, name, " |")))) data))
+   (map format-pending-mig-data data))
   (log/info (table-line 43)))
 
 (defn run-list [cfg args]

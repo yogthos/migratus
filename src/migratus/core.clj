@@ -77,8 +77,9 @@
   (let [completed-migrations (vec (proto/completed store))
         available-migrations (mig/list-migrations config)
         merged-migrations-data (apply merge completed-migrations available-migrations)
-        grouped-migrations-by-id (group-by :id merged-migrations-data)]
-    (map (fn [[_ v]] (apply merge v)) grouped-migrations-by-id)))
+        grouped-migrations-by-id (group-by :id merged-migrations-data)
+        unify-mig-values (fn [[_ v]] (apply merge v))]
+    (map unify-mig-values grouped-migrations-by-id)))
 
 (defn all-migrations [config]
   (with-store
