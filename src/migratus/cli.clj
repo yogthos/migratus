@@ -153,32 +153,28 @@
         fmt-str "| %1$-15s| %2$-22s%3$s"]
     (log/info (core/format fmt-str, id, name, " |"))))
 
-(defn mig-print-fmt [data]
-  (log/info (table-line 67))
-  (log/info (core/format "%-18s%-25s%-22s%s",
-                         "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
-  (log/info (table-line 67))
-  (doseq [d data] (format-mig-data d))
-  (log/info (table-line 67)))
-
-(defn pending-mig-print-fmt [data]
-  (log/info (table-line 43))
-  (log/info (core/format "%-17s%-24s%s",
-                         "| MIGRATION-ID" "| NAME" " |"))
-  (log/info (table-line 43))
-  (doseq [d data] (format-pending-mig-data d))
-  (log/info (table-line 43)))
+(defn mig-print-fmt [data & format-opts]
+  (let [pending? (:pending format-opts)]
+    (if pending?
+      (do (log/info (table-line 43))
+          (log/info (core/format "%-17s%-24s%s",
+                                 "| MIGRATION-ID" "| NAME" " |"))
+          (log/info (table-line 43))
+          (doseq [d data] (format-pending-mig-data d))
+          (log/info (table-line 43)))
+      (do (log/info (table-line 67))
+          (log/info (core/format "%-18s%-25s%-22s%s",
+                                 "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
+          (log/info (table-line 67))
+          (doseq [d data] (format-mig-data d))
+          (log/info (table-line 67))))))
 
 (defn cli-print-migs! [data f & format-opts]
-  (let [opts format-opts
-        pending? (:pending opts)]
-    (case f
-      "plain" (if pending?
-                (pending-mig-print-fmt data)
-                (mig-print-fmt data))
-      "edn" (log/info data)
-      "json" (log/info (json/write-str data))
-      nil)))
+  (case f
+    "plain" (mig-print-fmt data format-opts)
+    "edn" (log/info data)
+    "json" (log/info (json/write-str data))
+    nil))
 
 (defn list-pending-migrations [migs format]
   (log/info "Listing pending migrations:")
