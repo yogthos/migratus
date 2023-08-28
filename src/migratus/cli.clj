@@ -121,10 +121,12 @@
     (map parse-migration-applied-date all-migrations)))
 
 (defn pending-migrations [cfg]
-  (filter (fn [mig] (= nil (:applied mig))) (parsed-migrations-data cfg)))
+  (let [keep-pending-migs (fn [mig] (= nil (:applied mig)))]
+    (filter keep-pending-migs (parsed-migrations-data cfg))))
 
 (defn applied-migrations [cfg]
-  (filter (fn [mig] (not= nil (:applied mig))) (parsed-migrations-data cfg)))
+  (let [keep-applied-migs (fn [mig] (not= nil (:applied mig)))]
+    (filter keep-applied-migs (parsed-migrations-data cfg))))
 
 (defn cli-print-migrations! [data f]
   (case f
@@ -159,8 +161,7 @@
   (log/info (core/format "%-18s%-25s%-22s%s",
                          "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
   (log/info (table-line 67))
-  (doall
-   (map format-mig-data data))
+  (doseq [d data] (format-mig-data d))
   (log/info (table-line 67)))
 
 (defn pending-mig-print-fmt [data]
@@ -168,8 +169,7 @@
   (log/info (core/format "%-17s%-24s%s",
                          "| MIGRATION-ID" "| NAME" " |"))
   (log/info (table-line 43))
-  (doall
-   (map format-pending-mig-data data))
+  (doseq [d data] (format-pending-mig-data d))
   (log/info (table-line 43)))
 
 (defn run-list [cfg args]
@@ -293,4 +293,3 @@
               "down" (down cfg rest-args)
               "list" (run-list cfg rest-args)
               (no-match-message arguments summary)))))
-
