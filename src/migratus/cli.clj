@@ -7,6 +7,7 @@
             [clojure.tools.logging :as log]
             [migratus.core :as migratus])
   (:import [java.time ZoneId ZoneOffset]
+           [java.time.format DateTimeFormatter]
            [java.util.logging
             ConsoleHandler
             Formatter
@@ -108,15 +109,13 @@
           local-datetime (.atZone instant zone-id)]
       local-datetime)))
 
-(defn formatted-date [date]
-  (when (some? date)
-    (format "%1tFT%<tTZ", date)))
-
 (defn parse-migration-applied-date [m]
   (let [{:keys [id name applied]} m
-        to-local-date (when (some? applied) (util-date-to-local-datetime applied))
-        date-str (formatted-date to-local-date)]
-    {:id id :name name :applied date-str}))
+        local-date (when (some? applied)
+                     (->
+                      (util-date-to-local-datetime applied)
+                      (.format DateTimeFormatter/ISO_LOCAL_DATE_TIME)))]
+    {:id id :name name :applied local-date}))
 
 (defn parsed-migrations-data [cfg]
   (let [all-migrations (migratus/all-migrations cfg)]
@@ -144,29 +143,27 @@
         applied? (if (nil? applied)
                    "pending"
                    applied)
-        fmt-str "| %1$-15s | %2$-22s | %3$-20s%4$s"]
-    (log/info (core/format fmt-str, id, name, applied? " |"))))
+        fmt-str "%1$-15s | %2$-22s | %3$-20s"]
+    (log/info (core/format fmt-str, id, name, applied?))))
 
 (defn format-pending-mig-data [m]
   (let [{:keys [id name]} m
-        fmt-str "| %1$-15s| %2$-22s%3$s"]
-    (log/info (core/format fmt-str, id, name, " |"))))
+        fmt-str "%1$-15s| %2$-22s%3$s"]
+    (log/info (core/format fmt-str, id, name, ))))
 
 (defn mig-print-fmt [data & format-opts]
   (let [pending? (:pending format-opts)]
     (if pending?
       (do (log/info (table-line 43))
-          (log/info (core/format "%-17s%-24s%s",
-                                 "| MIGRATION-ID" "| NAME" " |"))
-          (log/info (table-line 43))
-          (doseq [d data] (format-pending-mig-data d))
-          (log/info (table-line 43)))
+          (log/info (core/format "%-15s%-24s",
+                                 "MIGRATION-ID" "| NAME"))
+          (log/info (table-line 41))
+          (doseq [d data] (format-pending-mig-data d)))
       (do (log/info (table-line 67))
-          (log/info (core/format "%-18s%-25s%-22s%s",
-                                 "| MIGRATION-ID" "| NAME" "| APPLIED" " |"))
+          (log/info (core/format "%-16s%-25s%-22s",
+                                 "MIGRATION-ID" "| NAME" "| APPLIED"))
           (log/info (table-line 67))
-          (doseq [d data] (format-mig-data d))
-          (log/info (table-line 67))))))
+          (doseq [d data] (format-mig-data d))))))
 
 (defn cli-print-migs! [data f & format-opts]
   (case f
