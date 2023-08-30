@@ -15,6 +15,10 @@
             Logger
             SimpleFormatter]))
 
+;; needed fro Clojure 1.10 compatibility
+(defn parse-long [s]
+  (Long/valueOf s))
+
 (defn validate-format [s]
   (boolean (some (set (list s)) #{"plain" "edn" "json"})))
 
