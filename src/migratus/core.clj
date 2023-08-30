@@ -68,6 +68,26 @@
   (let [completed? (set (proto/completed-ids store))]
     (filter (comp completed? proto/id) (mig/list-migrations config))))
 
+(defn gather-migrations 
+  "Returns a list of all migrations from migration dir and db
+  with enriched data:
+    - date and time when was applied;
+    - description;"
+  [config store]
+  (let [completed-migrations (vec (proto/completed store))
+        available-migrations (mig/list-migrations config)
+        merged-migrations-data (apply merge completed-migrations available-migrations)
+        grouped-migrations-by-id (group-by :id merged-migrations-data)
+        unify-mig-values (fn [[_ v]] (apply merge v))]
+    (map unify-mig-values grouped-migrations-by-id)))
+
+(defn all-migrations [config]
+  (with-store
+    [store (proto/make-store config)]
+    (->> store
+         (gather-migrations config)
+         (map (fn [e] {:id (:id e) :name (:name e) :applied (:applied e)})))))
+
 (defn uncompleted-migrations
   "Returns a list of uncompleted migrations.
    Fetch list of applied migrations from db and existing migrations from migrations dir."

@@ -1,17 +1,22 @@
 (ns migratus.cli
-  (:require [clojure.core :as core]
+  (:require [clojure.data.json :as json]
+            [clojure.core :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.tools.logging :as log]
             [migratus.core :as migratus])
-  (:import [java.time ZoneOffset]
+  (:import [java.time ZoneId ZoneOffset]
+           [java.time.format DateTimeFormatter]
            [java.util.logging
             ConsoleHandler
             Formatter
             LogRecord
             Logger
             SimpleFormatter]))
+
+(defn validate-format [s]
+  (boolean (some (set (list s)) #{"plain" "edn" "json"})))
 
 (def global-cli-options
   [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
@@ -30,9 +35,11 @@
    ["-h" "--help"]])
 
 (def list-cli-options
-  [[nil "--available" "List all migrations, applyed and non applyed"]
+  [[nil "--available" "List all migrations, applied and non applied"]
    [nil "--pending" "List pending migrations"]
-   [nil "--applyed" "List applyed migrations"]
+   [nil "--applied" "List applied migrations"]
+   [nil "--format FORMAT" "Option to print in plain text (default), edn or json" :default "plain"
+    :validate [#(validate-format %) "Unsupported format. Valid options: plain (default), edn, json."]]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -53,14 +60,16 @@
        (str/join \newline)))
 
 (defn error-msg [errors]
-  (log/info "The following errors occurred while parsing your command:\n\n"
-            (str/join  \newline errors)))
+  (binding [*out* *err*]
+    (println "The following errors occurred while parsing your command:\n\n"
+             (str/join  \newline errors))))
 
 (defn no-match-message
   "No matching clause message info"
   [arguments summary]
-  (log/info "Migratus API does not support this action(s) : " arguments "\n\n"
-            (str/join (usage summary))))
+  (binding [*out* *err*]
+    (println "Migratus API does not support this action(s) : " arguments "\n\n"
+              (str/join (usage summary)))))
 
 (defn run-migrate [cfg args]
   (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)
@@ -69,43 +78,119 @@
     (cond
       errors (error-msg errors)
       (:until-just-before options)
-      (do (log/info "configuration is: \n" cfg "\n"
+      (do (log/debug "configuration is: \n" cfg "\n"
                     "arguments:" rest-args)
           (migratus/migrate-until-just-before cfg rest-args))
       (empty? args)
-      (do (log/info "calling (migrate cfg) \n configuration is: \n" cfg)
+      (do (log/debug "calling (migrate cfg)" cfg)
           (migratus/migrate cfg))
       :else (no-match-message args summary))))
 
 (defn run-rollback [cfg args]
   (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)
         rest-args (rest arguments)]
-    
+
     (cond
       errors (error-msg errors)
 
       (:until-just-after options)
-      (do (log/info "configuration is: \n" cfg "\n"
+      (do (log/debug "configuration is: \n" cfg "\n"
                     "args:" rest-args)
           (migratus/rollback-until-just-after cfg rest-args))
 
       (empty? args)
-      (do (log/info "configuration is: \n" cfg)
+      (do (log/debug "configuration is: \n" cfg)
           (migratus/rollback cfg))
 
       :else (no-match-message args summary))))
 
-(defn run-list [cfg args]
-  (let [{:keys [options _arguments errors summary]} (parse-opts args list-cli-options :in-order true)]
-    (cond
+(defn util-date-to-local-datetime [util-date]
+  (when (some? util-date)
+    (let [instant (.toInstant util-date)
+          zone-id (ZoneId/systemDefault)
+          local-datetime (.atZone instant zone-id)]
+      local-datetime)))
 
+(defn parse-migration-applied-date [m]
+  (let [{:keys [id name applied]} m
+        local-date (when (some? applied)
+                     (->
+                      (util-date-to-local-datetime applied)
+                      (.format DateTimeFormatter/ISO_LOCAL_DATE_TIME)))]
+    {:id id :name name :applied local-date}))
+
+(defn parsed-migrations-data [cfg]
+  (let [all-migrations (migratus/all-migrations cfg)]
+    (map parse-migration-applied-date all-migrations)))
+
+(defn pending-migrations [cfg]
+  (let [keep-pending-migs (fn [mig] (nil? (:applied mig)))]
+    (filter keep-pending-migs (parsed-migrations-data cfg))))
+
+(defn applied-migrations [cfg]
+  (let [keep-applied-migs (fn [mig] (not= nil (:applied mig)))]
+    (filter keep-applied-migs (parsed-migrations-data cfg))))
+
+(defn col-width
+  "Set column width for CLI table"
+  [n]
+  (apply str (repeat n "-")))
+
+(defn table-line [n]
+  (let [str (str "%-" n "s")]
+    (core/format str, (col-width n))))
+
+(defn format-mig-data [m]
+  (let [{:keys [id name applied]} m
+        applied? (if (nil? applied)
+                   "pending"
+                   applied)
+        fmt-str "%1$-15s | %2$-22s | %3$-20s"]
+    (println (core/format fmt-str, id, name, applied?))))
+
+(defn format-pending-mig-data [m]
+  (let [{:keys [id name]} m
+        fmt-str "%1$-15s| %2$-22s%3$s"]
+    (println (core/format fmt-str, id, name, ))))
+
+(defn mig-print-fmt [data & format-opts]
+  (let [pending? (:pending format-opts)]
+    (if pending?
+      (do (println (table-line 43))
+          (println (core/format "%-15s%-24s",
+                                 "MIGRATION-ID" "| NAME"))
+          (println (table-line 41))
+          (doseq [d data] (format-pending-mig-data d)))
+      (do (println (table-line 67))
+          (println (core/format "%-16s%-25s%-22s",
+                                 "MIGRATION-ID" "| NAME" "| APPLIED"))
+          (println (table-line 67))
+          (doseq [d data] (format-mig-data d))))))
+
+(defn cli-print-migs! [data f & format-opts]
+  (case f
+    "plain" (mig-print-fmt data format-opts)
+    "edn" (println data)
+    "json" (println (json/write-str data))
+    nil))
+
+(defn list-pending-migrations [migs format]
+  (cli-print-migs! migs format {:pending true}))
+
+(defn run-list [cfg args]
+  (let [{:keys [options errors summary]} (parse-opts args list-cli-options :in-order true)
+        {:keys [available pending applied]} options
+        {f :format} options]
+    (cond
       errors (error-msg errors)
-      (:applyed options) (log/info "listing applyed migrations")
-      (:pending options) (do (log/info "listing pending migrations, configuration is: \n" cfg)
-                             (migratus/pending-list cfg))
-      (:available options) (log/info "listing available migrations")
-      (empty? args) (do (log/info "calling (pending-list cfg) with config: \n" cfg)
-                        (migratus/pending-list cfg))
+      applied (let [applied-migs (applied-migrations cfg)]
+                (cli-print-migs! applied-migs f))
+      pending (let [pending-migs (pending-migrations cfg)]
+                (list-pending-migrations pending-migs f))
+      available (let [available-migs (parsed-migrations-data cfg)]
+                  (cli-print-migs! available-migs f))
+      (or (empty? args) f) (let [pending-migs (pending-migrations cfg)]
+                             (list-pending-migrations pending-migs f))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
@@ -162,20 +247,27 @@
     (try
       (read-string (slurp config-path))
       (catch java.io.FileNotFoundException e
-        (log/info "Missing config file" (.getMessage e)
-                  "\nYou can use --config path_to_file to specify a path to config file")))))
+        (binding [*out* *err*]
+          (println "Missing config file" (.getMessage e)
+                    "\nYou can use --config path_to_file to specify a path to config file"))))))
 
 (defn up [cfg args]
   (if (empty? args)
-    (log/info "To run action up you must provide a migration-id as a parameter:
-                   up <migration-id>")
-    (migratus/up cfg args)))
+    (binding [*out* *err*]
+      (println "To run action up you must provide a migration-id as a parameter:
+                   up <migration-id>"))
+    (->> args
+         (map #(parse-long %))
+         (apply migratus/up cfg))))
 
 (defn down [cfg args]
   (if (empty? args)
-    (log/info "To run action down you must provide a migration-id as a parameter:
-                   down <migration-id>")
-    (migratus/down cfg args)))
+    (binding [*out* *err*]
+      (println "To run action down you must provide a migration-id as a parameter:
+                   down <migration-id>"))
+    (->> args
+         (map #(parse-long %))
+         (apply migratus/down cfg))))
 
 (defn -main [& args]
   (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
