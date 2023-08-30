@@ -60,14 +60,16 @@
        (str/join \newline)))
 
 (defn error-msg [errors]
-  (log/info "The following errors occurred while parsing your command:\n\n"
-            (str/join  \newline errors)))
+  (binding [*out* *err*]
+    (println "The following errors occurred while parsing your command:\n\n"
+             (str/join  \newline errors))))
 
 (defn no-match-message
   "No matching clause message info"
   [arguments summary]
-  (log/info "Migratus API does not support this action(s) : " arguments "\n\n"
-            (str/join (usage summary))))
+  (binding [*out* *err*]
+    (println "Migratus API does not support this action(s) : " arguments "\n\n"
+              (str/join (usage summary)))))
 
 (defn run-migrate [cfg args]
   (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)
@@ -76,11 +78,11 @@
     (cond
       errors (error-msg errors)
       (:until-just-before options)
-      (do (log/info "configuration is: \n" cfg "\n"
+      (do (log/debug "configuration is: \n" cfg "\n"
                     "arguments:" rest-args)
           (migratus/migrate-until-just-before cfg rest-args))
       (empty? args)
-      (do (log/info "calling (migrate cfg) \n configuration is: \n" cfg)
+      (do (log/debug "calling (migrate cfg)" cfg)
           (migratus/migrate cfg))
       :else (no-match-message args summary))))
 
@@ -92,12 +94,12 @@
       errors (error-msg errors)
 
       (:until-just-after options)
-      (do (log/info "configuration is: \n" cfg "\n"
+      (do (log/debug "configuration is: \n" cfg "\n"
                     "args:" rest-args)
           (migratus/rollback-until-just-after cfg rest-args))
 
       (empty? args)
-      (do (log/info "configuration is: \n" cfg)
+      (do (log/debug "configuration is: \n" cfg)
           (migratus/rollback cfg))
 
       :else (no-match-message args summary))))
@@ -144,36 +146,35 @@
                    "pending"
                    applied)
         fmt-str "%1$-15s | %2$-22s | %3$-20s"]
-    (log/info (core/format fmt-str, id, name, applied?))))
+    (println (core/format fmt-str, id, name, applied?))))
 
 (defn format-pending-mig-data [m]
   (let [{:keys [id name]} m
         fmt-str "%1$-15s| %2$-22s%3$s"]
-    (log/info (core/format fmt-str, id, name, ))))
+    (println (core/format fmt-str, id, name, ))))
 
 (defn mig-print-fmt [data & format-opts]
   (let [pending? (:pending format-opts)]
     (if pending?
-      (do (log/info (table-line 43))
-          (log/info (core/format "%-15s%-24s",
+      (do (println (table-line 43))
+          (println (core/format "%-15s%-24s",
                                  "MIGRATION-ID" "| NAME"))
-          (log/info (table-line 41))
+          (println (table-line 41))
           (doseq [d data] (format-pending-mig-data d)))
-      (do (log/info (table-line 67))
-          (log/info (core/format "%-16s%-25s%-22s",
+      (do (println (table-line 67))
+          (println (core/format "%-16s%-25s%-22s",
                                  "MIGRATION-ID" "| NAME" "| APPLIED"))
-          (log/info (table-line 67))
+          (println (table-line 67))
           (doseq [d data] (format-mig-data d))))))
 
 (defn cli-print-migs! [data f & format-opts]
   (case f
     "plain" (mig-print-fmt data format-opts)
-    "edn" (log/info data)
-    "json" (log/info (json/write-str data))
+    "edn" (println data)
+    "json" (println (json/write-str data))
     nil))
 
 (defn list-pending-migrations [migs format]
-  (log/info "Listing pending migrations:")
   (cli-print-migs! migs format {:pending true}))
 
 (defn run-list [cfg args]
@@ -183,12 +184,10 @@
     (cond
       errors (error-msg errors)
       applied (let [applied-migs (applied-migrations cfg)]
-                (log/info "Listing applied migrations:")
                 (cli-print-migs! applied-migs f))
       pending (let [pending-migs (pending-migrations cfg)]
                 (list-pending-migrations pending-migs f))
       available (let [available-migs (parsed-migrations-data cfg)]
-                  (log/info "Listing available migrations")
                   (cli-print-migs! available-migs f))
       (or (empty? args) f) (let [pending-migs (pending-migrations cfg)]
                              (list-pending-migrations pending-migs f))
@@ -248,21 +247,24 @@
     (try
       (read-string (slurp config-path))
       (catch java.io.FileNotFoundException e
-        (log/info "Missing config file" (.getMessage e)
-                  "\nYou can use --config path_to_file to specify a path to config file")))))
+        (binding [*out* *err*]
+          (println "Missing config file" (.getMessage e)
+                    "\nYou can use --config path_to_file to specify a path to config file"))))))
 
 (defn up [cfg args]
   (if (empty? args)
-    (log/info "To run action up you must provide a migration-id as a parameter:
-                   up <migration-id>")
+    (binding [*out* *err*]
+      (println "To run action up you must provide a migration-id as a parameter:
+                   up <migration-id>"))
     (->> args
          (map #(parse-long %))
          (apply migratus/up cfg))))
 
 (defn down [cfg args]
   (if (empty? args)
-    (log/info "To run action down you must provide a migration-id as a parameter:
-                   down <migration-id>")
+    (binding [*out* *err*]
+      (println "To run action down you must provide a migration-id as a parameter:
+                   down <migration-id>"))
     (->> args
          (map #(parse-long %))
          (apply migratus/down cfg))))
