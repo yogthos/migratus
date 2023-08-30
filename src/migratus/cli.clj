@@ -179,18 +179,19 @@
 (defn run-list [cfg args]
   (let [{:keys [options errors summary]} (parse-opts args list-cli-options :in-order true)
         {:keys [available pending applied]} options
-        {f :format} options
-        available-migs (parsed-migrations-data cfg)
-        pending-migs (pending-migrations cfg)
-        applied-migs (applied-migrations cfg)]
+        {f :format} options]
     (cond
       errors (error-msg errors)
-      applied (do (log/info "Listing applied migrations:")
-                  (cli-print-migs! applied-migs f))
-      pending (list-pending-migrations pending-migs f)
-      available (do (log/info "Listing available migrations")
-                    (cli-print-migs! available-migs f))
-      (or (empty? args) f) (list-pending-migrations pending-migs f)
+      applied (let [applied-migs (applied-migrations cfg)]
+                (log/info "Listing applied migrations:")
+                (cli-print-migs! applied-migs f))
+      pending (let [pending-migs (pending-migrations cfg)]
+                (list-pending-migrations pending-migs f))
+      available (let [available-migs (parsed-migrations-data cfg)]
+                  (log/info "Listing available migrations")
+                  (cli-print-migs! available-migs f))
+      (or (empty? args) f) (let [pending-migs (pending-migrations cfg)]
+                             (list-pending-migrations pending-migs f))
       :else (no-match-message args summary))))
 
 (defn simple-formatter
