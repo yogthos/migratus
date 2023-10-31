@@ -1,3 +1,8 @@
+### Unreleased
+* Improved CLI interface
+* Improved CLI documentation
+* Added example project
+
 ### 1.5.6
 * [Fix spec problem for next.jdbc.sql/insert! and next.jdbc.sql/delete! ](https://github.com/yogthos/migratus/pull/262)
 

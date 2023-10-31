@@ -16,5 +16,5 @@ migratus.iml
 .lsp/.cache
 .portal
 .cpcache
-.calva/output-window/
+.calva
 .clj-kondo/

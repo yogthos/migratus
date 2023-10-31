@@ -70,7 +70,7 @@
   (let [completed? (set (proto/completed-ids store))]
     (filter (comp completed? proto/id) (mig/list-migrations config))))
 
-(defn gather-migrations 
+(defn gather-migrations
   "Returns a list of all migrations from migration dir and db
   with enriched data:
     - date and time when was applied;
@@ -194,7 +194,7 @@
   (proto/init (proto/make-store config)))
 
 (defn create
-  "Create a new migration with the current date"
+  "Create a new migration with the current date."
   [config & [name type]]
   (mig/create config name (or type :sql)))
 

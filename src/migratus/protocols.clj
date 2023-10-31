@@ -36,9 +36,14 @@
   (migrate-down [this migration]
     "Run and record a down migration")
   (connect [this]
-    "Opens resources necessary to run migrations against the store.")
+    "Opens resources necessary to run migrations against the store.
+     Returns the store on sucess so we can participate in with-open.
+     Throws exception on failure.")
   (disconnect [this]
-    "Frees resources necessary to run migrations against the store."))
+    "Frees resources necessary to run migrations against the store.")
+  (close [this]
+    "Frees resources necessary to run migrations against the store.
+     Allow store to work with with-open."))
 
 (defmulti make-store :store)
 

@@ -130,6 +130,11 @@ The environment variable associated with the `database.table` key will replace `
 
 ### Setup
 
+Migratus can be used as a library in your project or as a CLI tool.
+There is also an option (from a third party) to run a migratus as native binary - for PostgreSQL only.
+
+#### Using Migratus as a library in your project
+
 - Add Migratus as a dependency to your `project.clj`
 ```clojure
 :dependencies [[migratus <VERSION>]]
@@ -213,6 +218,14 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 
 (def config {:db {:datasource (hk/make-datasource datasource-options)}})
 ```
+
+#### Using migratus as a command line (cli) tool
+
+Migratus exposes a CLI interface via `migratus.cli` namespace.
+It uses [tools.cli](https://github.com/clojure/tools.cli) for argument parsing.
+
+
+
 
 #### Running as native image (Postgres only)
 
@@ -391,7 +404,7 @@ This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and
    | `migratus.core/rollback`                  | Run `down` for the last migration that was run.                                                                                                    |
    | `migratus.core/rollback-until-just-after` | Run `down` all migrations after `migration-id`. This only considers completed migrations, and will not migrate up.                                 |
    | `migratus.core/up`                        | Run `up` for the specified migration ids. Will skip any migration that is already up.                                                              |
-   | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down. 
+   | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down.
    | `migratus.core/reset`                 | Reset the database by down-ing all migrations successfully applied, then up-ing all migratinos.
    | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                              |
    | `migratus.core/migrate-until-just-before` | Run `up` for for any pending migrations which precede the given migration id (good for testing migrations).                                        |
