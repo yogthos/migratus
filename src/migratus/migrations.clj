@@ -158,17 +158,25 @@
                                     (props/load-properties config))]
       (make-migration config id mig))))
 
-(defn create [config name migration-type]
+(defn create
+  "Create a migration file given a configuration, a name and migration type.
+   Resolves the absolute file name.
+   Returns the migration file name as string.
+
+   Migrations are created in migration-dir.
+   If migration-dir does not exist, it will be created. "
+  [config name migration-type]
   (let [migration-dir  (find-or-create-migration-dir
                         (utils/get-parent-migration-dir config)
                         (utils/get-migration-dir config))
         migration-name (->kebab-case (str (timestamp) name))]
     (doall
      (for [mig-file (proto/migration-files* migration-type migration-name)]
-       (let [file (io/file migration-dir mig-file)]
+       (let [file (io/file migration-dir mig-file)
+             file (.getAbsoluteFile file)]
          (.createNewFile file)
-         (.getName (io/file migration-dir mig-file)))))))
-  
+         (.getName file))))))
+
 (defn destroy [config name]
   (let [migration-dir  (utils/find-migration-dir
                          (utils/get-migration-dir config))

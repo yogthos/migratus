@@ -1,12 +1,16 @@
 (ns migratus.cli
-  (:require [clojure.data.json :as json]
-            [clojure.core :as core]
+  (:require [clojure.core :as core]
+            [clojure.data.json :as json]
+            [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]
             [clojure.tools.logging :as log]
-            [migratus.core :as migratus])
-  (:import [java.time ZoneId ZoneOffset]
+            [migratus.core :as migratus]
+            [migratus.migrations :as mig]
+            [migratus.protocols :as proto])
+  (:import [java.io IOException]
+           [java.time ZoneId ZoneOffset]
            [java.time.format DateTimeFormatter]
            [java.util.logging
             ConsoleHandler
@@ -15,35 +19,170 @@
             Logger
             SimpleFormatter]))
 
-;; needed fro Clojure 1.10 compatibility
-(defn parse-long [s]
+(defn my-parse-long
+  "parse-long version for Clojure 1.10 compatibility"
+  [s]
   (Long/valueOf s))
+
+(defn my-parse-boolean
+  [s]
+  (Boolean/parseBoolean s))
+
+(def app-config
+  "Application options to be used for output/logging.
+   To avoid passing them around everywhere."
+  (atom {:verbosity 0
+         :output-format "plain"}))
+
+(defn deep-merge
+  "From https://clojuredocs.org/clojure.core/merge ."
+  [a & maps]
+  (if (map? a)
+    (apply merge-with deep-merge a maps)
+    (apply merge-with deep-merge maps)))
+
+(defn println-err
+  [& more]
+  (binding [*out* *err*]
+    (apply println more)))
+
+(defn env->config!
+  "Try to load migratus configuration options from environment.
+   We produce a configuration that can be merged with other configs.
+   Missing values are ok as configuring via env is optional.
+
+   Looks and processes the following env vars:
+
+   - MIGRATUS_CONFIG - read string as edn and return config.
+     Do not process any other migratus env var.
+
+   - MIGRATUS_STORE - apply clojure.core/keyword fn to value
+   - MIGRATUS_MIGRATION_DIR - expect string, use as is
+   - MIGRATUS_DB_SPEC - read string as edn
+   - MIGRATUS_TABLE_NAME - string
+   - MIGRATUS_INIT_IN_TRANSACTION - parse boolean
+
+   Return: A map representing the migratus configuration."
+  ([]
+   (env->config! (System/getenv)))
+  ([env]
+   (let [config (get env "MIGRATUS_CONFIG")]
+     (if config
+       (edn/read-string config)
+       ;; we don't have MIGRATUS_CONFIG - check the other vars
+       (let [store (get env "MIGRATUS_STORE")
+             migration-dir (get env "MIGRATUS_MIGRATION_DIR")
+             table (get env "MIGRATUS_TABLE_NAME")
+             init-in-transaction (get env "MIGRATUS_INIT_IN_TRANSACTION")
+             db (get env "MIGRATUS_DB_SPEC")]
+         (cond-> {}
+           store (assoc :store (keyword store))
+           migration-dir (assoc :migration-dir migration-dir)
+           table (assoc :migration-table-name table)
+           init-in-transaction (assoc :init-in-transaction
+                                      (my-parse-boolean init-in-transaction))
+           db (assoc :db (edn/read-string db))))))))
+
+(defn cli-args->config
+  "Parse any migratus configuration options from cli args.
+
+   Return a migratus configuration map with any values.
+
+   We expect the args we receive to be values
+   processed by tools.cli parse-opts fn."
+  [config-edn-str]
+  (let [config (edn/read-string config-edn-str)]
+    (if (map? config)
+      config
+      {})))
+
+(defn file->config!
+  "Read config-file as a edn.
+   If config-file is nil, return nil.
+   On IO exception print warning and return nil."
+  [^String config-file]
+  (when config-file
+    (let [config-path (.getAbsolutePath (io/file config-file))]
+      (try
+        (edn/read-string (slurp config-path))
+        (catch IOException e
+          (println-err
+           "WARN: Error reading config" (.getMessage e)
+           "\nYou can use --config path_to_file to specify a path to config file"))))))
+
+(defn load-config!
+  "Load configuration and merge options.
+
+   Options are loaded in this order.
+   Sbsequent values are deepmerged and replace previous ones.
+
+   - configuration file - if it exists and we can parse it as edn
+   - environment variables
+   - command line arguments passed to the application
+
+   Return a migratus configuration map."
+  [config-file config-data]
+  (let [config (file->config! config-file)
+        env (env->config!)
+        args (cli-args->config config-data)]
+    (deep-merge config env args)))
+
+#_(defn valid-config?
+  "Validate a migratus configuration for required options.
+   If valid, return true.
+   If invalid return map with reasons why validation failed."
+  [config]
+  (if (map? config)
+    (let [store (:store config)]
+      (if store
+        true
+        {:errors ["Missing :store key in configuration"]}))
+    {:errors ["Config is nil or not a map"]}))
+
+#_(defn- do-invalid-config
+    "We got invalid configuration.
+   Print error and exit"
+    [valid? cfg]
+    (println-err "Invalid configuration:" (:errors valid?)
+                 "\nMigratus can load configuration from: file, env vars, cli args."
+                 "\nSee documentation and/or use --help")
+    (println-err "Configuration is" cfg))
 
 (defn validate-format [s]
   (boolean (some (set (list s)) #{"plain" "edn" "json"})))
 
 (def global-cli-options
-  [[nil "--config NAME" "Configuration file name" :default "migratus.edn"]
-   ["-v" nil "Verbosity level; may be specified multiple times to increase value"
+  [[nil "--config-file NAME" "Configuration file name"]
+   ["-v" nil
+    "Verbosity level; may be specified multiple times to increase value"
     :id :verbosity
     :default 0
     :update-fn inc]
+   [nil "--output-format FORMAT"
+    "Option to print in plain text (default), edn or json"
+    :default "plain"
+    :validate [#(validate-format %)
+               "Unsupported format. Valid options: plain (default), edn, json."]]
+   [nil "--config CONFIG" "Configuration as edn"]
    ["-h" "--help"]])
 
 (def migrate-cli-options
-  [[nil "--until-just-before MIGRATION-ID" "Run all migrations preceding migration-id. This is useful when testing that a migration behaves as expected on fixture data. This only considers uncompleted migrations, and will not migrate down."]
+  [[nil "--until-just-before MIGRATION-ID"
+    "Run all migrations preceding migration-id.
+     This is useful when testing that a migration behaves as expected on fixture data.
+     This only considers uncompleted migrations, and will not migrate down."]
    ["-h" "--help"]])
 
 (def rollback-cli-options
-  [[nil "--until-just-after MIGRATION-ID" "Migrate down all migrations after migration-id. This only considers completed migrations, and will not migrate up."]
+  [[nil "--until-just-after MIGRATION-ID"
+    "Migrate down all migrations after migration-id.
+     This only considers completed migrations, and will not migrate up."]
    ["-h" "--help"]])
 
 (def list-cli-options
   [[nil "--available" "List all migrations, applied and non applied"]
    [nil "--pending" "List pending migrations"]
    [nil "--applied" "List applied migrations"]
-   [nil "--format FORMAT" "Option to print in plain text (default), edn or json" :default "plain"
-    :validate [#(validate-format %) "Unsupported format. Valid options: plain (default), edn, json."]]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -51,6 +190,7 @@
         ""
         "Actions:"
         "  init"
+        "  status"
         "  create"
         "  migrate"
         "  reset"
@@ -59,39 +199,41 @@
         "  down"
         "  list"
         ""
-        "options:"
+        "global options:"
         options-summary]
        (str/join \newline)))
 
 (defn error-msg [errors]
-  (binding [*out* *err*]
-    (println "The following errors occurred while parsing your command:\n\n"
-             (str/join  \newline errors))))
+  (println-err
+   "The following errors occurred while parsing your command:\n\n"
+   (str/join  \newline errors)))
 
 (defn no-match-message
   "No matching clause message info"
   [arguments summary]
-  (binding [*out* *err*]
-    (println "Migratus API does not support this action(s) : " arguments "\n\n"
-              (str/join (usage summary)))))
+  (println-err
+   "Migratus API does not support this action(s) : " arguments "\n\n"
+   (str/join (usage summary))))
 
-(defn run-migrate [cfg args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args migrate-cli-options :in-order true)
+(defn run-migrate! [cfg args]
+  (let [cmd-opts (parse-opts args migrate-cli-options :in-order true)
+        {:keys [options arguments errors summary]} cmd-opts
         rest-args (rest arguments)]
 
     (cond
       errors (error-msg errors)
       (:until-just-before options)
       (do (log/debug "configuration is: \n" cfg "\n"
-                    "arguments:" rest-args)
+                     "arguments:" rest-args)
           (migratus/migrate-until-just-before cfg rest-args))
       (empty? args)
       (do (log/debug "calling (migrate cfg)" cfg)
           (migratus/migrate cfg))
       :else (no-match-message args summary))))
 
-(defn run-rollback [cfg args]
-  (let [{:keys [options arguments errors summary]} (parse-opts args rollback-cli-options :in-order true)
+(defn run-rollback! [cfg args]
+  (let [cmd-opts (parse-opts args rollback-cli-options :in-order true)
+        {:keys [options arguments errors summary]} cmd-opts
         rest-args (rest arguments)]
 
     (cond
@@ -99,7 +241,7 @@
 
       (:until-just-after options)
       (do (log/debug "configuration is: \n" cfg "\n"
-                    "args:" rest-args)
+                     "args:" rest-args)
           (migratus/rollback-until-just-after cfg rest-args))
 
       (empty? args)
@@ -150,32 +292,32 @@
                    "pending"
                    applied)
         fmt-str "%1$-15s | %2$-22s | %3$-20s"]
-    (println (core/format fmt-str, id, name, applied?))))
+    (prn (core/format fmt-str, id, name, applied?))))
 
 (defn format-pending-mig-data [m]
   (let [{:keys [id name]} m
         fmt-str "%1$-15s| %2$-22s%3$s"]
-    (println (core/format fmt-str, id, name, ))))
+    (prn (core/format fmt-str, id, name))))
 
 (defn mig-print-fmt [data & format-opts]
   (let [pending? (:pending format-opts)]
     (if pending?
-      (do (println (table-line 43))
-          (println (core/format "%-15s%-24s",
-                                 "MIGRATION-ID" "| NAME"))
-          (println (table-line 41))
+      (do (prn (table-line 43))
+          (prn (core/format "%-15s%-24s",
+                            "MIGRATION-ID" "| NAME"))
+          (prn (table-line 41))
           (doseq [d data] (format-pending-mig-data d)))
-      (do (println (table-line 67))
-          (println (core/format "%-16s%-25s%-22s",
-                                 "MIGRATION-ID" "| NAME" "| APPLIED"))
-          (println (table-line 67))
+      (do (prn (table-line 67))
+          (prn (core/format "%-16s%-25s%-22s",
+                            "MIGRATION-ID" "| NAME" "| APPLIED"))
+          (prn (table-line 67))
           (doseq [d data] (format-mig-data d))))))
 
 (defn cli-print-migs! [data f & format-opts]
   (case f
     "plain" (mig-print-fmt data format-opts)
-    "edn" (println data)
-    "json" (println (json/write-str data))
+    "edn" (prn data)
+    "json" (prn (json/write-str data))
     nil))
 
 (defn list-pending-migrations [migs format]
@@ -226,12 +368,12 @@
     1  java.util.logging.Level/FINE  ;; :debug
     java.util.logging.Level/FINEST)) ;; :trace
 
-(defn set-logger-format
+(defn set-logger-format!
   "Configure JUL logger to use a custom log formatter.
 
    * formatter - instance of java.util.logging.Formatter"
   ([verbosity]
-   (set-logger-format verbosity (simple-formatter format-log-record)))
+   (set-logger-format! verbosity (simple-formatter format-log-record)))
   ([verbosity ^Formatter formatter]
    (let [main-logger (doto (Logger/getLogger "")
                        (.setUseParentHandlers false)
@@ -244,54 +386,108 @@
        (.removeHandler main-logger h))
      (.addHandler main-logger handler))))
 
-(defn load-config!
-  "Returns the content of config file as a clojure map datastructure"
-  [^String config]
-  (let [config-path (.getAbsolutePath (io/file config))]
-    (try
-      (read-string (slurp config-path))
-      (catch java.io.FileNotFoundException e
-        (binding [*out* *err*]
-          (println "Missing config file" (.getMessage e)
-                    "\nYou can use --config path_to_file to specify a path to config file"))))))
-
-(defn up [cfg args]
+(defn run-up! [cfg args]
   (if (empty? args)
-    (binding [*out* *err*]
-      (println "To run action up you must provide a migration-id as a parameter:
-                   up <migration-id>"))
+    (println-err
+     "To run action up you must provide a migration-id as a parameter:
+                   up <migration-id>")
     (->> args
-         (map #(parse-long %))
+         (map #(my-parse-long %))
          (apply migratus/up cfg))))
 
-(defn down [cfg args]
+(defn run-down! [cfg args]
   (if (empty? args)
-    (binding [*out* *err*]
-      (println "To run action down you must provide a migration-id as a parameter:
-                   down <migration-id>"))
+    (println-err
+     "To run action down you must provide a migration-id as a parameter:
+                   down <migration-id>")
     (->> args
-         (map #(parse-long %))
+         (map #(my-parse-long %))
          (apply migratus/down cfg))))
 
+(defn run-status
+  "Display migratus status.
+   - display last local migration
+   - display database connection string with credentials REDACTED)
+   - display last applied migration to database"
+  [cfg rest-args]
+  (prn "Not yet implemented"))
+
+(defn create-migration
+  "Create a new migration with the current date."
+  [config & [name type]]
+  (when-not name
+    (throw (ex-info "Required name for migration" {})))
+  (mig/create config name (or type :sql)))
+
+(defn run-create-migration!
+  "Run migratus create command"
+  [config arguments]
+  (try
+    (let [name (first arguments)
+          file (create-migration config name)]
+      (println "Created migration" file))
+    (catch Exception e
+      (println-err (ex-data e)))))
+
+(defn- run-init!
+  [cfg]
+  (migratus/init cfg))
+
+(defn do-print-usage
+  ([summary]
+   (do-print-usage summary nil))
+  ([summary errors]
+   (println (usage summary))
+   (when errors
+     (println-err errors))))
+
+(defn- run-reset! [cfg]
+  (migratus/reset cfg))
+
+(defn do-store-actions
+  [config action action-args]
+  ;; make store and connect
+  (with-open [store (doto (proto/make-store config)
+                      (proto/connect))]
+    (case action
+      "init" (run-init! store)
+      "list" (run-list store action-args)
+      "status" (run-status store action-args)
+      "up" (run-up! store action-args)
+      "down" (run-down! store action-args)
+      "migrate" (run-migrate! store action-args)
+      "reset" (run-reset! store)
+      "rollback" (run-rollback! store action-args)
+      (throw (IllegalArgumentException. (str "Unknown action " action))))))
+
 (defn -main [& args]
-  (let [{:keys [options arguments _errors summary]} (parse-opts args global-cli-options :in-order true)
-        config (:config options)
-        verbosity (:verbosity options)
-        cfg (load-config! config)
-        action (first arguments)
-        rest-args (rest arguments)]
-    (set-logger-format verbosity)
-    (cond
-      (:help options) (usage summary)
-      (nil? (:config options)) (error-msg "No config provided \n --config [file-name]>")
-      :else (case action
-              "init" (migratus/init cfg)
-              "create" (migratus/create cfg (second arguments))
-              "migrate" (run-migrate cfg rest-args)
-              "rollback" (run-rollback cfg rest-args)
-              "reset" (migratus/reset cfg)
-              "up" (up cfg rest-args)
-              "down" (down cfg rest-args)
-              "list" (run-list cfg rest-args)
-              (no-match-message arguments summary)))))
+  (try
+    (let [parsed-opts (parse-opts args global-cli-options)
+          {:keys [options arguments errors summary]} parsed-opts
+          {:keys [config-file config verbosity output-format]} options
+          _ (when (<= 2 verbosity)
+              (prn "Parsed options:" parsed-opts))
+          action (first arguments)
+          action (when action
+                   (str/lower-case action))
+          rest-args (rest arguments)
+          loaded-config (load-config! config-file config)
+          no-store-action? (contains? #{"create"} action)]
+      (swap! app-config assoc
+             :verbosity verbosity
+             :output-format output-format)
+      ;; (prn @app-config)
+      (set-logger-format!  verbosity)
+      (cond
+        (:help options) (do-print-usage summary)
+        (nil? action) (do
+                        (do-print-usage summary)
+                        (println "No action supplied"))
+        (some? errors) (do-print-usage summary errors)
+        ;; do not require store
+        no-store-action? (case action
+                           "create" (run-create-migration! loaded-config rest-args))
+        :else (do-store-actions loaded-config action rest-args)))
+    (catch Exception e
+      (println-err "Error: " (ex-message e)))))
 
