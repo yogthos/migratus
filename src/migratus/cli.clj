@@ -127,26 +127,91 @@
         args (cli-args->config config-data)]
     (deep-merge config env args)))
 
-#_(defn valid-config?
+(defn config-check-store
+  [store]
+  (if store
+    true
+    "Missing :store key in configuration"))
+(defn config-check-db-spec
+  [db]
+  (if (map? db)
+    ()
+    "Value for :db key should be a map"))
+
+(defn- validate-db-config
+  [db]
+  (cond-> []
+    (nil? db) (concat ["Missing :db option for :database store"])
+    ;;
+    (not (map? db))
+    (concat ["Value of :db should be a map"])))
+
+(comment
+
+  (validate-db-config nil)
+  ;; => ("Missing :db option for :database store" "Value of :db should be a map")
+
+
+  (validate-db-config "")
+  ;; => ["Value of :db should be a map"]
+
+  (validate-db-config {})
+  ;; => []
+  )
+
+
+(defn valid-config?
   "Validate a migratus configuration for required options.
    If valid, return true.
-   If invalid return map with reasons why validation failed."
+   If invalid return map with reasons why validation failed.
+
+   We expect most people will use the database store so we have extra checks."
   [config]
   (if (map? config)
-    (let [store (:store config)]
-      (if store
-        true
-        {:errors ["Missing :store key in configuration"]}))
+    (let [valid true
+          store (:store config)
+          db (:db config)
+          errors (cond-> []
+                   ;; some store checks
+                   (nil? store)
+                   (concat ["Missing :store option"])
+                   ;;
+                   (not (keyword? store))
+                   (concat ["Value of :store should be a keyword"])
+                   ;;
+                   (= :database store)
+                   (concat (validate-db-config db)))]
+      (if (pos? (count errors))
+        {:errors errors}
+        valid))
     {:errors ["Config is nil or not a map"]}))
 
-#_(defn- do-invalid-config
-    "We got invalid configuration.
+(comment
+
+  (valid-config? nil)
+  ;; => {:errors ["Config is nil or not a map"]}
+
+  (valid-config? {})
+  ;; => {:errors ("Missing :store option" "Value of :store should be a keyword")}
+
+  (valid-config? {:store :database})
+  ;; => {:errors ("Missing :db option for :database store" "Value of :db should be a map")}
+
+  (valid-config? {:store :database
+                  :db {}})
+  ;; => true
+
+
+  )
+
+(defn- do-invalid-config-and-die
+  "We got invalid configuration.
    Print error and exit"
-    [valid? cfg]
-    (println-err "Invalid configuration:" (:errors valid?)
-                 "\nMigratus can load configuration from: file, env vars, cli args."
-                 "\nSee documentation and/or use --help")
-    (println-err "Configuration is" cfg))
+  [valid? cfg]
+  (println-err "Invalid configuration:" (:errors valid?)
+               "\nMigratus can load configuration from: file, env vars, cli args."
+               "\nSee documentation and/or use --help")
+  (println-err "Configuration is" cfg))
 
 (defn validate-format [s]
   (boolean (some (set (list s)) #{"plain" "edn" "json"})))
@@ -447,18 +512,22 @@
 (defn do-store-actions
   [config action action-args]
   ;; make store and connect
-  (with-open [store (doto (proto/make-store config)
-                      (proto/connect))]
-    (case action
-      "init" (run-init! store)
-      "list" (run-list store action-args)
-      "status" (run-status store action-args)
-      "up" (run-up! store action-args)
-      "down" (run-down! store action-args)
-      "migrate" (run-migrate! store action-args)
-      "reset" (run-reset! store)
-      "rollback" (run-rollback! store action-args)
-      (throw (IllegalArgumentException. (str "Unknown action " action))))))
+  (let [valid? (valid-config? config)]
+    (if (map? valid?)
+      (do-invalid-config-and-die valid? config)
+      ;; normall processing
+      (with-open [store (doto (proto/make-store config)
+                          (proto/connect))]
+        (case action
+          "init" (run-init! store)
+          "list" (run-list store action-args)
+          "status" (run-status store action-args)
+          "up" (run-up! store action-args)
+          "down" (run-down! store action-args)
+          "migrate" (run-migrate! store action-args)
+          "reset" (run-reset! store)
+          "rollback" (run-rollback! store action-args)
+          (throw (IllegalArgumentException. (str "Unknown action " action))))))))
 
 (defn -main [& args]
   (try
@@ -479,12 +548,15 @@
       ;; (prn @app-config)
       (set-logger-format!  verbosity)
       (cond
+        ;; display help if user asks
         (:help options) (do-print-usage summary)
+        ;; if no action is supplied, throw error
         (nil? action) (do
                         (do-print-usage summary)
                         (println "No action supplied"))
+        ;; in case of errors during args processing - show usage
         (some? errors) (do-print-usage summary errors)
-        ;; do not require store
+        ;; actions that do not require store
         no-store-action? (case action
                            "create" (run-create-migration! loaded-config rest-args))
         :else (do-store-actions loaded-config action rest-args)))
