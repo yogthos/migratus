@@ -15,12 +15,13 @@
     {}
     (System/getenv)))
 
-(defn inject-properties [properties text]
+(defn inject-properties
+  [properties text]
   (let [text-with-props (reduce
-                          (fn [text [k v]]
-                            (.replace text k (str v)))
-                          text
-                          properties)]
+                         (fn [text [k v]]
+                           (.replace text k (str v)))
+                         text
+                         properties)]
     (doseq [x (re-seq #"\$\{[a-zA-Z0-9\-_\.]+}" text-with-props)]
       (log/warn "no property found for key:" x))
     text-with-props))
