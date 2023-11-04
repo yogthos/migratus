@@ -1,4 +1,5 @@
 (ns migratus.migrations
+  "Namespace to handle migrations stored on filesystem, as files."
   (:require
     [clojure.java.io :as io]
     [clojure.string :as str]
@@ -15,7 +16,14 @@
     java.text.SimpleDateFormat
     java.util.regex.Pattern))
 
-(defn ->kebab-case [s]
+(defn ->kebab-case
+  "Convert a string to kebab case.
+
+   - convert CamelCase to camel-case
+   - replace multiple white spaces with a single dash
+   - replace underscores with dash
+   - converts to lower case"
+  [s]
   (-> (reduce
         (fn [s c]
           (if (and
@@ -29,12 +37,22 @@
       (.replaceAll "_" "-")
       (.toLowerCase)))
 
-(defn- timestamp []
+(comment
+
+  (->kebab-case "hello    javaMigrations2")
+  ;; => "hello-java-migrations2"
+  )
+
+(defn- timestamp
+  "Return the current date and time as a string timestamp at UTC."
+  []
   (let [fmt (doto (SimpleDateFormat. "yyyyMMddHHmmss ")
               (.setTimeZone (TimeZone/getTimeZone "UTC")))]
     (.format fmt (Date.))))
 
-(defn parse-migration-id [id]
+(defn parse-migration-id
+  "Parse migration id as a java.lang.Long."
+  [id]
   (try
     (Long/parseLong id)
     (catch Exception e
@@ -74,19 +92,49 @@
               (props/inject-properties properties content)
               content)))
 
-(defn find-migration-files [migration-dir exclude-scripts properties]
+(defn find-migration-files
+  "Looks for all migration files in 'migration-dir' path.
+   Excludes from results the migrations that match globs in 'exclude-scripts'
+
+   Parses the file names according to migratus rules.
+   Returns a sequence of maps.
+   Each map represents a single migration file.
+
+   A migration map has a single key - migration id as string.
+   The value is a map with migration name as key and
+   a another map as value representing the migration.
+
+   Example of structure:
+   { <migration-id>
+      { <migration-name>
+        {:sql {:up <contents> }    }}}
+   "
+  ;; ieugen: I wonder why we have to realize the migrations in memory
+  ;; The store could be enhanced to support a fetch-migration call to fetch the contents.
+  ;; Most of the time we are dealing with metdata.
+  ;; We need the migration body only when we apply it.
+  [migration-dir exclude-scripts properties]
   (log/debug "Looking for migrations in" migration-dir)
-  (->> (for [f (filter (fn [^File f] (.isFile f))
-                       (file-seq migration-dir))
-             :let [file-name (.getName ^File f)]
-             :when (not (utils/script-excluded? file-name migration-dir exclude-scripts))]
-         (if-let [mig (parse-name file-name)]
-           (migration-map mig (slurp f) properties)
-           (warn-on-invalid-migration file-name)))
-       (remove nil?)))
+  (let [migration-dir (io/as-file migration-dir)]
+    (->> (for [f (filter (fn [^File f] (.isFile f))
+                         (file-seq migration-dir))
+               :let [file-name (.getName ^File f)]
+               :when (not (utils/script-excluded? file-name migration-dir exclude-scripts))]
+           (if-let [mig (parse-name file-name)]
+             (migration-map mig (slurp f) properties)
+             (warn-on-invalid-migration file-name)))
+         (remove nil?))))
 
+(comment
 
-(defn find-migration-resources [dir jar exclude-scripts properties]
+  (take 2 (find-migration-files "test/migrations" nil nil))
+
+  )
+
+(defn find-migration-resources
+  "Looks for migration files in classpath and java jar archives.
+   Returns a sequence of migrations similar to find-migration-files fn."
+  [dir jar exclude-scripts properties]
   (log/debug "Looking for migrations in" dir jar)
   (->> (for [entry (enumeration-seq (.entries ^JarFile jar))
              :when (.matches (.getName ^JarEntry entry)
@@ -103,7 +151,11 @@
            (warn-on-invalid-migration file-name)))
        (remove nil?)))
 
-(defn read-migrations [dir exclude-scripts properties]
+(defn read-migrations
+  "Looks for migrations files accessible and return a sequence.
+   Reads the migration contents as string in memory.
+   See find-migration-files for a descriptin of the format."
+  [dir exclude-scripts properties]
   (when-let [migration-dir (utils/find-migration-dir dir)]
     (if (instance? File migration-dir)
       (find-migration-files migration-dir exclude-scripts properties)
@@ -121,6 +173,8 @@
     (into {} (map fm) dirs)))
 
 (defn find-or-create-migration-dir
+  "Checks the migration directory exists.
+   Creates it and the parent directories if it does not exist."
   ([dir] (find-or-create-migration-dir utils/default-migration-parent dir))
   ([parent-dir dir]
    (if-let [migration-dir (utils/find-migration-dir dir)]
@@ -151,7 +205,9 @@
                                  id (pr-str (keys mig))))))
     (throw (Exception. (str "Invalid migration id: " id)))))
 
-(defn list-migrations [config]
+(defn list-migrations
+  "Find all migrations and return a sequence of Migration instances"
+  [config]
   (doall
     (for [[id mig] (find-migrations (utils/get-migration-dir config)
                                     (utils/get-exclude-scripts config)
@@ -177,7 +233,10 @@
          (.createNewFile file)
          (.getName file))))))
 
-(defn destroy [config name]
+(defn destroy
+  "Delete both files associated with a migration (up and down).
+   Migration is identified by name."
+  [config name]
   (let [migration-dir  (utils/find-migration-dir
                          (utils/get-migration-dir config))
         migration-name (->kebab-case name)

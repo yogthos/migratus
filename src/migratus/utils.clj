@@ -86,12 +86,18 @@
      (if (= "jar" (.getProtocol url))
        (jar-file url)
        (File. (URLDecoder/decode (.getFile url) "UTF-8")))
-     (let [migration-dir (io/file parent-dir dir)]
-       (if (.exists migration-dir)
-         migration-dir
-         (let [no-implicit-parent-dir (io/file dir)]
-           (when (.exists no-implicit-parent-dir)
-             no-implicit-parent-dir)))))))
+     ;; we don't have URL resource, try file
+     (let [fdir (io/file dir)]
+       (if (.exists fdir)
+         fdir
+         (if (.isAbsolute fdir)
+           ;; if path is absolute and does no exist, throw error
+           (throw (IllegalStateException.
+                   (str "Could not find migrations dir " dir)))
+           ;; if relative path, try with parent dir logic
+           (let [migration-dir (io/file parent-dir dir)]
+             (when (.exists migration-dir)
+               migration-dir))))))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."

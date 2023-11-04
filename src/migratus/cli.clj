@@ -1,4 +1,5 @@
 (ns migratus.cli
+  {:authors ["Eugen Stan <eugen@ieugen.ro" "Andrei Stan"]}
   (:require [clojure.core :as core]
             [clojure.data.json :as json]
             [clojure.edn :as edn]
@@ -126,17 +127,6 @@
         env (env->config!)
         args (cli-args->config config-data)]
     (deep-merge config env args)))
-
-(defn config-check-store
-  [store]
-  (if store
-    true
-    "Missing :store key in configuration"))
-(defn config-check-db-spec
-  [db]
-  (if (map? db)
-    ()
-    "Value for :db key should be a map"))
 
 (defn- validate-db-config
   [db]
@@ -322,12 +312,16 @@
           local-datetime (.atZone instant zone-id)]
       local-datetime)))
 
+(defn- applied-date->str
+  [applied]
+  (when (some? applied)
+    (->
+     (util-date-to-local-datetime applied)
+     (.format DateTimeFormatter/ISO_LOCAL_DATE_TIME))))
+
 (defn parse-migration-applied-date [m]
   (let [{:keys [id name applied]} m
-        local-date (when (some? applied)
-                     (->
-                      (util-date-to-local-datetime applied)
-                      (.format DateTimeFormatter/ISO_LOCAL_DATE_TIME)))]
+        local-date (applied-date->str applied)]
     {:id id :name name :applied local-date}))
 
 (defn parsed-migrations-data [cfg]
@@ -347,9 +341,9 @@
   [n]
   (apply str (repeat n "-")))
 
-(defn table-line [n]
-  (let [str (str "%-" n "s")]
-    (core/format str, (col-width n))))
+(defn table-line
+  [n]
+  (core/format (str "%-" n "s"), (col-width n)))
 
 (defn format-mig-data [m]
   (let [{:keys [id name applied]} m
@@ -469,13 +463,38 @@
          (map #(my-parse-long %))
          (apply migratus/down cfg))))
 
+(defn reverse-sort-migrations
+  "Reverse sort Migration sequences by id"
+  ([migs]
+   (sort-by :id #(compare %2 %1) migs)))
 (defn run-status
   "Display migratus status.
    - display last local migration
    - display database connection string with credentials REDACTED)
    - display last applied migration to database"
-  [cfg rest-args]
+  [store rest-args]
+  (let [cfg (proto/config store)
+        migs (mig/list-migrations cfg)
+        migs (reverse-sort-migrations migs)])
   (prn "Not yet implemented"))
+
+(comment
+
+  (def migs (mig/list-migrations {:migration-dir "test/migrations"}))
+
+  (-> (first migs)
+      :id)
+  (sort-by :id #(compare %2 %1) migs)
+  ;; => (#migratus.migration.sql.SqlMigration{:id 20120827170200, :name "multiple-statements", :up "-- this is the first statement\n\nCREATE TABLE\nquux\n(id bigint,\n name varchar(255));\n\n--;;\n-- comment for the second statement\n\nCREATE TABLE quux2(id bigint, name varchar(255));\n", :down "DROP TABLE quux2;\n--;;\nDROP TABLE quux;\n"} #migratus.migration.sql.SqlMigration{:id 20111202110600, :name "create-foo-table", :up "CREATE TABLE IF NOT EXISTS foo(id bigint);\n", :down "DROP TABLE IF EXISTS foo;\n"} #migratus.migration.sql.SqlMigration{:id 20111202113000, :name "create-bar-table", :up "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n", :down "DROP TABLE IF EXISTS bar;\n"})
+
+  (def store (doto (proto/make-store config)))
+
+  (proto/init store)
+
+  (proto/completed-ids store)
+
+  )
+
 
 (defn create-migration
   "Create a new migration with the current date."
