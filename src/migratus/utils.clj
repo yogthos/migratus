@@ -126,7 +126,7 @@
     "uri-censored"))
 
 (defmethod censor-password :default
-  [{:keys [password connection-uri] :as db-spec}]
+  [{:keys [password connection-uri jdbcUrl] :as db-spec}]
   (let [password-map
         (if (empty? password)
           nil
@@ -138,5 +138,8 @@
         (if (empty? connection-uri)
           nil
           ;; Censor entire uri instead of trying to parse out and replace only a possible password parameter
-          {:connection-uri "uri-censored"})]
-    (merge db-spec password-map uri-map)))
+          {:connection-uri "uri-censored"})
+        jdbcUrl-map (if (empty? jdbcUrl)
+                      nil
+                      {:jdbcUrl "uri-censored"})]
+    (merge db-spec password-map uri-map jdbcUrl-map)))
