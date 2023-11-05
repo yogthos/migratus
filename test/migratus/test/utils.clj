@@ -16,7 +16,10 @@
          (censor-password {:connection-uri "jdbc:postgresql://fake.example.org/my_dev?user=my_user&password=thisIsNot123ARealPass"})))
   (is (= {:connection-uri "uri-censored" :password "1<censored>" :user "user"}
          (censor-password {:password "1234" :user "user"
-                           :connection-uri "jdbc:postgresql://fake.example.org/my_dev?user=my_user&password=thisIsNot123ARealPass"}))))
+                           :connection-uri "jdbc:postgresql://fake.example.org/my_dev?user=my_user&password=thisIsNot123ARealPass"})))
+  (is (= {:jdbcUrl "uri-censored" :password "1<censored>" :user "user"}
+         (censor-password {:password "1234" :user "user"
+                           :jdbcUrl "jdbc:postgresql://fake.example.org/my_dev?user=my_user&password=thisIsNot123ARealPass"}))))
 
 (deftest test-jar-name
   (is (nil? (jar-name nil)))
