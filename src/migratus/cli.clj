@@ -60,7 +60,6 @@
    Looks and processes the following env vars:
 
    - MIGRATUS_CONFIG - read string as edn and return config.
-     Do not process any other migratus env var.
 
    - MIGRATUS_STORE - apply clojure.core/keyword fn to value
    - MIGRATUS_MIGRATION_DIR - expect string, use as is
@@ -72,22 +71,21 @@
   ([]
    (env->config! (System/getenv)))
   ([env]
-   (let [config (get env "MIGRATUS_CONFIG")]
-     (if config
-       (edn/read-string config)
-       ;; we don't have MIGRATUS_CONFIG - check the other vars
-       (let [store (get env "MIGRATUS_STORE")
-             migration-dir (get env "MIGRATUS_MIGRATION_DIR")
-             table (get env "MIGRATUS_TABLE_NAME")
-             init-in-transaction (get env "MIGRATUS_INIT_IN_TRANSACTION")
-             db (get env "MIGRATUS_DB_SPEC")]
-         (cond-> {}
-           store (assoc :store (keyword store))
-           migration-dir (assoc :migration-dir migration-dir)
-           table (assoc :migration-table-name table)
-           init-in-transaction (assoc :init-in-transaction
-                                      (my-parse-boolean init-in-transaction))
-           db (assoc :db (edn/read-string db))))))))
+   (let [config (get env "MIGRATUS_CONFIG")
+         ;; parse config from env
+         config (if config (edn/read-string config) {})
+         store (get env "MIGRATUS_STORE")
+         migration-dir (get env "MIGRATUS_MIGRATION_DIR")
+         table (get env "MIGRATUS_TABLE_NAME")
+         init-in-transaction (get env "MIGRATUS_INIT_IN_TRANSACTION")
+         db (get env "MIGRATUS_DB_SPEC")]
+     (cond-> config
+       store (assoc :store (keyword store))
+       migration-dir (assoc :migration-dir migration-dir)
+       table (assoc :migration-table-name table)
+       init-in-transaction (assoc :init-in-transaction
+                                  (my-parse-boolean init-in-transaction))
+       db (assoc :db (edn/read-string db))))))
 
 (defn cli-args->config
   "Parse any migratus configuration options from cli args.
