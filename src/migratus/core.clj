@@ -81,7 +81,8 @@
         unify-mig-values (fn [[_ v]] (apply merge v))]
     (map unify-mig-values grouped-migrations-by-id)))
 
-(defn all-migrations [config]
+(defn all-migrations
+  [config]
   (with-store
     [store (proto/make-store config)]
     (->> store

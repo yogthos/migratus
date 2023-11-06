@@ -29,6 +29,11 @@
   [s]
   (Boolean/parseBoolean s))
 
+(defn validate-format
+  [s]
+  (boolean (some (set (list s))
+                 #{"plain" "edn" "json"})))
+
 (def app-config
   "Application options to be used for output/logging.
    To avoid passing them around everywhere."
@@ -243,6 +248,11 @@
   [[nil "--available" "List all migrations, applied and non applied"]
    [nil "--pending" "List pending migrations"]
    [nil "--applied" "List applied migrations"]
+    [nil "--format FORMAT"
+     "Option to print in plain text (default), edn or json"
+     :default "plain"
+     :validate [#(validate-format %)
+                "Unsupported format. Valid options: plain (default), edn, json."]]
    ["-h" "--help"]])
 
 (defn usage [options-summary]
@@ -331,17 +341,21 @@
         local-date (applied-date->str applied)]
     {:id id :name name :applied local-date}))
 
-(defn parsed-migrations-data [cfg]
-  (let [all-migrations (migratus/all-migrations cfg)]
+(defn parsed-migrations-data
+  [store]
+  (let [config (proto/config store)
+        all-migrations (migratus/all-migrations config)]
     (map parse-migration-applied-date all-migrations)))
 
-(defn pending-migrations [cfg]
+(defn pending-migrations
+  [store]
   (let [keep-pending-migs (fn [mig] (nil? (:applied mig)))]
-    (filter keep-pending-migs (parsed-migrations-data cfg))))
+    (filter keep-pending-migs (parsed-migrations-data store))))
 
-(defn applied-migrations [cfg]
+(defn applied-migrations
+  [store]
   (let [keep-applied-migs (fn [mig] (not= nil (:applied mig)))]
-    (filter keep-applied-migs (parsed-migrations-data cfg))))
+    (filter keep-applied-migs (parsed-migrations-data store))))
 
 (defn col-width
   "Set column width for CLI table"
@@ -358,25 +372,25 @@
                    "pending"
                    applied)
         fmt-str "%1$-15s | %2$-22s | %3$-20s"]
-    (prn (core/format fmt-str, id, name, applied?))))
+    (println (core/format fmt-str, id, name, applied?))))
 
 (defn format-pending-mig-data [m]
   (let [{:keys [id name]} m
         fmt-str "%1$-15s| %2$-22s%3$s"]
-    (prn (core/format fmt-str, id, name))))
+    (println (core/format fmt-str, id, name))))
 
 (defn mig-print-fmt [data & format-opts]
   (let [pending? (:pending format-opts)]
     (if pending?
-      (do (prn (table-line 43))
-          (prn (core/format "%-15s%-24s",
+      (do (println (table-line 43))
+          (println (core/format "%-15s%-24s",
                             "MIGRATION-ID" "| NAME"))
-          (prn (table-line 41))
+          (println (table-line 41))
           (doseq [d data] (format-pending-mig-data d)))
-      (do (prn (table-line 67))
-          (prn (core/format "%-16s%-25s%-22s",
+      (do (println (table-line 67))
+          (println (core/format "%-16s%-25s%-22s",
                             "MIGRATION-ID" "| NAME" "| APPLIED"))
-          (prn (table-line 67))
+          (println (table-line 67))
           (doseq [d data] (format-mig-data d))))))
 
 (defn cli-print-migs! [data f & format-opts]
@@ -389,19 +403,20 @@
 (defn list-pending-migrations [migs format]
   (cli-print-migs! migs format {:pending true}))
 
-(defn run-list [cfg args]
-  (let [{:keys [options errors summary]} (parse-opts args list-cli-options :in-order true)
+(defn run-list [store args]
+  (let [{:keys [options errors summary]}
+        (parse-opts args list-cli-options)
         {:keys [available pending applied]} options
-        {f :format} options]
+        f (get options :format)]
     (cond
       errors (error-msg errors)
-      applied (let [applied-migs (applied-migrations cfg)]
+      applied (let [applied-migs (applied-migrations store)]
                 (cli-print-migs! applied-migs f))
-      pending (let [pending-migs (pending-migrations cfg)]
+      pending (let [pending-migs (pending-migrations store)]
                 (list-pending-migrations pending-migs f))
-      available (let [available-migs (parsed-migrations-data cfg)]
+      available (let [available-migs (parsed-migrations-data store)]
                   (cli-print-migs! available-migs f))
-      (or (empty? args) f) (let [pending-migs (pending-migrations cfg)]
+      (or (empty? args) f) (let [pending-migs (pending-migrations store)]
                              (list-pending-migrations pending-migs f))
       :else (no-match-message args summary))))
 
@@ -517,6 +532,11 @@
 
 (comment
 
+  (def config {:store :database
+               :migration-dir "test/migrations"
+               :db {:jdbcUrl
+                    "jdbc:postgresql://localhost:5432/migratus_example_db?user=postgres&password=migrate-me"}})
+
   (def migs (mig/list-migrations config))
 
   (-> (first migs)
@@ -528,8 +548,10 @@
 
   (proto/init store)
   (proto/connect store)
+  (applied-migrations store)
 
-  (group-by :id (proto/completed store)))
+  (group-by :id (proto/completed store))
+  )
 
 
 (defn create-migration
