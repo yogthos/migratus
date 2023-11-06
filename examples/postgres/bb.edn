@@ -1,0 +1,8 @@
+;; example on how to call migrations via babashka
+{:tasks {:requires ([clojure.string :as str])
+         migrate
+         {:doc "Run migration tasks. Specify MIGRATUS_DB_SPEC to choose db."
+          :task (clojure {:dir "."
+                          :extra-env {"MIGRATUS_STORE" "database"
+                                      "MIGRATUS_MIGRATION_DIR" "resources/migrations"}}
+                         (str/join " " (list* "-M:migratus" *command-line-args*)))}}}
