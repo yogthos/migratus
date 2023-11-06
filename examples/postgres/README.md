@@ -64,6 +64,28 @@ Since Migratus is a clojure library, we need to run it via clojure like this `cl
 
 There is also a bash script `migratus.sh` that does the same: `./migratus.sh --help`
 
+#### Calling migratus via babashka task
+
+We can use [babashka](https://babashka.org/) tasks to drive migratus.
+This is usefull for creating developer and ops tooling.
+
+Developers can easily create migrations from cli.
+Operations people can query the migration status on the server.
+
+Bellow is a sample `bb.edn` file that calls the migratus alias in `deps.edn`, that we created earlier.
+
+bb.edn
+```clojure
+;; example on how to call migrations via babashka
+{:tasks {:requires ([clojure.string :as str])
+         migrate
+         {:doc "Run migration tasks. Specify MIGRATUS_DB_SPEC to choose db."
+          :task (clojure {:dir "."
+                          :extra-env {"MIGRATUS_STORE" "database"
+                                      "MIGRATUS_MIGRATION_DIR" "resources/migrations"}}
+                         (str/join " " (list* "-M:migratus" *command-line-args*)))}}}
+
+```
 
 Commands with migratus
 
@@ -72,6 +94,9 @@ Commands with migratus
 # We export the configuration as env variable, but we can use cli or file as well
 export MIGRATUS_CONFIG='{:store :database :db {:jdbcUrl "jdbc:postgresql://localhost:5432/migratus_example_db?user=postgres&password=migrate-me"}}'
 
+
 clojure -M:migratus status
+# via bb
+bb migratus status
 
 ```
