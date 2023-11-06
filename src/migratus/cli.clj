@@ -221,6 +221,11 @@
    [nil "--config CONFIG" "Configuration as edn"]
    ["-h" "--help"]])
 
+(def status-cli-options
+  [[nil "--show-config"
+    "Display full configuration - may include secrets and credentials"]
+   ["-h" "--help"]])
+
 (def migrate-cli-options
   [[nil "--until-just-before MIGRATION-ID"
     "Run all migrations preceding migration-id.
@@ -312,12 +317,14 @@
           local-datetime (.atZone instant zone-id)]
       local-datetime)))
 
+(def date-time-fmt
+  (DateTimeFormatter/ofPattern "uuuu-MM-dd HH:mm:ss"))
 (defn- applied-date->str
   [applied]
   (when (some? applied)
     (->
      (util-date-to-local-datetime applied)
-     (.format DateTimeFormatter/ISO_LOCAL_DATE_TIME))))
+     (.format date-time-fmt))))
 
 (defn parse-migration-applied-date [m]
   (let [{:keys [id name applied]} m
@@ -463,37 +470,66 @@
          (map #(my-parse-long %))
          (apply migratus/down cfg))))
 
-(defn reverse-sort-migrations
-  "Reverse sort Migration sequences by id"
-  ([migs]
-   (sort-by :id #(compare %2 %1) migs)))
+(defn format-status-line
+  "Format transaction status line"
+  [id local applied]
+  (let [missing-applied? (nil? applied)
+        missing-local? (nil? local)
+        name (get local :name)
+        applied-date (get applied :applied)
+        date-str (or (applied-date->str applied-date) "")
+        description (get applied :description)
+        name-or-desc (or name description)
+        notes (cond-> []
+                missing-applied? (conj :migration-not-applied)
+                missing-local? (conj :missing-local-migration)
+                (and (not missing-applied?)
+                     (nil? description)) (conj :missing-db-description)
+                (and (not missing-applied?)
+                     (nil? applied-date)) (conj :missing-applied-date))]
+    (format "%d %20s %-30s %s" id date-str name-or-desc notes)))
+
 (defn run-status
   "Display migratus status.
    - display last local migration
    - display database connection string with credentials REDACTED)
    - display last applied migration to database"
   [store rest-args]
-  (let [cfg (proto/config store)
-        migs (mig/list-migrations cfg)
-        migs (reverse-sort-migrations migs)])
-  (prn "Not yet implemented"))
+  (let [{:keys [options arguments errors summary]}
+        (parse-opts rest-args status-cli-options)
+        {:keys [show-config]} options
+        cfg (proto/config store)]
+    ;; TODO: do cli validation
+    (log/debug "TODO: Implement validatin for status command!")
+    (when show-config
+      (println "Migratus configuration is" cfg \newline))
+    (let [migrations (mig/list-migrations cfg)
+          completed (proto/completed store)
+          migratons-by-id (group-by :id migrations)
+          complete-by-id (group-by :id completed)
+          all-ids-once (into #{} (concat (keys migratons-by-id)
+                                         (keys complete-by-id)))
+          ordered-ids (sort all-ids-once)]
+      (doseq [id ordered-ids]
+        (let [local (first (get migratons-by-id id))
+              applied (first (get complete-by-id id))]
+          (println (format-status-line id local applied)))))))
 
 (comment
 
-  (def migs (mig/list-migrations {:migration-dir "test/migrations"}))
+  (def migs (mig/list-migrations config))
 
   (-> (first migs)
       :id)
-  (sort-by :id #(compare %2 %1) migs)
-  ;; => (#migratus.migration.sql.SqlMigration{:id 20120827170200, :name "multiple-statements", :up "-- this is the first statement\n\nCREATE TABLE\nquux\n(id bigint,\n name varchar(255));\n\n--;;\n-- comment for the second statement\n\nCREATE TABLE quux2(id bigint, name varchar(255));\n", :down "DROP TABLE quux2;\n--;;\nDROP TABLE quux;\n"} #migratus.migration.sql.SqlMigration{:id 20111202110600, :name "create-foo-table", :up "CREATE TABLE IF NOT EXISTS foo(id bigint);\n", :down "DROP TABLE IF EXISTS foo;\n"} #migratus.migration.sql.SqlMigration{:id 20111202113000, :name "create-bar-table", :up "CREATE TABLE IF NOT EXISTS bar(id BIGINT);\n", :down "DROP TABLE IF EXISTS bar;\n"})
 
-  (def store (doto (proto/make-store config)))
+  (group-by :id (sort-by :id #(compare %2 %1) (take 10 migs)))
+
+  (def store (proto/make-store config))
 
   (proto/init store)
+  (proto/connect store)
 
-  (proto/completed-ids store)
-
-  )
+  (group-by :id (proto/completed store)))
 
 
 (defn create-migration
@@ -550,7 +586,7 @@
 
 (defn -main [& args]
   (try
-    (let [parsed-opts (parse-opts args global-cli-options)
+    (let [parsed-opts (parse-opts args global-cli-options :in-order true)
           {:keys [options arguments errors summary]} parsed-opts
           {:keys [config-file config verbosity output-format]} options
           _ (when (<= 2 verbosity)
