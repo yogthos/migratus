@@ -8,10 +8,11 @@
     (let [env (doto (HashMap.)
                 (.put "MIGRATUS_CONFIG" "{:store :database :migration-dir \"my-migrations\"}")
                 (.put "MIGRATUS_DB_SPEC"
-                      "{:jdbcUrl \"config-whould-be-ignored\"}"))
+                      "{:jdbcUrl \"config-could-be-ignored\"}"))
           config (cli/env->config! env)]
       (is (= {:store :database
-              :migration-dir "my-migrations"}
+              :migration-dir "my-migrations"
+              :db {:jdbcUrl "config-could-be-ignored"}}
              config))))
 
   (testing "Test load config from env - empty when no env vars present"
