@@ -283,11 +283,11 @@
    "Migratus API does not support this action(s) : " arguments "\n\n"
    (str/join (usage summary))))
 
-(defn run-migrate! [cfg args]
+(defn run-migrate! [store args]
   (let [cmd-opts (parse-opts args migrate-cli-options :in-order true)
         {:keys [options arguments errors summary]} cmd-opts
-        rest-args (rest arguments)]
-
+        rest-args (rest arguments)
+        cfg (proto/config store)]
     (cond
       errors (error-msg errors)
       (:until-just-before options)
@@ -299,10 +299,11 @@
           (migratus/migrate cfg))
       :else (no-match-message args summary))))
 
-(defn run-rollback! [cfg args]
+(defn run-rollback! [store args]
   (let [cmd-opts (parse-opts args rollback-cli-options :in-order true)
         {:keys [options arguments errors summary]} cmd-opts
-        rest-args (rest arguments)]
+        rest-args (rest arguments)
+        cfg (proto/config store)]
 
     (cond
       errors (error-msg errors)
@@ -465,23 +466,23 @@
        (.removeHandler main-logger h))
      (.addHandler main-logger handler))))
 
-(defn run-up! [cfg args]
+(defn run-up! [store args]
   (if (empty? args)
     (println-err
      "To run action up you must provide a migration-id as a parameter:
                    up <migration-id>")
     (->> args
          (map #(my-parse-long %))
-         (apply migratus/up cfg))))
+         (apply migratus/up (proto/config store)))))
 
-(defn run-down! [cfg args]
+(defn run-down! [store args]
   (if (empty? args)
     (println-err
      "To run action down you must provide a migration-id as a parameter:
                    down <migration-id>")
     (->> args
          (map #(my-parse-long %))
-         (apply migratus/down cfg))))
+         (apply migratus/down (proto/config store)))))
 
 (defn format-status-line
   "Format transaction status line"
@@ -570,8 +571,8 @@
       (println-err (ex-data e)))))
 
 (defn- run-init!
-  [cfg]
-  (migratus/init cfg))
+  [store]
+  (migratus/init (proto/config store)))
 
 (defn do-print-usage
   ([summary]
