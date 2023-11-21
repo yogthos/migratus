@@ -196,6 +196,11 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 ;; With next.jdbc >= 1.2.790 you can use {:connection-uri ...} format (as well as raw {:datasource ...} without :user/:password).
 (def config {:db {:connection-uri ...}})
 
+;; Migratus will close the connection by default
+;; providing :managed-connection? hint allows managing the state of the connection externally
+;; in case you wish to reuse the connection for other purposes
+(def config {:connection conn :managed-connection? true})
+
 ```
 
 ```clojure

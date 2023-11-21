@@ -1,3 +1,10 @@
+### 1.5.4
+* [handle connnection in no-tx mode](https://github.com/yogthos/migratus/pull/254)
+* [allow externally managed connections](https://github.com/yogthos/migratus/pull/256)
+
+### 1.5.3
+* [support for listing migration logs](https://github.com/yogthos/migratus/pull/251)
+  
 ### 1.5.2
 * [CLI options](https://github.com/yogthos/migratus/pull/244)
 * [logging improvements](https://github.com/yogthos/migratus/pull/245)
