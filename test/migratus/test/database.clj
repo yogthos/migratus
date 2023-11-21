@@ -401,16 +401,15 @@
     (is (not (test-sql/verify-table-exists? test-config "foo")))))
 
 (deftest test-no-tx-migration-pass-conn
-  (with-open [assertions-conn (jdbc/get-connection (:db config))]
-    (let [assertions-config (assoc config
+  (with-open [conn (jdbc/get-connection (:db config))]
+    (let [test-config (assoc config
                                    :migration-dir "migrations-no-tx"
-                                   :db {:connection assertions-conn})
-          test-config #(assoc assertions-config :db {:connection (jdbc/get-connection (:db config))})]
-      (is (not (test-sql/verify-table-exists? assertions-config "foo")))
-      (core/migrate (test-config))
-      (is (test-sql/verify-table-exists? assertions-config "foo"))
-      (core/down (test-config) 20111202110600)
-      (is (not (test-sql/verify-table-exists? assertions-config "foo"))))))
+                                   :db {:connection conn :managed-connection? true})]
+      (is (not (test-sql/verify-table-exists? test-config "foo")))
+      (core/migrate test-config)
+      (is (test-sql/verify-table-exists? test-config "foo"))
+      (core/down test-config 20111202110600)
+      (is (not (test-sql/verify-table-exists? test-config "foo"))))))
 
 (deftest test-cancellation-observed
   (let [lines-processed (atom 0)
