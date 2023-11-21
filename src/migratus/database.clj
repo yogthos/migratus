@@ -159,9 +159,9 @@
       (.setAutoCommit conn true))
     {:connection conn}))
 
-(defn disconnect* [db]
+(defn disconnect* [db config]
   (when-let [^Connection conn (:connection db)]
-    (when-not (.isClosed conn)
+    (when-not (or (.isClosed conn) (:managed-connection? (:db config)))
       (.close conn))))
 
 (defn completed-ids* [db table-name]
@@ -297,7 +297,7 @@
                   (get config :init-in-transaction? true)
                   (props/load-properties config))
         (finally
-          (proto/disconnect this)))))
+          (disconnect* conn config)))))
   (completed-ids [this]
     (completed-ids* @connection (migration-table-name config)))
   (completed [this]
@@ -322,8 +322,7 @@
                   (migration-table-name config)
                   (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))))
   (disconnect [this]
-    (when-not (:managed-connection? (:db config))
-      (disconnect* @connection))
+    (disconnect* @connection config)
     (reset! connection nil)))
 
 (defmethod proto/make-store :database
