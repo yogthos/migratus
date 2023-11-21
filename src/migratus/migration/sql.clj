@@ -61,14 +61,18 @@
   "Adapt db-do-commands to jdbc
    https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/doc/migration-from-clojure-java-jdbc"
   [connectable commands]
-  (if (instance? Connection connectable)
+  (cond
+    (instance? Connection connectable)
     (with-open [stmt (prepare/statement connectable)]
       ;; We test for (string? commands) because migratus.test.migrations.sql tests fails otherwise.
-      ;; Perhaps it is a bug in migratus.test.mock implementation ?! 
+      ;; Perhaps it is a bug in migratus.test.mock implementation ?!
       (if (string? commands)
         (run! #(.addBatch stmt %) [commands])
         (run! #(.addBatch stmt %) commands))
       (into [] (.executeBatch stmt)))
+    (:connection connectable)
+    (do-commands (:connection connectable) commands)
+    :else
     (with-open [conn (jdbc/get-connection connectable)]
       (do-commands conn commands))))
 
@@ -100,7 +104,7 @@
   (when-let [commands (mapcat (wrap-modify-sql-fn modify-sql-fn) (split-commands sql expect-results?))]
     (if (use-tx? sql)
       (jdbc/with-transaction [t-con (or conn db)]
-        (run-sql* config t-con expect-results? commands direction)) 
+        (run-sql* config t-con expect-results? commands direction))
       (run-sql* config (or conn db) expect-results? commands direction))))
 
 (defrecord SqlMigration [id name up down]

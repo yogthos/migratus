@@ -68,7 +68,7 @@
               "connect* response has a ^java.sql.Connection")
           (is (= connection (:connection res))
               "connect* response contains the same connection we passed")))))
-  
+
   (testing "connect* works with a ^javax.sql.DataSource"
     (let [ds (jdbc/get-datasource db-mem)
           res (db/connect* {:datasource ds})]
@@ -268,7 +268,7 @@
   (next.jdbc.sql/insert! (:db config) "foo_bar" {:id -1})
   (jdbc/execute-one! (:db config) ["insert into foo_bar(id) values (?)" -1] {:return-keys false})
 
-  (jdbc/execute! (:db config) 
+  (jdbc/execute! (:db config)
                  [(str "CREATE TABLE " (q/ansi "table")
                        "(id BIGINT UNIQUE NOT NULL, applied TIMESTAMP,
                         description VARCHAR(1024) )")])
@@ -346,8 +346,8 @@
         (utils/recursive-delete migration-dir)))))
 
 
-(comment 
-  
+(comment
+
   (run-test test-migration-ignored-when-already-reserved)
   )
 
@@ -399,6 +399,18 @@
     (is (test-sql/verify-table-exists? test-config "foo"))
     (core/down test-config 20111202110600)
     (is (not (test-sql/verify-table-exists? test-config "foo")))))
+
+(deftest test-no-tx-migration-pass-conn
+  (with-open [assertions-conn (jdbc/get-connection (:db config))]
+    (let [assertions-config (assoc config
+                                   :migration-dir "migrations-no-tx"
+                                   :db {:connection assertions-conn})
+          test-config #(assoc assertions-config :db {:connection (jdbc/get-connection (:db config))})]
+      (is (not (test-sql/verify-table-exists? assertions-config "foo")))
+      (core/migrate (test-config))
+      (is (test-sql/verify-table-exists? assertions-config "foo"))
+      (core/down (test-config) 20111202110600)
+      (is (not (test-sql/verify-table-exists? assertions-config "foo"))))))
 
 (deftest test-cancellation-observed
   (let [lines-processed (atom 0)
