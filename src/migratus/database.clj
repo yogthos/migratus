@@ -297,7 +297,7 @@
                   (get config :init-in-transaction? true)
                   (props/load-properties config))
         (finally
-          (disconnect* conn)))))
+          (proto/disconnect this)))))
   (completed-ids [this]
     (completed-ids* @connection (migration-table-name config)))
   (completed [this]
@@ -322,7 +322,8 @@
                   (migration-table-name config)
                   (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))))
   (disconnect [this]
-    (disconnect* @connection)
+    (when-not (:managed-connection? (:db config))
+      (disconnect* @connection))
     (reset! connection nil)))
 
 (defmethod proto/make-store :database
