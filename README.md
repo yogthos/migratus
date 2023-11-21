@@ -1,6 +1,6 @@
 # Migratus
 
-![CircleCI status](https://circleci.com/gh/yogthos/migratus.svg?style=svg)](https://circleci.com/gh/yogthos/migratus)
+[![CircleCI](https://circleci.com/gh/yogthos/migratus.svg?style=svg)](https://circleci.com/gh/yogthos/migratus)
 
 ![MIGRATE ALL THE THINGS!](https://cdn.rawgit.com/yogthos/migratus/master/migrate.png)
 
