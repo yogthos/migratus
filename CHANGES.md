@@ -1,3 +1,12 @@
+### Unreleased
+* Improved CLI interface
+* Improved CLI documentation
+* Added example project
+
+### 1.5.3
+* [Improved CLI options](https://github.com/yogthos/migratus/pull/251)
+* More improvements in CLI
+
 ### 1.5.2
 * [CLI options](https://github.com/yogthos/migratus/pull/244)
 * [logging improvements](https://github.com/yogthos/migratus/pull/245)
