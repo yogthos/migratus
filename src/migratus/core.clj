@@ -18,7 +18,8 @@
     [clojure.tools.logging :as log]
     [migratus.migrations :as mig]
     [migratus.protocols :as proto]
-    migratus.database))
+    migratus.database
+    [next.jdbc.transaction :as jdbc-tx]))
 
 (defmacro ^{:private true} assert-args
   [& pairs]
@@ -48,15 +49,16 @@
             (proto/disconnect ~form)))))))
 
 (defn run [store ids command]
-  (try
-    (log/info "Starting migrations")
-    (proto/connect store)
-    (command store ids)
-    (catch java.sql.BatchUpdateException e
-      (throw (or (.getNextException e) e)))
-    (finally
-      (log/info "Ending migrations")
-      (proto/disconnect store))))
+  (binding [jdbc-tx/*nested-tx* :ignore]
+    (try
+      (log/info "Starting migrations")
+      (proto/connect store)
+      (command store ids)
+      (catch java.sql.BatchUpdateException e
+        (throw (or (.getNextException e) e)))
+      (finally
+        (log/info "Ending migrations")
+        (proto/disconnect store)))))
 
 (defn require-plugin [{:keys [store]}]
   (when-not store
