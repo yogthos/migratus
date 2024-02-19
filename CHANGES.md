@@ -1,3 +1,6 @@
+### 1.5.5
+* [allow migrations when next.jdbc.transaction/*nested-tx* is set to :prohibit](https://github.com/yogthos/migratus/pull/261)
+
 ### 1.5.4
 * [handle connnection in no-tx mode](https://github.com/yogthos/migratus/pull/254)
 * [allow externally managed connections](https://github.com/yogthos/migratus/pull/256)
