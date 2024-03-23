@@ -1,3 +1,6 @@
+### 1.5.6
+* [Fix spec problem for next.jdbc.sql/insert! and next.jdbc.sql/delete! ](https://github.com/yogthos/migratus/pull/262)
+
 ### 1.5.5
 * [allow migrations when next.jdbc.transaction/*nested-tx* is set to :prohibit](https://github.com/yogthos/migratus/pull/261)
 
