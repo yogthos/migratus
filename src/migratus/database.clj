@@ -46,11 +46,12 @@
 (defn mark-reserved [db table-name]
   (boolean
     (try
-      (sql/insert! (connection-or-spec db) table-name  {:id reserved-id} {:return-keys false})
-      (catch Exception _e))))
+      (sql/insert! (connection-or-spec db) (keyword table-name) {:id reserved-id} {:return-keys false})
+      (catch Exception e
+        (log/infof "mark-reserved failed %s" (ex-message e))))))
 
 (defn mark-unreserved [db table-name]
-  (sql/delete! (connection-or-spec db) table-name ["id=?" reserved-id]))
+  (sql/delete! (connection-or-spec db) (keyword table-name) ["id=?" reserved-id]))
 
 (defn complete? [db table-name id]
   (first (sql/query (connection-or-spec db)
@@ -59,9 +60,10 @@
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
   (sql/insert! (connection-or-spec db)
-               table-name {:id          id
-                           :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
-                           :description description}))
+               (keyword table-name)
+               {:id          id
+                :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
+                :description description}))
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
