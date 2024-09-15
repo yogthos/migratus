@@ -1,3 +1,5 @@
+### 1.5.7
+* add exclusion for `parse-long` in `migratus.cli`
 ### 1.5.6
 * [Fix spec problem for next.jdbc.sql/insert! and next.jdbc.sql/delete! ](https://github.com/yogthos/migratus/pull/262)
 

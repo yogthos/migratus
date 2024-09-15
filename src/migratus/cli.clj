@@ -1,4 +1,5 @@
 (ns migratus.cli
+  (:refer-clojure :exclude [parse-long])
   (:require [clojure.data.json :as json]
             [clojure.core :as core]
             [clojure.java.io :as io]
