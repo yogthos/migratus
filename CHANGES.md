@@ -1,3 +1,5 @@
+### 1.5.8
+* fix for resolving the migration path from a jar on Windows
 ### 1.5.7
 * add exclusion for `parse-long` in `migratus.cli`
 ### 1.5.6
