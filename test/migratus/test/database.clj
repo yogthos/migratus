@@ -391,6 +391,12 @@
   (log/debug "running backout tests without tx")
   (test-backing-out* (assoc config :migration-dir "migrations-intentionally-broken-no-tx")))
 
+(deftest test-comment-parsing-in-migration
+  (log/debug "running comment parsing test")
+  (is (not (test-sql/verify-table-exists? config "quux")))
+  (core/migrate (assoc config :migration-dir "migrations-parse"))
+  (is (test-sql/verify-table-exists? config "quux"))
+  (core/down config 20241012170200))
 
 (deftest test-no-tx-migration
   (let [{:keys [db migration-table-name] :as test-config} (assoc config :migration-dir "migrations-no-tx")]
