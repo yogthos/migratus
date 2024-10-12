@@ -1,3 +1,6 @@
+### 1.5.9
+* [Fix bug in sanitizing in-line comments](https://github.com/yogthos/migratus/pull/269)
+
 ### 1.5.8
 * fix for resolving the migration path from a jar on Windows
 ### 1.5.7
