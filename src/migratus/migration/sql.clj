@@ -10,8 +10,8 @@
     java.util.regex.Pattern))
 
 (def ^Pattern sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
-(def ^Pattern sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
-(def ^Pattern sql-comment-without-expect (Pattern/compile "^--((?! *expect).)*$" Pattern/MULTILINE))
+(def ^Pattern sql-comment (Pattern/compile "--.*" Pattern/MULTILINE))
+(def ^Pattern sql-comment-without-expect (Pattern/compile "--((?! *expect).)*$" Pattern/MULTILINE))
 (def ^Pattern empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
 (defn use-tx? [sql]
