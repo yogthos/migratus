@@ -51,7 +51,7 @@
 
 (defn parse-commands-sql [{:keys [command-separator]} commands]
   (when (and (nil? command-separator) (> (count (re-seq #"(?m).+?;" commands)) 1))
-    (log/error "Mismatch between number of SQL statements and '--;;' separators. Please ensure each statement is separated by '--;;'."))
+    (log/warn "Mismatch between number of SQL statements and '--;;' separators. Please ensure each statement is separated by '--;;'."))
   (if command-separator
     (->>
       (str/split commands (re-pattern command-separator))
