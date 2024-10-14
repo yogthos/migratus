@@ -1,10 +1,14 @@
+### 1.6.0 [Warn on multiple statements without delimiter](https://github.com/yogthos/migratus/pull/270)
+
 ### 1.5.9
 * [Fix bug in sanitizing in-line comments](https://github.com/yogthos/migratus/pull/269)
 
 ### 1.5.8
 * fix for resolving the migration path from a jar on Windows
+
 ### 1.5.7
 * add exclusion for `parse-long` in `migratus.cli`
+
 ### 1.5.6
 * [Fix spec problem for next.jdbc.sql/insert! and next.jdbc.sql/delete! ](https://github.com/yogthos/migratus/pull/262)
 
