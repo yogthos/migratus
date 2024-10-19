@@ -90,6 +90,18 @@
          (gather-migrations config)
          (map (fn [e] {:id (:id e) :name (:name e) :applied (:applied e)})))))
 
+(defn migrations-between 
+  "Returns a list of migrations between from(inclusive) and to(inclusive)."
+  [config from to]
+  (with-store
+    [store (proto/make-store config)]
+    (->> store
+         (gather-migrations config)
+         (filter (fn [e]
+                   (and (>= (:id e) from)
+                        (<= (:id e) to))))
+         (sort-by :id))))
+
 (defn uncompleted-migrations
   "Returns a list of uncompleted migrations.
    Fetch list of applied migrations from db and existing migrations from migrations dir."
@@ -226,6 +238,7 @@
     (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
                       (str/join "\n" migrations)))
     (mapv second migrations)))
+
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a
