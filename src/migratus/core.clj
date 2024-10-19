@@ -74,10 +74,12 @@
   "Returns a list of all migrations from migration dir and db
   with enriched data:
     - date and time when was applied;
+    - migration type (:sql or :edn);
     - description;"
   [config store]
   (let [completed-migrations (vec (proto/completed store))
-        available-migrations (mig/list-migrations config)
+        available-migrations (->> (mig/list-migrations config)
+                                  (map (fn [mig] (assoc mig :mig-type (proto/migration-type mig)))))
         merged-migrations-data (apply merge completed-migrations available-migrations)
         grouped-migrations-by-id (group-by :id merged-migrations-data)
         unify-mig-values (fn [[_ v]] (apply merge v))]
@@ -258,6 +260,8 @@
         ups (str/join "\n--;;\n" (map :up migrations))
         downs (str/join "\n--;;\n" (reverse (map :down migrations)))
         last-id (:id (last migrations))]
+    (when (not (every? #(= (:mig-type %) :sql) migrations))
+      (throw (IllegalArgumentException. "All migrations must be of the same type.")))
     (doseq [migration migrations]
       (when (not (:applied migration))
         (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
