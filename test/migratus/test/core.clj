@@ -144,6 +144,23 @@
         (is (= ["id-2" "id-3" "id-4"]
                (migratus.core/pending-list config)))))))
 
+(deftest test-squashing-list
+  (let [ups    (atom [])
+        downs  (atom [])
+        config {:store         :mock
+                :completed-ids (atom #{1 3})}]
+    (with-redefs [mig/list-migrations (constantly (migrations ups downs))]
+      (testing "should throw an exception if the migration is not applied"
+        (is (thrown? IllegalArgumentException
+               (migratus.core/squashing-list config 1 3))))
+      (testing "should bring up an uncompleted migration"
+        (up config 4 2)
+        (is (= [2 4] @ups))
+        (is (empty? @downs)))
+      (testing "should return the list of squashing migrations"
+        (is (= ["id-1" "id-3" "id-2"]
+               (migratus.core/squashing-list config 1 3)))))))
+
 (deftest test-select-migrations
   (let [ups    (atom [])
         downs  (atom [])

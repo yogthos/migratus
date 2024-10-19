@@ -32,6 +32,8 @@
   (init [this])
   (completed-ids [this]
     @completed-ids)
+  (completed [this]
+    (map (fn [id] {:id id :applied true}) @completed-ids))
   (migrate-up [this migration]
     (proto/up migration config)
     (swap! completed-ids conj (proto/id migration))
