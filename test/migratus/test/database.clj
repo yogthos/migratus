@@ -245,6 +245,14 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
+(deftest test-squash
+  (core/migrate config)
+  (core/squash-between config "test-squash" 20111202110600 20120827170200)
+  (is (test-sql/verify-table-exists? config "foo"))
+  (is (test-sql/verify-table-exists? config "bar"))
+  (is (test-sql/verify-table-exists? config "quux"))
+  (is (test-sql/verify-table-exists? config "quux2")))
+
 (comment
 
   (use 'clojure.tools.trace)
@@ -259,6 +267,7 @@
   (trace-ns next.jdbc.protocols)
 
   (run-test test-rollback-until-just-after)
+  (run-test test-squash)
 
   (core/migrate config)
   (db/mark-unreserved (:db config) "foo_bar")
