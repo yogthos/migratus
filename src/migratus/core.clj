@@ -261,6 +261,8 @@
     (doseq [migration migrations]
       (when (not (:applied migration))
         (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
+    (doseq [migration migrations]
+      (mig/destroy config (:name migration)))
     (mig/squash config last-id name :sql ups downs)))
 
 (defn migrate-until-just-before

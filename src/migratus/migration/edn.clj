@@ -64,3 +64,7 @@
 (defmethod proto/migration-files* :edn
   [x migration-name]
   [(str migration-name "." (proto/get-extension* x))])
+
+(defmethod proto/squash-migration-files* :edn
+  [x migration-dir migration-name ups downs]
+  (throw (Exception. "EDN migrations not implemented")))

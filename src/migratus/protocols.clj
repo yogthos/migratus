@@ -81,3 +81,13 @@
   (for [[k v] (methods get-extension*)
         :when (-> k (= :default) not)]
     (v k)))
+
+(defmulti squash-migration-files*
+  "Dispatcher to read a list of files and squash them into a single migration"
+  (fn [mig-type migration-dir migration-name ups downs]
+    mig-type))
+
+(defmethod squash-migration-files* :default
+  [mig-type migration-dir migration-name ups downs]
+  (throw (Exception. (format "Unknown migration type '%s'"
+                             (clojure.core/name mig-type)))))

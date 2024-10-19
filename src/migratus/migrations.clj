@@ -175,14 +175,7 @@
                         (utils/get-parent-migration-dir config)
                         (utils/get-migration-dir config))
         migration-name (->kebab-case (str last-id "-" name))]
-    (doall
-     (for [[mig-file sql] (map vector (proto/migration-files* migration-type migration-name) [ups downs])]
-       (let [file (io/file migration-dir mig-file)]
-         (.createNewFile file)
-         (with-open [writer (java.io.BufferedWriter. (java.io.FileWriter. file))]
-           (.write writer sql))
-         (.getName (io/file migration-dir mig-file)))))))
-
+    (proto/squash-migration-files* migration-type migration-dir migration-name ups downs)))
 
 (defn destroy [config name]
   (let [migration-dir  (utils/find-migration-dir
