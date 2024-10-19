@@ -112,6 +112,7 @@
   proto/Migration
   (id [this]
     id)
+  (migration-type [this] :sql)
   (name [this]
     name)
   (tx? [this direction]

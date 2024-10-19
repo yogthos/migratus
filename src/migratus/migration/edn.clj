@@ -9,8 +9,9 @@
 (defrecord EdnMigration [id name up-fn down-fn transaction? up-args down-args]
   proto/Migration
   (id [this] id)
+  (migration-type [this] :edn)
   (name [this] name)
-  (tx? [this direction] (if (nil? transaction?) true transaction?))
+  (tx? [this direction] (if (nil? transaction?) true transaction?)) 
   (up [this config]
     (when up-fn
       (apply up-fn config up-args)))

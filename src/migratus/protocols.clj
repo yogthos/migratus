@@ -16,6 +16,7 @@
 
 (defprotocol Migration
   (id [this] "Id of this migration.")
+  (migration-type [this] "Type of this migration.")
   (name [this] "Name of this migration")
   (tx? [this direction] "Whether this migration should run in a transaction.")
   (up [this config] "Bring this migration up.")
