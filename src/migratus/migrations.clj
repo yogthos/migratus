@@ -168,7 +168,22 @@
        (let [file (io/file migration-dir mig-file)]
          (.createNewFile file)
          (.getName (io/file migration-dir mig-file)))))))
-  
+
+(defn squash [config last-id name migration-type ups downs]
+  ;; FIXME: only support sql migrations for now
+  (let [migration-dir  (find-or-create-migration-dir
+                        (utils/get-parent-migration-dir config)
+                        (utils/get-migration-dir config))
+        migration-name (->kebab-case (str last-id "-" name))]
+    (doall
+     (for [[mig-file sql] (map vector (proto/migration-files* migration-type migration-name) [ups downs])]
+       (let [file (io/file migration-dir mig-file)]
+         (.createNewFile file)
+         (with-open [writer (java.io.BufferedWriter. (java.io.FileWriter. file))]
+           (.write writer sql))
+         (.getName (io/file migration-dir mig-file)))))))
+
+
 (defn destroy [config name]
   (let [migration-dir  (utils/find-migration-dir
                          (utils/get-migration-dir config))
