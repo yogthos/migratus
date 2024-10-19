@@ -239,6 +239,29 @@
                       (str/join "\n" migrations)))
     (mapv second migrations)))
 
+(defn squashing-list
+  "List to be squashed migrations"
+  [config from to]
+  (let [migrations (migrations-between config from to)]
+    (log/debug (apply str "You have " (count migrations) " migrations to be squashed:\n"
+                      (str/join "\n" migrations)))
+    (doseq [migration migrations]
+      (when (not (:applied migration))
+        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
+    (mapv :name migrations)))
+
+(defn squash-between
+  "Squash migrations between from and to.
+   Throw exception if any migration between is not applied."
+  [config name from to]
+  (let [migrations (migrations-between config from to)
+        ups (str/join "\n--;;\n" (map :up migrations))
+        downs (str/join "\n--;;\n" (reverse (map :down migrations)))
+        last-id (:id (last migrations))]
+    (doseq [migration migrations]
+      (when (not (:applied migration))
+        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
+    (mig/squash config last-id name :sql ups downs)))
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a
