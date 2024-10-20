@@ -36,6 +36,8 @@
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
+  (squash [this migrations]
+    "Squash a batch of migrations into a single migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]
