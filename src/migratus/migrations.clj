@@ -169,12 +169,11 @@
          (.createNewFile file)
          (.getName (io/file migration-dir mig-file)))))))
 
-(defn squash [config last-id name migration-type ups downs]
-  ;; FIXME: only support sql migrations for now
+(defn create-squash [config id name migration-type ups downs]
   (let [migration-dir  (find-or-create-migration-dir
                         (utils/get-parent-migration-dir config)
                         (utils/get-migration-dir config))
-        migration-name (->kebab-case (str last-id "-" name))]
+        migration-name (->kebab-case (str id "-" name))]
     (proto/squash-migration-files* migration-type migration-dir migration-name ups downs)))
 
 (defn destroy [config name]
