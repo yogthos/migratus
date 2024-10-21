@@ -18,6 +18,8 @@
   proto/Migration
   (id [this]
     id)
+  (migration-type [this]
+    :sql)
   (name [this]
     name)
   (up [this config]
