@@ -36,7 +36,7 @@
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
-  (squash [this migrations]
+  (squash [this ids name]
     "Squash a batch of migrations into a single migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
@@ -86,7 +86,7 @@
     (v k)))
 
 (defmulti squash-migration-files*
-  "Dispatcher to read a list of files and squash them into a single migration"
+  "Dispatcher to read a list of files and squash them into a single migration file"
   (fn [mig-type migration-dir migration-name ups downs]
     mig-type))
 
