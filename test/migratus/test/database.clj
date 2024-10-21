@@ -362,23 +362,19 @@
                        :migration-dir "migrations-squash"})]
     (try
       (utils/recursive-delete migration-dir)
-      (copy-dir (io/file "test/migrations") migration-dir)
+      (copy-dir (io/file "test/migrations1") migration-dir)
       (core/migrate config)
-      (core/create-squash config "test-squash" 20111202110600 20241202113000)
-      (is (test-sql/verify-table-exists? config "foo"))
-      (is (test-sql/verify-table-exists? config "bar"))
-      (is (test-sql/verify-table-exists? config "quux"))
-      (is (test-sql/verify-table-exists? config "quux2"))
-      (is (.exists (io/file (str migration-dir "/20120827170200-test-squash.up.sql"))))
-      (is (.exists (io/file (str migration-dir "/20120827170200-test-squash.down.sql"))))
+      (core/create-squash config 20111202110600 20241202113000 "test-squash")
+      (is (test-sql/verify-table-exists? config "foo1"))
+      (is (test-sql/verify-table-exists? config "bar1"))
+      (is (.exists (io/file (str migration-dir "/20220604113000-test-squash.up.sql"))))
+      (is (.exists (io/file (str migration-dir "/20220604113000-test-squash.down.sql"))))
       (core/squash-between config 20111202110600 20241202113000 "test-squash")
-      (is (test-sql/verify-table-exists? config "foo"))
-      (is (test-sql/verify-table-exists? config "bar"))
-      (is (test-sql/verify-table-exists? config "quux"))
-      (is (test-sql/verify-table-exists? config "quux2"))
+      (is (test-sql/verify-table-exists? config "foo1"))
+      (is (test-sql/verify-table-exists? config "bar1"))
       (let [from-db (verify-data config (:migration-table-name config))]
         (is (= (map #(dissoc % :applied) from-db)
-               '({:id          20120827170200,
+               '({:id          20220604113000,
                   :description "test-squash"}))))
       (finally
         (utils/recursive-delete migration-dir)))))

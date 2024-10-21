@@ -275,7 +275,8 @@
     (let [completed-ids (->> (proto/completed-ids store)
                              (filter (fn [mig-id]
                                        (and (>= mig-id from-id)
-                                            (<= mig-id to-id)))))]
+                                            (<= mig-id to-id))))
+                             (sort >))]
       (log/debug (apply str "You have " (count completed-ids) " migrations to be squashed:\n"
                         (str/join "\n" completed-ids)))
       (proto/squash store completed-ids name))))
