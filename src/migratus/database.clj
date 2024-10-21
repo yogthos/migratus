@@ -127,7 +127,7 @@
       (try
         (when (complete-all? db table-name ids)
           (mark-not-complete-all db table-name ids)
-          (mark-complete db table-name name (last ids)) 
+          (mark-complete db table-name name (first ids)) 
           :success)
         (finally
           (mark-unreserved db table-name)))
