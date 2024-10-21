@@ -245,13 +245,6 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
-(deftest test-squash
-  (core/migrate config)
-  (core/squash-between config "test-squash" 20111202110600 20120827170200)
-  (is (test-sql/verify-table-exists? config "foo"))
-  (is (test-sql/verify-table-exists? config "bar"))
-  (is (test-sql/verify-table-exists? config "quux"))
-  (is (test-sql/verify-table-exists? config "quux2")))
 
 (comment
 
@@ -353,6 +346,59 @@
 
       (finally
         (utils/recursive-delete migration-dir)))))
+
+(deftest test-squashing-list
+  (core/migrate config)
+  (let [squashing-list (core/squashing-list config 20111202110600 20241202113000)]
+    (is (= squashing-list ["create-foo-table"
+                           "create-bar-table"
+                           "multiple-statements"]))))
+
+(deftest test-create-squash-and-squash-between
+  (let [migration-dir (io/file "test/migrations-squash")
+        config (merge config
+                      test-edn/test-config
+                      {:parent-migration-dir "test"
+                       :migration-dir "migrations-squash"})]
+    (try
+      (utils/recursive-delete migration-dir)
+      (copy-dir (io/file "test/migrations") migration-dir)
+      (core/migrate config)
+      (core/create-squash config "test-squash" 20111202110600 20241202113000)
+      (is (test-sql/verify-table-exists? config "foo"))
+      (is (test-sql/verify-table-exists? config "bar"))
+      (is (test-sql/verify-table-exists? config "quux"))
+      (is (test-sql/verify-table-exists? config "quux2"))
+      (is (.exists (io/file (str migration-dir "/20120827170200-test-squash.up.sql"))))
+      (is (.exists (io/file (str migration-dir "/20120827170200-test-squash.down.sql"))))
+      (core/squash-between config 20111202110600 20241202113000 "test-squash")
+      (is (test-sql/verify-table-exists? config "foo"))
+      (is (test-sql/verify-table-exists? config "bar"))
+      (is (test-sql/verify-table-exists? config "quux"))
+      (is (test-sql/verify-table-exists? config "quux2"))
+      (let [from-db (verify-data config (:migration-table-name config))]
+        (is (= (map #(dissoc % :applied) from-db)
+               '({:id          20120827170200,
+                  :description "test-squash"}))))
+      (finally
+        (utils/recursive-delete migration-dir)))))
+
+(deftest test-create-squash-with-not-applied-migrations
+  (let [migration-dir (io/file "test/migrations-squash")
+        config (merge config
+                      test-edn/test-config
+                      {:parent-migration-dir "test"
+                       :migration-dir "migrations-squash"})]
+    (try
+      (utils/recursive-delete migration-dir)
+      (copy-dir (io/file "test/migrations") migration-dir)
+      (core/create-squash config 20111202110600 20241202113000 "test-squash")
+      (catch IllegalArgumentException e
+        (is (re-find #"Migration 20111202110600 is not applied. Apply it first." (.getMessage e))))
+      (finally
+        (utils/recursive-delete migration-dir)))))
+
+
 
 
 (comment
