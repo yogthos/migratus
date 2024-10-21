@@ -270,6 +270,17 @@
         (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
     (mapv :name migrations)))
 
+(defn squash-between
+    "Squash a batch of migrations into a single migration"
+    [config from-id to-id name]
+  (with-store [store (proto/make-store config)]
+    (let [completed-ids (->> (proto/completed-ids store)
+                             (filter (fn [mig-id]
+                                       (and (>= mig-id from-id)
+                                            (<= mig-id to-id)))))]
+      (log/debug (apply str "You have " (count completed-ids) " migrations to be squashed:\n"
+                        (str/join "\n" completed-ids)))
+      (proto/squash store completed-ids name))))
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a
