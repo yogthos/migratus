@@ -395,7 +395,9 @@ This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and
    | `migratus.core/reset`                 | Reset the database by down-ing all migrations successfully applied, then up-ing all migratinos.
    | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                              |
    | `migratus.core/migrate-until-just-before` | Run `up` for for any pending migrations which precede the given migration id (good for testing migrations).                                        |
-
+   | `migratus.core/squashing-list`            | List migrations to be squashed between the given migration ids.
+   | `migratus.core/create-squash`             | Create a new squash migration file between the given migration ids.
+   | `migratus.core/squash-between`            | Apply squashed migrations between(both inclusive) the given migration ids.
 See the docstrings of each function for more details.
 
 Migratus can also be used from leiningen if you add it as a plugin dependency.
