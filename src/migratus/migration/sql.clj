@@ -3,7 +3,8 @@
             [next.jdbc.prepare :as prepare]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto])
+            [migratus.protocols :as proto]
+            [clojure.java.io :as io])
   (:import
     (java.sql Connection
               SQLException)
@@ -113,6 +114,7 @@
   proto/Migration
   (id [this]
     id)
+  (migration-type [this] :sql)
   (name [this]
     name)
   (tx? [this direction]
@@ -142,3 +144,13 @@
   (let [ext (proto/get-extension* x)]
     [(str migration-name ".up." ext)
      (str migration-name ".down." ext)]))
+
+(defmethod proto/squash-migration-files* :sql
+  [x migration-dir migration-name ups downs]
+  (doall
+   (for [[mig-file sql] (map vector (proto/migration-files* x migration-name) [ups downs])]
+     (let [file (io/file migration-dir mig-file)]
+       (.createNewFile file)
+       (with-open [writer (java.io.BufferedWriter. (java.io.FileWriter. file))]
+         (.write writer sql))
+       (.getName (io/file migration-dir mig-file))))))

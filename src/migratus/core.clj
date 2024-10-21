@@ -74,10 +74,12 @@
   "Returns a list of all migrations from migration dir and db
   with enriched data:
     - date and time when was applied;
+    - migration type (:sql or :edn);
     - description;"
   [config store]
   (let [completed-migrations (vec (proto/completed store))
-        available-migrations (mig/list-migrations config)
+        available-migrations (->> (mig/list-migrations config)
+                                  (map (fn [mig] (assoc mig :mig-type (proto/migration-type mig)))))
         merged-migrations-data (apply merge completed-migrations available-migrations)
         grouped-migrations-by-id (group-by :id merged-migrations-data)
         unify-mig-values (fn [[_ v]] (apply merge v))]
@@ -89,6 +91,18 @@
     (->> store
          (gather-migrations config)
          (map (fn [e] {:id (:id e) :name (:name e) :applied (:applied e)})))))
+
+(defn migrations-between
+  "Returns a list of migrations between from(inclusive) and to(inclusive)."
+  [config from to]
+  (with-store
+    [store (proto/make-store config)]
+    (->> store
+         (gather-migrations config)
+         (filter (fn [e]
+                   (and (>= (:id e) from)
+                        (<= (:id e) to))))
+         (sort-by :id))))
 
 (defn uncompleted-migrations
   "Returns a list of uncompleted migrations.
@@ -198,6 +212,22 @@
   [config & [name type]]
   (mig/create config name (or type :sql)))
 
+(defn create-squash
+  "Delete all migrations between from and to,
+   squash them into a single migration with the given name and last applied migration date."
+  [config & [from-id to-id name]]
+  (let [migrations (migrations-between config from-id to-id)
+        ups (str/join "\n--;;\n" (map :up migrations))
+        downs (str/join "\n--;;\n" (reverse (map :down migrations)))
+        id (:id (last migrations))]
+    (when (not (every? #(= (:mig-type %) :sql) migrations))
+      (throw (IllegalArgumentException. "All migrations must be of the same type.")))
+    (doseq [migration migrations]
+      (when (not (:applied migration))
+        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first."))))
+      (mig/destroy config (:name migration)))
+    (mig/create-squash config id name :sql ups downs)))
+
 (defn destroy
   "Destroy migration"
   [config & [name]]
@@ -226,6 +256,30 @@
     (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
                       (str/join "\n" migrations)))
     (mapv second migrations)))
+
+(defn squashing-list
+  "List to be squashed migrations"
+  [config from to]
+  (let [migrations (migrations-between config from to)]
+    (log/debug (apply str "You have " (count migrations) " migrations to be squashed:\n"
+                      (str/join "\n" migrations)))
+    (doseq [migration migrations]
+      (when (not (:applied migration))
+        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
+    (mapv :name migrations)))
+
+(defn squash-between
+    "Squash a batch of migrations into a single migration"
+    [config from-id to-id name]
+  (with-store [store (proto/make-store config)]
+    (let [completed-ids (->> (proto/completed-ids store)
+                             (filter (fn [mig-id]
+                                       (and (>= mig-id from-id)
+                                            (<= mig-id to-id))))
+                             (sort >))]
+      (log/debug (apply str "You have " (count completed-ids) " migrations to be squashed:\n"
+                        (str/join "\n" completed-ids)))
+      (proto/squash store completed-ids name))))
 
 (defn migrate-until-just-before
   "Run all migrations preceding migration-id. This is useful when testing that a

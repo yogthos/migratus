@@ -168,7 +168,14 @@
        (let [file (io/file migration-dir mig-file)]
          (.createNewFile file)
          (.getName (io/file migration-dir mig-file)))))))
-  
+
+(defn create-squash [config id name migration-type ups downs]
+  (let [migration-dir  (find-or-create-migration-dir
+                        (utils/get-parent-migration-dir config)
+                        (utils/get-migration-dir config))
+        migration-name (->kebab-case (str id "-" name))]
+    (proto/squash-migration-files* migration-type migration-dir migration-name ups downs)))
+
 (defn destroy [config name]
   (let [migration-dir  (utils/find-migration-dir
                          (utils/get-migration-dir config))

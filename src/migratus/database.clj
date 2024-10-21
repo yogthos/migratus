@@ -14,6 +14,7 @@
 (ns migratus.database
   (:require [clojure.java.io :as io]
             [clojure.tools.logging :as log]
+            [clojure.string :as str]
             [migratus.migration.sql :as sql-mig]
             [migratus.properties :as props]
             [migratus.protocols :as proto]
@@ -57,6 +58,14 @@
   (first (sql/query (connection-or-spec db)
                     [(str "SELECT * from " table-name " WHERE id=?") id])))
 
+(defn complete-all? [db table-name ids]
+  (when (seq ids)
+    (not-empty
+     (sql/query (connection-or-spec db)
+                  [(str "SELECT * FROM " table-name " WHERE id IN ("
+                        (str/join "," ids)
+                        ")")]))))
+
 (defn mark-complete [db table-name description id]
   (log/debug "marking" id "complete")
   (sql/insert! (connection-or-spec db)
@@ -68,6 +77,13 @@
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
   (sql/delete! (connection-or-spec db) table-name ["id=?" id]))
+
+(defn mark-not-complete-all [db table-name ids]
+  (log/debug "marking" ids "not complete")
+  (when (seq ids)
+    (jdbc/execute! db [(str "DELETE FROM " table-name " WHERE id IN ("
+                           (str/join "," ids)
+                           ")")])))
 
 (defn migrate-up* [db {:keys [tx-handles-ddl?] :as config} {:keys [name] :as migration}]
   (let [id         (proto/id migration)
@@ -100,6 +116,18 @@
         (when (complete? db table-name id)
           (proto/down migration (assoc config :conn db))
           (mark-not-complete db table-name id)
+          :success)
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
+
+(defn squash* [db config ids name]
+  (let [table-name (migration-table-name config)]
+    (if (mark-reserved db table-name)
+      (try
+        (when (complete-all? db table-name ids)
+          (mark-not-complete-all db table-name ids)
+          (mark-complete db table-name name (first ids)) 
           :success)
         (finally
           (mark-unreserved db table-name)))
@@ -318,6 +346,11 @@
                   (jdbc/with-transaction [t-con (connection-or-spec @connection)]
                     (migrate-down* t-con config migration))
                   (migrate-down* (:db config) config migration)))
+  (squash [this ids name]
+          (log/info "Connection is " @connection
+                    "Config is" (update config :db utils/censor-password))
+          (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+            (squash* t-con config ids name)))
   (connect [this]
     (reset! connection (connect* (:db config)))
     (init-schema! @connection
