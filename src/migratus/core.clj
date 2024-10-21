@@ -215,20 +215,18 @@
 (defn create-squash
   "Delete all migrations between from and to,
    squash them into a single migration with the given name and last applied migration date."
-  [config & [name from-id to-id]]
+  [config & [from-id to-id name]]
   (let [migrations (migrations-between config from-id to-id)
         ups (str/join "\n--;;\n" (map :up migrations))
         downs (str/join "\n--;;\n" (reverse (map :down migrations)))
-        last-id (:id (last migrations))]
+        id (:id (last migrations))]
     (when (not (every? #(= (:mig-type %) :sql) migrations))
       (throw (IllegalArgumentException. "All migrations must be of the same type.")))
     (doseq [migration migrations]
       (when (not (:applied migration))
-        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first.")))))
-    (doseq [migration migrations]
+        (throw (IllegalArgumentException. (str "Migration " (:id migration) " is not applied. Apply it first."))))
       (mig/destroy config (:name migration)))
-    (mig/create-squash config last-id name :sql ups downs)))
-
+    (mig/create-squash config id name :sql ups downs)))
 
 (defn destroy
   "Destroy migration"
