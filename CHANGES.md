@@ -1,4 +1,8 @@
-### 1.6.0 [Warn on multiple statements without delimiter](https://github.com/yogthos/migratus/pull/270)
+### 1.6.1
+* [Add functionality for squashing migrations](https://github.com/yogthos/migratus/pull/271)
+
+### 1.6.0
+* [Warn on multiple statements without delimiter](https://github.com/yogthos/migratus/pull/270)
 
 ### 1.5.9
 * [Fix bug in sanitizing in-line comments](https://github.com/yogthos/migratus/pull/269)
