@@ -1,3 +1,6 @@
+### 1.6.2
+* add dependency for clojure.data.json, bump up next-jdbc to 1.3.955
+
 ### 1.6.1
 * [Add functionality for squashing migrations](https://github.com/yogthos/migratus/pull/271)
 
