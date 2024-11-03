@@ -1,3 +1,6 @@
+### 1.6.3
+* add tools.cli to project.clj
+* 
 ### 1.6.2
 * add dependency for clojure.data.json, bump up next-jdbc to 1.3.955
 

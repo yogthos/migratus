@@ -1,4 +1,4 @@
-(defproject migratus "1.6.2"
+(defproject migratus "1.6.3"
   :description "MIGRATE ALL THE THINGS!"
   :url "http://github.com/yogthos/migratus"
   :license {:name "Apache License, Version 2.0"
@@ -8,6 +8,7 @@
   :dependencies [[com.github.seancorfield/next.jdbc "1.3.955"]
                  [org.clojure/clojure "1.10.1"]
                  [org.clojure/tools.logging "1.1.0"]
+                 [org.clojure/tools.cli "1.0.219"]
                  [org.clojure/data.json "2.5.0"]]
   :profiles {:dev {:dependencies [[jar-migrations "1.0.0"]
                                   [ch.qos.logback/logback-classic "1.2.3"]
