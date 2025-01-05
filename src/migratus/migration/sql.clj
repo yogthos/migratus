@@ -3,15 +3,16 @@
             [next.jdbc.prepare :as prepare]
             [clojure.string :as str]
             [clojure.tools.logging :as log]
-            [migratus.protocols :as proto])
+            [migratus.protocols :as proto]
+            [clojure.java.io :as io])
   (:import
     (java.sql Connection
               SQLException)
     java.util.regex.Pattern))
 
 (def ^Pattern sep (Pattern/compile "^.*--;;.*\r?\n" Pattern/MULTILINE))
-(def ^Pattern sql-comment (Pattern/compile "^--.*" Pattern/MULTILINE))
-(def ^Pattern sql-comment-without-expect (Pattern/compile "^--((?! *expect).)*$" Pattern/MULTILINE))
+(def ^Pattern sql-comment (Pattern/compile "--.*" Pattern/MULTILINE))
+(def ^Pattern sql-comment-without-expect (Pattern/compile "--((?! *expect).)*$" Pattern/MULTILINE))
 (def ^Pattern empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
 (defn use-tx? [sql]
@@ -50,6 +51,8 @@
         result))))
 
 (defn parse-commands-sql [{:keys [command-separator]} commands]
+  (when (and (nil? command-separator) (> (count (re-seq #"(?m).+?;" commands)) 1))
+    (log/warn "Mismatch between number of SQL statements and '--;;' separators. Please ensure each statement is separated by '--;;'."))
   (if command-separator
     (->>
       (str/split commands (re-pattern command-separator))
@@ -111,6 +114,7 @@
   proto/Migration
   (id [this]
     id)
+  (migration-type [this] :sql)
   (name [this]
     name)
   (tx? [this direction]
@@ -140,3 +144,13 @@
   (let [ext (proto/get-extension* x)]
     [(str migration-name ".up." ext)
      (str migration-name ".down." ext)]))
+
+(defmethod proto/squash-migration-files* :sql
+  [x migration-dir migration-name ups downs]
+  (doall
+   (for [[mig-file sql] (map vector (proto/migration-files* x migration-name) [ups downs])]
+     (let [file (io/file migration-dir mig-file)]
+       (.createNewFile file)
+       (with-open [writer (java.io.BufferedWriter. (java.io.FileWriter. file))]
+         (.write writer sql))
+       (.getName (io/file migration-dir mig-file))))))

@@ -9,6 +9,7 @@
 (defrecord EdnMigration [id name up-fn down-fn transaction? up-args down-args]
   proto/Migration
   (id [this] id)
+  (migration-type [this] :edn)
   (name [this] name)
   (tx? [this direction] (if (nil? transaction?) true transaction?))
   (up [this config]
@@ -64,3 +65,7 @@
 (defmethod proto/migration-files* :edn
   [x migration-name]
   [(str migration-name "." (proto/get-extension* x))])
+
+(defmethod proto/squash-migration-files* :edn
+  [x migration-dir migration-name ups downs]
+  (throw (Exception. "EDN migrations not implemented")))

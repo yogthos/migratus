@@ -95,6 +95,7 @@ cd examples/postgres
 # We export the configuration as env variable, but we can use cli or file as well
 export MIGRATUS_CONFIG='{:store :database :db {:jdbcUrl "jdbc:postgresql://localhost:5432/migratus_example_db?user=postgres&password=migrate-me"}}'
 
+export MIGRATUS_CONFIG='{:store :database :migration-dir "test/migrations" :db {:jdbcUrl "jdbc:postgresql://localhost:5432/migratus_example_db?user=postgres&password=migrate-me"}}'
 
 clojure -M:migratus status
 # via bb

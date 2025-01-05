@@ -5,7 +5,7 @@ jobs:
       clojure-tag:
         type: string
     machine:
-      image: ubuntu-2204:2022.04.2
+      image: ubuntu-2204:edge
     working_directory: /home/circleci/migratus
     steps:
       - checkout

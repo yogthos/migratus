@@ -1,8 +1,8 @@
 (ns migratus.cli
   {:authors ["Eugen Stan <eugen@ieugen.ro" "Andrei Stan"]}
-  (:require [clojure.core :as core]
-            [clojure.data.json :as json]
+  (:require [clojure.data.json :as json]
             [clojure.edn :as edn]
+            [clojure.core :as core]
             [clojure.java.io :as io]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]

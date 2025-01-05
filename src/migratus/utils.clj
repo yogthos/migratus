@@ -33,6 +33,12 @@
   (into #{(get-init-script config)}
         (get config :exclude-scripts)))
 
+(defn resolve-uri [migration-dir]
+  (try
+    (URI. (str "jar:file:" (.getName ^JarFile migration-dir)))
+    (catch java.net.URISyntaxException _
+      (URI. (str "jar:" (-> migration-dir .getName io/file .toURI))))))
+
 (defn script-excluded?
   "Returns true if the script should be excluded according
   to the collection of globs in exclude-scripts."
@@ -40,7 +46,7 @@
   (when (seq exclude-scripts)
     (let [fs (if (instance? File migration-dir)
                (.getFileSystem (.toPath migration-dir))
-               (let [uri (URI. (str "jar:file:" (.getName ^JarFile migration-dir)))]
+               (let [uri (resolve-uri migration-dir)]
                  (try
                    (FileSystems/getFileSystem uri)
                    (catch FileSystemNotFoundException _

@@ -404,10 +404,13 @@ This is intended for use with http://2ndquadrant.com/en/resources/pglogical/ and
    | `migratus.core/rollback`                  | Run `down` for the last migration that was run.                                                                                                    |
    | `migratus.core/rollback-until-just-after` | Run `down` all migrations after `migration-id`. This only considers completed migrations, and will not migrate up.                                 |
    | `migratus.core/up`                        | Run `up` for the specified migration ids. Will skip any migration that is already up.                                                              |
-   | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down.
-   | `migratus.core/reset`                 | Reset the database by down-ing all migrations successfully applied, then up-ing all migratinos.
+   | `migratus.core/down`                      | Run `down` for the specified migration ids. Will skip any migration that is already down. 
+   | `migratus.core/reset`                 | Reset the database by down-ing all migrations successfully applied, then up-ing all migrations.
    | `migratus.core/pending-list`              | Returns a list of pending migrations.                                                                                                              |
    | `migratus.core/migrate-until-just-before` | Run `up` for for any pending migrations which precede the given migration id (good for testing migrations).                                        |
+   | `migratus.core/squashing-list`            | Takes from-id and to-id as inputs (both inclusive) and returns the list of migrations to be squashed. 
+   | `migratus.core/create-squash`             | Reads files within the specified id range and generates a new squashed migration file. It removes the original migration files and creates a new one with the last ID from the range and a user-provided name.
+   | `migratus.core/squash-between`           | Updates the migration table by marking the old IDs as squashed and replacing them with the new ID. No actual migration is applied, assuming they were previously applied.
 
 See the docstrings of each function for more details.
 

@@ -16,6 +16,7 @@
 
 (defprotocol Migration
   (id [this] "Id of this migration.")
+  (migration-type [this] "Type of this migration.")
   (name [this] "Name of this migration")
   (tx? [this direction] "Whether this migration should run in a transaction.")
   (up [this config] "Bring this migration up.")
@@ -35,6 +36,8 @@
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
+  (squash [this ids name]
+    "Squash a batch of migrations into a single migration")
   (connect [this]
     "Opens resources necessary to run migrations against the store.
      Returns the store on sucess so we can participate in with-open.
@@ -86,3 +89,13 @@
   (for [[k v] (methods get-extension*)
         :when (-> k (= :default) not)]
     (v k)))
+
+(defmulti squash-migration-files*
+  "Dispatcher to read a list of files and squash them into a single migration file"
+  (fn [mig-type migration-dir migration-name ups downs]
+    mig-type))
+
+(defmethod squash-migration-files* :default
+  [mig-type migration-dir migration-name ups downs]
+  (throw (Exception. (format "Unknown migration type '%s'"
+                             (clojure.core/name mig-type)))))

@@ -245,6 +245,7 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
+
 (comment
 
   (use 'clojure.tools.trace)
@@ -259,6 +260,7 @@
   (trace-ns next.jdbc.protocols)
 
   (run-test test-rollback-until-just-after)
+  (run-test test-squash)
 
   (core/migrate config)
   (db/mark-unreserved (:db config) "foo_bar")
@@ -345,6 +347,55 @@
       (finally
         (utils/recursive-delete migration-dir)))))
 
+(deftest test-squashing-list
+  (core/migrate config)
+  (let [squashing-list (core/squashing-list config 20111202110600 20241202113000)]
+    (is (= squashing-list ["create-foo-table"
+                           "create-bar-table"
+                           "multiple-statements"]))))
+
+(deftest test-create-squash-and-squash-between
+  (let [migration-dir (io/file "test/migrations-squash")
+        config (merge config
+                      test-edn/test-config
+                      {:parent-migration-dir "test"
+                       :migration-dir "migrations-squash"})]
+    (try
+      (utils/recursive-delete migration-dir)
+      (copy-dir (io/file "test/migrations1") migration-dir)
+      (core/migrate config)
+      (core/create-squash config 20111202110600 20241202113000 "test-squash")
+      (is (test-sql/verify-table-exists? config "foo1"))
+      (is (test-sql/verify-table-exists? config "bar1"))
+      (is (.exists (io/file (str migration-dir "/20220604113000-test-squash.up.sql"))))
+      (is (.exists (io/file (str migration-dir "/20220604113000-test-squash.down.sql"))))
+      (core/squash-between config 20111202110600 20241202113000 "test-squash")
+      (is (test-sql/verify-table-exists? config "foo1"))
+      (is (test-sql/verify-table-exists? config "bar1"))
+      (let [from-db (verify-data config (:migration-table-name config))]
+        (is (= (map #(dissoc % :applied) from-db)
+               '({:id          20220604113000,
+                  :description "test-squash"}))))
+      (finally
+        (utils/recursive-delete migration-dir)))))
+
+(deftest test-create-squash-with-not-applied-migrations
+  (let [migration-dir (io/file "test/migrations-squash")
+        config (merge config
+                      test-edn/test-config
+                      {:parent-migration-dir "test"
+                       :migration-dir "migrations-squash"})]
+    (try
+      (utils/recursive-delete migration-dir)
+      (copy-dir (io/file "test/migrations") migration-dir)
+      (core/create-squash config 20111202110600 20241202113000 "test-squash")
+      (catch IllegalArgumentException e
+        (is (re-find #"Migration 20111202110600 is not applied. Apply it first." (.getMessage e))))
+      (finally
+        (utils/recursive-delete migration-dir)))))
+
+
+
 
 (comment
 
@@ -391,6 +442,12 @@
   (log/debug "running backout tests without tx")
   (test-backing-out* (assoc config :migration-dir "migrations-intentionally-broken-no-tx")))
 
+(deftest test-comment-parsing-in-migration
+  (log/debug "running comment parsing test")
+  (is (not (test-sql/verify-table-exists? config "quux")))
+  (core/migrate (assoc config :migration-dir "migrations-parse"))
+  (is (test-sql/verify-table-exists? config "quux"))
+  (core/down config 20241012170200))
 
 (deftest test-no-tx-migration
   (let [{:keys [db migration-table-name] :as test-config} (assoc config :migration-dir "migrations-no-tx")]

@@ -231,14 +231,21 @@
        (let [file (io/file migration-dir mig-file)
              file (.getAbsoluteFile file)]
          (.createNewFile file)
-         (.getName file))))))
+         (.getName (io/file migration-dir mig-file)))))))
+
+(defn create-squash [config id name migration-type ups downs]
+  (let [migration-dir  (find-or-create-migration-dir
+                        (utils/get-parent-migration-dir config)
+                        (utils/get-migration-dir config))
+        migration-name (->kebab-case (str id "-" name))]
+    (proto/squash-migration-files* migration-type migration-dir migration-name ups downs)))
 
 (defn destroy
   "Delete both files associated with a migration (up and down).
    Migration is identified by name."
   [config name]
   (let [migration-dir  (utils/find-migration-dir
-                         (utils/get-migration-dir config))
+                        (utils/get-migration-dir config))
         migration-name (->kebab-case name)
         pattern        (re-pattern (str "[\\d]*-" migration-name "\\..*"))
         migrations     (file-seq migration-dir)]

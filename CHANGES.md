@@ -3,6 +3,27 @@
 * Improved CLI documentation
 * Added example project
 
+### 1.6.3
+* add tools.cli to project.clj
+* 
+### 1.6.2
+* add dependency for clojure.data.json, bump up next-jdbc to 1.3.955
+
+### 1.6.1
+* [Add functionality for squashing migrations](https://github.com/yogthos/migratus/pull/271)
+
+### 1.6.0
+* [Warn on multiple statements without delimiter](https://github.com/yogthos/migratus/pull/270)
+
+### 1.5.9
+* [Fix bug in sanitizing in-line comments](https://github.com/yogthos/migratus/pull/269)
+
+### 1.5.8
+* fix for resolving the migration path from a jar on Windows
+
+### 1.5.7
+* add exclusion for `parse-long` in `migratus.cli`
+
 ### 1.5.6
 * [Fix spec problem for next.jdbc.sql/insert! and next.jdbc.sql/delete! ](https://github.com/yogthos/migratus/pull/262)
 
