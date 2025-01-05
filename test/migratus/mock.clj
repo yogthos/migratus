@@ -44,7 +44,8 @@
     (proto/down migration config)
     (swap! completed-ids disj (proto/id migration)))
   (connect [this])
-  (disconnect [this]))
+  (disconnect [this])
+  (close [this]))
 
 (defn make-migration [{:keys [id name ups downs]}]
   (MockMigration. nil id name ups downs))

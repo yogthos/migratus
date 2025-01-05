@@ -273,7 +273,8 @@
         (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")])])))
 
 
-(defn init-schema! [db table-name modify-sql-fn]
+(defn init-schema!
+  [db table-name modify-sql-fn]
   ;; Note: the table-exists? *has* to be done in its own top-level
   ;; transaction. It can't be run in the same transaction as other code, because
   ;; if the table doesn't exist, then the error it raises internally in
@@ -286,7 +287,8 @@
   (or (migration-table-up-to-date? db table-name)
       (update-migration-table! db modify-sql-fn table-name)))
 
-(defn run-init-script! [init-script-name init-script conn modify-sql-fn transaction?]
+(defn run-init-script!
+  [init-script-name init-script conn modify-sql-fn transaction?]
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
@@ -299,12 +301,14 @@
       (log/error t "failed to initialize the database with:\n" init-script "\n")
       (throw t))))
 
-(defn inject-properties [init-script properties]
+(defn inject-properties
+  [init-script properties]
   (if properties
     (props/inject-properties properties init-script)
     init-script))
 
-(defn init-db! [db migration-dir init-script-name modify-sql-fn transaction? properties]
+(defn init-db!
+  [db migration-dir init-script-name modify-sql-fn transaction? properties]
   (if-let [init-script (some-> (find-init-script migration-dir init-script-name)
                                slurp
                                (inject-properties properties))]
@@ -318,7 +322,8 @@
   proto/Store
   (config [this] config)
   (init [this]
-    (let [conn (connect* (assoc (:db config) :transaction? (:init-in-transaction? config)))]
+    (let [conn (connect* (assoc (:db config)
+                                :transaction? (:init-in-transaction? config)))]
       (try
         (init-db! conn
                   (utils/get-migration-dir config)
@@ -333,12 +338,12 @@
   (completed [this]
     (completed* @connection (migration-table-name config)))
   (migrate-up [this migration]
-              (log/info "Connection is " @connection
-                        "Config is" (update config :db utils/censor-password))
-              (if (proto/tx? migration :up)
-                (jdbc/with-transaction [t-con (connection-or-spec @connection)]
-                  (migrate-up* t-con config migration))
-                (migrate-up* (:db config) config migration)))
+    (log/info "Connection is " @connection
+              "Config is" (update config :db utils/censor-password))
+    (if (proto/tx? migration :up)
+      (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+        (migrate-up* t-con config migration))
+      (migrate-up* (:db config) config migration)))
   (migrate-down [this migration]
                 (log/info "Connection is " @connection
                           "Config is" (update config :db utils/censor-password))
@@ -355,7 +360,8 @@
     (reset! connection (connect* (:db config)))
     (init-schema! @connection
                   (migration-table-name config)
-                  (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config))))
+                  (sql-mig/wrap-modify-sql-fn (:modify-sql-fn config)))
+    this)
   (disconnect [this]
     (disconnect* @connection config)
     (reset! connection nil)))

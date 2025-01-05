@@ -92,12 +92,18 @@
      (if (= "jar" (.getProtocol url))
        (jar-file url)
        (File. (URLDecoder/decode (.getFile url) "UTF-8")))
-     (let [migration-dir (io/file parent-dir dir)]
-       (if (.exists migration-dir)
-         migration-dir
-         (let [no-implicit-parent-dir (io/file dir)]
-           (when (.exists no-implicit-parent-dir)
-             no-implicit-parent-dir)))))))
+     ;; we don't have URL resource, try file
+     (let [fdir (io/file dir)]
+       (if (.exists fdir)
+         fdir
+         (if (.isAbsolute fdir)
+           ;; if path is absolute and does no exist, throw error
+           (throw (IllegalStateException.
+                   (str "Could not find migrations dir " dir)))
+           ;; if relative path, try with parent dir logic
+           (let [migration-dir (io/file parent-dir dir)]
+             (when (.exists migration-dir)
+               migration-dir))))))))
 
 (defn deep-merge
   "Merge keys at all nested levels of the maps."
@@ -126,7 +132,7 @@
     "uri-censored"))
 
 (defmethod censor-password :default
-  [{:keys [password connection-uri] :as db-spec}]
+  [{:keys [password connection-uri jdbcUrl] :as db-spec}]
   (let [password-map
         (if (empty? password)
           nil
@@ -138,5 +144,8 @@
         (if (empty? connection-uri)
           nil
           ;; Censor entire uri instead of trying to parse out and replace only a possible password parameter
-          {:connection-uri "uri-censored"})]
-    (merge db-spec password-map uri-map)))
+          {:connection-uri "uri-censored"})
+        jdbcUrl-map (if (empty? jdbcUrl)
+                      nil
+                      {:jdbcUrl "uri-censored"})]
+    (merge db-spec password-map uri-map jdbcUrl-map)))

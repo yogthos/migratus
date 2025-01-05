@@ -130,6 +130,11 @@ The environment variable associated with the `database.table` key will replace `
 
 ### Setup
 
+Migratus can be used as a library in your project or as a CLI tool.
+There is also an option (from a third party) to run a migratus as native binary - for PostgreSQL only.
+
+#### Using Migratus as a library in your project
+
 - Add Migratus as a dependency to your `project.clj`
 ```clojure
 :dependencies [[migratus <VERSION>]]
@@ -213,6 +218,14 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 
 (def config {:db {:datasource (hk/make-datasource datasource-options)}})
 ```
+
+#### Using migratus as a command line (cli) tool
+
+Migratus exposes a CLI interface via `migratus.cli` namespace.
+It uses [tools.cli](https://github.com/clojure/tools.cli) for argument parsing.
+
+
+
 
 #### Running as native image (Postgres only)
 

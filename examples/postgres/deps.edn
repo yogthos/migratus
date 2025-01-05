@@ -1,0 +1,10 @@
+{;; migration sql files will be on "resources"
+ :paths ["src" "resources"]
+ ;; we need migratus and postgresql jdbc driver on the classpath
+ :deps {io.github.yogthos/migratus  {:local/root "../.."}
+        org.postgresql/postgresql {:mvn/version "42.6.0"}}
+ :aliases
+ {:migratus {:jvm-opts [;; print clojure errors to standard out instead of fli
+                        "-Dclojure.main.report=stderr"]
+             ;; Run migratus.cli -main fn
+             :main-opts ["-m" "migratus.cli"]}}}

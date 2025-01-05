@@ -1,3 +1,8 @@
+### Unreleased
+* Improved CLI interface
+* Improved CLI documentation
+* Added example project
+
 ### 1.6.3
 * add tools.cli to project.clj
 * 
