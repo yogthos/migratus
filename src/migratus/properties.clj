@@ -17,7 +17,7 @@
 
 (defn inject-properties [properties text]
   (let [text-with-props (reduce
-                          (fn [text [k v]]
+                          (fn [^String text [^String k v]]
                             (.replace text k (str v)))
                           text
                           properties)]

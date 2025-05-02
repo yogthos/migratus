@@ -30,7 +30,7 @@
        (not-empty)))
 
 (defn check-expectations [result c]
-  (let [[full-str expect-str command] (re-matches #"(?sm).*\s*-- expect (.*);;\n+(.*)" c)]
+  (let [[_full-str expect-str command] (re-matches #"(?sm).*\s*-- expect (.*);;\n+(.*)" c)]
     (assert expect-str (str "No expectation on command: " c))
     (let [expected   (some-> expect-str Long/parseLong)
           actual     (some-> result first)
@@ -112,26 +112,26 @@
 
 (defrecord SqlMigration [id name up down]
   proto/Migration
-  (id [this]
+  (id [_this]
     id)
-  (migration-type [this] :sql)
-  (name [this]
+  (migration-type [_this] :sql)
+  (name [_this]
     name)
   (tx? [this direction]
     (if-let [sql (get this direction)]
       (use-tx? sql)
       (throw (Exception. (format "SQL %s commands not found for %d" direction id)))))
-  (up [this config]
+  (up [_this config]
     (if up
       (run-sql config up :up)
       (throw (Exception. (format "Up commands not found for %d" id)))))
-  (down [this config]
+  (down [_this config]
     (if down
       (run-sql config down :down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
 (defmethod proto/make-migration* :sql
-  [_ mig-id mig-name payload config]
+  [_ mig-id mig-name payload _config]
   (->SqlMigration mig-id mig-name (:up payload) (:down payload)))
 
 
@@ -148,7 +148,7 @@
 (defmethod proto/squash-migration-files* :sql
   [x migration-dir migration-name ups downs]
   (doall
-   (for [[mig-file sql] (map vector (proto/migration-files* x migration-name) [ups downs])]
+   (for [[mig-file ^String sql] (map vector (proto/migration-files* x migration-name) [ups downs])]
      (let [file (io/file migration-dir mig-file)]
        (.createNewFile file)
        (with-open [writer (java.io.BufferedWriter. (java.io.FileWriter. file))]
