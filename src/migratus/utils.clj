@@ -5,8 +5,9 @@
   (:import
     java.io.File
     java.util.jar.JarFile
+    [java.util Map]
     [java.net URL URLDecoder URI]
-    [java.nio.file FileSystems FileSystemNotFoundException]))
+    [java.nio.file FileSystem FileSystems FileSystemNotFoundException]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -33,9 +34,10 @@
   (into #{(get-init-script config)}
         (get config :exclude-scripts)))
 
-(defn resolve-uri [migration-dir]
+(defn resolve-uri
+  ^URI [^JarFile migration-dir]
   (try
-    (URI. (str "jar:file:" (.getName ^JarFile migration-dir)))
+    (URI. (str "jar:file:" (.getName migration-dir)))
     (catch java.net.URISyntaxException _
       (URI. (str "jar:" (-> migration-dir .getName io/file .toURI))))))
 
@@ -44,13 +46,14 @@
   to the collection of globs in exclude-scripts."
   [script migration-dir exclude-scripts]
   (when (seq exclude-scripts)
-    (let [fs (if (instance? File migration-dir)
-               (.getFileSystem (.toPath migration-dir))
-               (let [uri (resolve-uri migration-dir)]
-                 (try
-                   (FileSystems/getFileSystem uri)
-                   (catch FileSystemNotFoundException _
-                     (FileSystems/newFileSystem uri {})))))
+    (let [^FileSystem fs (if (instance? File migration-dir)
+                           (.getFileSystem (.toPath ^File migration-dir))
+                           (let [uri (resolve-uri migration-dir)
+                                 ^Map env {}]
+                             (try
+                               (FileSystems/getFileSystem uri)
+                               (catch FileSystemNotFoundException _
+                                 (FileSystems/newFileSystem uri env)))))
           path (.getPath fs script (make-array String 0))]
       (some #(.matches (.getPathMatcher fs (str "glob:" %)) path)
             exclude-scripts))))
@@ -63,7 +66,7 @@
     dir))
 
 (defn jar-name
-  [^String s]
+  ^String [^String s]
   (some-> s
           (str/replace "+" "%2B")
           (URLDecoder/decode "UTF-8")
