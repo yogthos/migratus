@@ -135,18 +135,6 @@ The environment variable associated with the `database.table` key will replace `
 :dependencies [[migratus <VERSION>]]
 ```
 
-There are hidden dependencies on slf4j inside migratus, so to avoid errors or silent failures you'll need to also add
-
-```clojure
-[org.slf4j/slf4j-log4j12 <VERSION>]
-```
-
-or if you're using Timbre
-
-```clojure
-[com.fzakaria/slf4j-timbre <VERSION>]
-```
-
 Next, create a namespace to manage the migrations:
 
 ```clojure
