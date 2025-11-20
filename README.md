@@ -324,7 +324,7 @@ To run migrations against a database use a :store of :database, and specify the 
 
 * `:migration-dir` - directory where migration files are found
 * `:exclude-scripts` - a collection of script name globs that will be excluded from migrations
-* `:db` - One of `java.sql.Connection` or `javax.sql.DataSource` instance or a `next.jdbc` database spec. See next.jdbc docs for the version you are using: https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/api/next.jdbc#get-datasource
+* `:db` - One of `java.sql.Connection` or `javax.sql.DataSource` instance (see [Alternative Setup](#alternative-setup)) or a `next.jdbc` database spec. See next.jdbc docs for the version you are using: https://cljdoc.org/d/com.github.seancorfield/next.jdbc/1.2.780/api/next.jdbc#get-datasource
 * `:command-separator` - the separator will be used to split the commands within each transaction when specified
 * `:expect-results?` - allows comparing migration query results using the `-- expect n` comment
 * `:tx-handles-ddl?` -  skips the automatic down that occurs on exception
