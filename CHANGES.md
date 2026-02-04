@@ -1,6 +1,12 @@
+### 1.6.5
+* [handle race condition in tests](https://github.com/yogthos/migratus/pull/278)
+
+### 1.6.4
+* [Resolve reflection warnings](https://github.com/yogthos/migratus/pull/275)
+
 ### 1.6.3
 * add tools.cli to project.clj
-* 
+
 ### 1.6.2
 * add dependency for clojure.data.json, bump up next-jdbc to 1.3.955
 
