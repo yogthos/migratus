@@ -1,6 +1,9 @@
 (ns migratus.test.utils
-  (:require [clojure.test :refer :all]
-            [migratus.utils :refer :all]))
+  (:require [clojure.java.io :as io]
+            [clojure.test :refer :all]
+            [migratus.utils :refer :all])
+  (:import [java.nio.file FileSystemAlreadyExistsException FileSystems]
+           [java.util.jar JarFile]))
 
 (deftest test-censor-password
   (is (= nil (censor-password nil)))
@@ -25,3 +28,25 @@
   (testing "handles '+' in paths"
     (is (= "/tmp/default+uberjar/foo.jar"
            (jar-name "/tmp/default+uberjar/foo.jar")))))
+
+(deftest test-script-excluded-jar-race-condition
+  (testing "script-excluded? doesn't throw FileSystemAlreadyExistsException when called concurrently"
+    (let [jar-path (.getAbsolutePath (io/file "test/migrations-jar/migrations.jar"))
+          threads 10
+          attempts 10
+          errors (atom [])]
+      (dotimes [_ attempts]
+        (let [jar (JarFile. jar-path)
+              uri (resolve-uri jar)
+              _ (try (.close (FileSystems/getFileSystem uri))
+                  (catch Exception _))]
+          (->> (mapv
+                 (fn [_]
+                   (future
+                     (try
+                       (script-excluded? "test.sql" jar #{"*.clj"})
+                       (catch FileSystemAlreadyExistsException e
+                         (swap! errors conj e)))))
+                 (range threads))
+            (mapv #(deref % 500 nil)))))
+      (is (zero? (count @errors))))))
