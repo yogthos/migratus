@@ -7,7 +7,7 @@
     java.util.jar.JarFile
     [java.util Map]
     [java.net URL URLDecoder URI]
-    [java.nio.file FileSystem FileSystems FileSystemNotFoundException]))
+    [java.nio.file FileSystem FileSystems FileSystemNotFoundException FileSystemAlreadyExistsException]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
@@ -41,6 +41,18 @@
     (catch java.net.URISyntaxException _
       (URI. (str "jar:" (-> migration-dir .getName io/file .toURI))))))
 
+(defn get-file-system
+  [uri]
+  (let [get-fs (fn []
+                 (try
+                   (FileSystems/getFileSystem uri)
+                   (catch FileSystemNotFoundException _
+                     (FileSystems/newFileSystem uri ^Map {}))))]
+    (or
+      (try (get-fs)
+        (catch FileSystemAlreadyExistsException _ nil))
+      (get-fs))))
+
 (defn script-excluded?
   "Returns true if the script should be excluded according
   to the collection of globs in exclude-scripts."
@@ -48,12 +60,7 @@
   (when (seq exclude-scripts)
     (let [^FileSystem fs (if (instance? File migration-dir)
                            (.getFileSystem (.toPath ^File migration-dir))
-                           (let [uri (resolve-uri migration-dir)
-                                 ^Map env {}]
-                             (try
-                               (FileSystems/getFileSystem uri)
-                               (catch FileSystemNotFoundException _
-                                 (FileSystems/newFileSystem uri env)))))
+                           (get-file-system (resolve-uri migration-dir)))
           path (.getPath fs script (make-array String 0))]
       (some #(.matches (.getPathMatcher fs (str "glob:" %)) path)
             exclude-scripts))))
