@@ -76,7 +76,7 @@
 
 (defn mark-not-complete [db table-name id]
   (log/debug "marking" id "not complete")
-  (sql/delete! (connection-or-spec db) table-name ["id=?" id]))
+  (sql/delete! (connection-or-spec db) (keyword table-name) ["id=?" id]))
 
 (defn mark-not-complete-all [db table-name ids]
   (log/debug "marking" ids "not complete")

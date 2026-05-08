@@ -245,6 +245,20 @@
   (is (not (test-sql/verify-table-exists? config "quux")))
   (is (not (test-sql/verify-table-exists? config "quux2"))))
 
+(deftest test-mark-not-complete-conforms-to-jdbc-spec
+  (testing "mark-not-complete should pass a keyword table-name to next.jdbc.sql/delete! (issue #279)"
+    (require 'next.jdbc.specs)
+    (let [instrument!   (resolve 'next.jdbc.specs/instrument)
+          unstrument!   (resolve 'next.jdbc.specs/unstrument)]
+      (try
+        (instrument!)
+        (core/migrate config)
+        (is (test-sql/verify-table-exists? config "bar"))
+        (core/down config 20111202113000)
+        (is (not (test-sql/verify-table-exists? config "bar")))
+        (finally
+          (unstrument!))))))
+
 
 (comment
 
