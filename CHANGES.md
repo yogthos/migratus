@@ -1,3 +1,6 @@
+### 1.6.6
+* [fix mark-not-complete to pass keyword table name](https://github.com/yogthos/migratus/pull/280)
+
 ### 1.6.5
 * [handle race condition in tests](https://github.com/yogthos/migratus/pull/278)
 
