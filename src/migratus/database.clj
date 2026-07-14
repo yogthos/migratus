@@ -290,9 +290,11 @@
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
-    ;; Parse the script into statements the same way migrations do, so that
-    ;; multiple statements work regardless of the JDBC driver (see #93).
-    (doseq [command (sql-mig/split-commands init-script nil)]
+    ;; Split the script into individual statements so that multiple statements
+    ;; work regardless of the JDBC driver (see #93). Unlike migrations, the
+    ;; statement text is preserved verbatim (comments are not stripped) so that
+    ;; '--' inside string literals is left intact for the driver to parse.
+    (doseq [command (sql-mig/split-init-commands init-script)]
       (if transaction?
         (jdbc/execute! conn (modify-sql-fn command))
         (jdbc/execute! conn (modify-sql-fn command) {})))

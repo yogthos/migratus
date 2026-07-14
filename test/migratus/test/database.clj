@@ -158,6 +158,17 @@
           (is (test-sql/verify-table-exists? init-cfg "init_first"))
           (is (test-sql/verify-table-exists? init-cfg "init_second")))))))
 
+(deftest test-init-handles-comments-and-literals
+  (testing "init preserves '--' inside string literals and skips comment-only sections (#93)"
+    (let [cfg (assoc config :init-script "init-comment-edge.sql")]
+      (doseq [init-cfg [cfg (assoc cfg :init-in-transaction? false)]]
+        (test-sql/reset-db)
+        (let [store (proto/make-store init-cfg)]
+          (proto/init store)
+          (is (test-sql/verify-table-exists? init-cfg "init_edge"))
+          (is (= [{:v "5--10"}] (verify-data init-cfg "init_edge"))
+              "the '--' inside the string literal must not be stripped as a comment"))))))
+
 (deftest test-migrate
   (is (not (test-sql/verify-table-exists? config "foo")))
   (is (not (test-sql/verify-table-exists? config "bar")))
