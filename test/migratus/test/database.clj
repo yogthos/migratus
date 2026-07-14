@@ -140,6 +140,24 @@
         (proto/init store)
         (is (test-sql/verify-table-exists? config "foo"))))))
 
+(deftest test-init-parses-multiple-statements
+  (testing "init parses the init script the same way migrations do, running each --;; statement separately (#93)"
+    (let [seen (atom [])
+          cfg  (-> config
+                   (assoc :init-script "init-multiple.sql")
+                   (assoc :modify-sql-fn (fn [sql]
+                                           (swap! seen conj sql)
+                                           sql)))]
+      (doseq [init-cfg [cfg (assoc cfg :init-in-transaction? false)]]
+        (test-sql/reset-db)
+        (reset! seen [])
+        (let [store (proto/make-store init-cfg)]
+          (proto/init store)
+          (is (= 2 (count @seen))
+              "init should invoke modify-sql-fn once per --;; statement")
+          (is (test-sql/verify-table-exists? init-cfg "init_first"))
+          (is (test-sql/verify-table-exists? init-cfg "init_second")))))))
+
 (deftest test-migrate
   (is (not (test-sql/verify-table-exists? config "foo")))
   (is (not (test-sql/verify-table-exists? config "bar")))

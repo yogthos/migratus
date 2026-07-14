@@ -290,11 +290,12 @@
   (try
     (log/info "running initialization script '" init-script-name "'")
     (log/trace "\n" init-script "\n")
-    ;; TODO: @ieugen Why was db-do-prepared used here ?
-    ;; Do we need to care about `transaction?` in next.jdbc ?
-    (if transaction?
-      (jdbc/execute! conn (modify-sql-fn init-script))
-      (jdbc/execute! conn (modify-sql-fn init-script) {}))
+    ;; Parse the script into statements the same way migrations do, so that
+    ;; multiple statements work regardless of the JDBC driver (see #93).
+    (doseq [command (sql-mig/split-commands init-script nil)]
+      (if transaction?
+        (jdbc/execute! conn (modify-sql-fn command))
+        (jdbc/execute! conn (modify-sql-fn command) {})))
     (catch Throwable t
       (log/error t "failed to initialize the database with:\n" init-script "\n")
       (throw t))))
