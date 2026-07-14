@@ -67,6 +67,20 @@
     (is (not (verify-table-exists? config "quux2")))))
 
 
+(deftest test-split-init-commands
+  (testing "splits multiple statements on --;;"
+    (is (= ["CREATE TABLE a (id int);" "CREATE TABLE b (id int);"]
+           (split-init-commands "CREATE TABLE a (id int);\n--;;\nCREATE TABLE b (id int);\n"))))
+  (testing "preserves '--' inside a string literal instead of stripping it"
+    (is (= ["INSERT INTO t VALUES ('5--10');"]
+           (split-init-commands "INSERT INTO t VALUES ('5--10');"))))
+  (testing "drops comment-only sections between separators"
+    (is (= ["CREATE TABLE b (id int);"]
+           (split-init-commands "-- header\n--;;\nCREATE TABLE b (id int);\n"))))
+  (testing "returns nil when nothing executable remains"
+    (is (nil? (split-init-commands "-- just a comment\n")))
+    (is (nil? (split-init-commands "")))))
+
 (comment
   (use 'clojure.tools.trace)
 

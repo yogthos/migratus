@@ -1,4 +1,4 @@
-(defproject migratus "1.6.6"
+(defproject migratus "1.6.7"
   :description "MIGRATE ALL THE THINGS!"
   :url "http://github.com/yogthos/migratus"
   :license {:name "Apache License, Version 2.0"
@@ -16,4 +16,7 @@
                                   [com.h2database/h2 "2.1.214"]
                                   [hikari-cp/hikari-cp "2.13.0"]
                                   [org.clojure/tools.trace "0.7.11"]
-                                  [org.postgresql/postgresql "42.2.5"]]}})
+                                  [org.postgresql/postgresql "42.2.5"]]
+                   ;; testcontainers' docker-java defaults to API 1.32, rejected by
+                   ;; modern Docker daemons (min 1.40); force a supported version.
+                   :jvm-opts ["-Dapi.version=1.41"]}})

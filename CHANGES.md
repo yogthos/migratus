@@ -1,3 +1,6 @@
+### 1.6.7
+* parse init script into statements so multiple `--;;` separated statements work across JDBC drivers ([#93](https://github.com/yogthos/migratus/issues/93))
+
 ### 1.6.6
 * [fix mark-not-complete to pass keyword table name](https://github.com/yogthos/migratus/pull/280)
 

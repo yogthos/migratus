@@ -29,6 +29,18 @@
        (remove empty?)
        (not-empty)))
 
+(defn split-init-commands
+  "Split an init script into statements on '--;;' separators. Unlike
+   split-commands, each statement's original text is preserved (comments are
+   NOT stripped), so '--' inside a string literal stays intact and the JDBC
+   driver parses any comments itself. Sections that contain only comments or
+   whitespace are dropped rather than executed as empty statements."
+  [commands]
+  (->> (.split sep commands)
+       (remove #(str/blank? (sanitize % nil)))
+       (map str/trim)
+       (not-empty)))
+
 (defn check-expectations [result c]
   (let [[_full-str expect-str command] (re-matches #"(?sm).*\s*-- expect (.*);;\n+(.*)" c)]
     (assert expect-str (str "No expectation on command: " c))

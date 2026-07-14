@@ -8,6 +8,7 @@
             [migratus.test.migration.sql :as test-sql]
             [migratus.core :as migratus]
             [next.jdbc :as jdbc]
+            [next.jdbc.result-set :as rs]
             [next.jdbc.transaction :as jdbc-tx]))
 
 (def postgres-image (or (System/getenv "MIGRATUS_TESTCONTAINERS_POSTGRES_IMAGE") 
@@ -46,6 +47,13 @@
           (let [db-meta (test-sql/db-tables-and-views ds)
                 table-names (meta->table-names db-meta)]
             (is (= #{"foo"} table-names) "db is initialized"))
+          ;; #93: the init script uses --;; separators and a comment-only
+          ;; section, and inserts a value containing '--'. Splitting must run
+          ;; each statement while leaving '--' inside the literal intact.
+          (is (= "5--10"
+                 (:note (jdbc/execute-one! ds ["SELECT note FROM foo WHERE id = 1"]
+                                           {:builder-fn rs/as-unqualified-lower-maps})))
+              "'--' inside the init-script string literal is preserved on postgres")
 
           ;; migrate
           (migratus/migrate config)
