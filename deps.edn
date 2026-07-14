@@ -27,4 +27,8 @@
                           lambdaisland/kaocha-cloverage {:mvn/version "1.0.75"}
                           lambdaisland/kaocha-junit-xml {:mvn/version "0.0.76"}
                           orchestra/orchestra           {:mvn/version "2021.01.01-1"}}
+                         ;; docker-java pulled by testcontainers defaults to API 1.32,
+                         ;; which modern Docker daemons reject (min 1.40). Force a supported
+                         ;; version so the testcontainers suite can reach the daemon.
+                         :jvm-opts    ["-Dapi.version=1.41"]
                          :main-opts   ["-m" "kaocha.runner" "--reporter" "kaocha.report/documentation"]}}}
