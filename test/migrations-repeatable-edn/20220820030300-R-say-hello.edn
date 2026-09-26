@@ -1,0 +1,2 @@
+{:ns migratus.test.migration.edn.test-script
+ :up-fn migrate-up}

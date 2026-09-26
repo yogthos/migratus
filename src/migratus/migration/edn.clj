@@ -2,6 +2,7 @@
   "Support for EDN migration files that specify clojure code migrations."
   (:require
     [clojure.edn :as edn]
+    [migratus.migration.repeatable :as repeatable-mig]
     [migratus.protocols :as proto]))
 
 ;; up-fn and down-fn here are actually vars; invoking them as fns will deref
@@ -18,6 +19,21 @@
   (down [this config]
     (when down-fn
       (apply down-fn config down-args))))
+
+;; Repeatable EDN migration: re-runs up whenever its checksum changes, no down.
+(defrecord RepeatableEdnMigration [id name up-fn transaction? up-args checksum]
+  proto/Migration
+  (id [_] id)
+  (migration-type [_] :r-edn)
+  (name [_] name)
+  (tx? [_ _] (if (nil? transaction?) true transaction?))
+  (up [_ config]
+    (when up-fn
+      (apply up-fn config up-args)))
+  (down [_ _] :noop)
+
+  proto/RepeatableMigration
+  (checksum [_] checksum))
 
 (defn to-sym
   "Converts x to a non-namespaced symbol, throwing if x is namespaced"
@@ -57,6 +73,22 @@
                     transaction?
                     up-args
                     down-args)))
+
+(defmethod proto/make-migration* :r-edn
+  [_ mig-id mig-name payload config]
+  (let [{:keys [ns up-fn transaction?]
+         :or   {up-fn "up"}} (edn/read-string payload)
+        mig-ns (to-sym ns)
+        [up-fn & up-args] (cond-> up-fn (not (coll? up-fn)) vector)]
+    (when-not mig-ns
+      (throw (IllegalArgumentException.
+               (format "Invalid migration %s: no namespace" mig-name))))
+    (require mig-ns)
+    (->RepeatableEdnMigration mig-id mig-name
+                              (resolve-fn mig-name mig-ns up-fn)
+                              transaction?
+                              up-args
+                              (repeatable-mig/crc32 payload))))
 
 (defmethod proto/get-extension* :edn
   [_]

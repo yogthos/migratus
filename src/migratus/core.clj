@@ -104,12 +104,31 @@
                         (<= (:id e) to))))
          (sort-by :id))))
 
+(defn repeatable-migration?
+  [migration]
+  (satisfies? proto/RepeatableMigration migration))
+
 (defn uncompleted-migrations
-  "Returns a list of uncompleted migrations.
-   Fetch list of applied migrations from db and existing migrations from migrations dir."
+  "Returns a list of uncompleted, non-repeatable migrations.
+   Fetch list of applied migrations from db and existing migrations from migrations dir.
+   See `pending-repeatable-migrations` for repeatable migrations."
   [config store]
   (let [completed? (set (proto/completed-ids store))]
-    (remove (comp completed? proto/id) (mig/list-migrations config))))
+    (remove (fn [migration]
+              (or (repeatable-migration? migration)
+                  (completed? (proto/id migration))))
+            (mig/list-migrations config))))
+
+(defn pending-repeatable-migrations
+  "Returns repeatable migrations whose current checksum differs from (or is
+   missing from) what was last recorded for them in the store."
+  [config store]
+  (let [applied-checksums (proto/repeatable-checksums store)]
+    (->> (mig/list-migrations config)
+         (filter repeatable-migration?)
+         (remove (fn [migration]
+                   (= (get applied-checksums (proto/name migration))
+                      (proto/checksum migration)))))))
 
 (defn migration-name [migration]
   (str (proto/id migration) "-" (proto/name migration)))
@@ -136,30 +155,74 @@
               (log/error "Stopping:" (migration-name migration) "failed to migrate")
               :failure)))))))
 
-(defn- migrate* [config store _]
-  (let [migrations (->> store
-                        (uncompleted-migrations config)
-                        (sort-by proto/id))]
-    (migrate-up* store migrations)))
+(defn- repeatable-up* [store migration]
+  (log/info "Repeatable up" (migration-name migration))
+  (proto/migrate-repeatable-up store (proto/name migration) (proto/checksum migration) migration))
+
+(defn- migrate-repeatable-up* [store migrations]
+  (when (seq migrations)
+    (log/info "Running repeatable migrations for" (pr-str (mapv proto/name migrations)))
+    (loop [[migration & more] migrations]
+      (when migration
+        (case (repeatable-up* store migration)
+          :success (recur more)
+          :ignore (do
+                    (log/info "Migration reserved by another instance. Ignoring.")
+                    :ignore)
+          (do
+            (log/error "Stopping:" (migration-name migration) "failed to migrate")
+            :failure))))))
+
+(defn- assert-transactable!
+  "When config requests running the whole batch in a single transaction,
+   fail fast (before opening that transaction) if any migration in the
+   batch opts out of running inside a transaction (`-- :disable-transaction`
+   for SQL, `:transaction? false` for EDN) -- mixing the two isn't
+   supported: the migration would silently end up inside the batch
+   transaction anyway, where statements like `CREATE INDEX CONCURRENTLY`
+   simply fail."
+  [config migrations]
+  (when (:migrate-in-transaction? config)
+    (when-let [incompatible (seq (remove #(proto/tx? % :up) migrations))]
+      (throw (ex-info
+               (str "Cannot run in a single transaction (:migrate-in-transaction? true): "
+                    "the following migrations opt out of running inside a transaction "
+                    "(e.g. via `-- :disable-transaction`) and must be applied separately, "
+                    "without :migrate-in-transaction?: "
+                    (str/join ", " (map migration-name incompatible)))
+               {:migrations (mapv proto/id incompatible)})))))
+
+(defn- run-migrate [store regular repeatable]
+  (let [regular-result (migrate-up* store regular)]
+    (if (contains? #{:ignore :failure} regular-result)
+      regular-result
+      (migrate-repeatable-up* store repeatable))))
 
 (defn migrate
   "Bring up any migrations that are not completed.
   Returns nil if successful, :ignore if the table is reserved, :failure otherwise.
   Supports thread cancellation."
   [config]
-  (run (proto/make-store config) nil (partial migrate* config)))
-
-(defn- run-up [config store ids]
-  (let [completed  (set (proto/completed-ids store))
-        ids        (set/difference (set ids) completed)
-        migrations (filter (comp ids proto/id) (mig/list-migrations config))]
-    (migrate-up* store migrations)))
+  (run (proto/make-store config) nil
+       (fn [store _]
+         (let [regular    (uncompleted-migrations config store)
+               repeatable (pending-repeatable-migrations config store)]
+           ;; assert before opening the batch transaction (execute-in-tx), so an
+           ;; incompatible migration is rejected without touching the database
+           (assert-transactable! config (concat regular repeatable))
+           (proto/execute-in-tx store (fn [] (run-migrate store regular repeatable)))))))
 
 (defn up
   "Bring up the migrations identified by ids.
   Any migrations that are already complete will be skipped."
   [config & ids]
-  (run (proto/make-store config) ids (partial run-up config)))
+  (run (proto/make-store config) ids
+       (fn [store ids]
+         (let [completed  (set (proto/completed-ids store))
+               ids        (set/difference (set ids) completed)
+               migrations (filter (comp ids proto/id) (mig/list-migrations config))]
+           (assert-transactable! config migrations)
+           (proto/execute-in-tx store (fn [] (migrate-up* store migrations)))))))
 
 (defn- run-down [config store ids]
   (let [completed  (set (proto/completed-ids store))
@@ -209,8 +272,8 @@
 
 (defn create
   "Create a new migration with the current date"
-  [config & [name type]]
-  (mig/create config name (or type :sql)))
+  [config & [name type repeatable?]]
+  (mig/create config name (or type :sql) (or repeatable? false)))
 
 (defn create-squash
   "Delete all migrations between from and to,
@@ -242,7 +305,7 @@
                    (mapv (juxt proto/id proto/name)))))
 
 (defn completed-list
-  "List completed migrations"
+  "List of completed migrations"
   [config]
   (let [migrations (select-migrations config completed-migrations)]
     (log/debug (apply str "You have " (count migrations) " completed migrations:\n"
@@ -250,12 +313,15 @@
     (mapv second migrations)))
 
 (defn pending-list
-  "List pending migrations"
+  "List of pending migrations, including repeatable migrations whose checksum
+   has changed since they were last applied."
   [config]
-  (let [migrations (select-migrations config uncompleted-migrations)]
-    (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
-                      (str/join "\n" migrations)))
-    (mapv second migrations)))
+  (with-store [store (proto/make-store config)]
+              (let [migrations (concat (uncompleted-migrations config store)
+                                       (pending-repeatable-migrations config store))]
+                (log/debug (apply str "You have " (count migrations) " pending migrations:\n"
+                                  (str/join "\n" (map (juxt proto/id proto/name) migrations))))
+                (mapv proto/name migrations))))
 
 (defn squashing-list
   "List to be squashed migrations"

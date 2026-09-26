@@ -14,7 +14,7 @@
 (ns migratus.mock
   (:require [migratus.protocols :as proto]))
 
-(defrecord MockMigration [db id name ups downs]
+(defrecord MockMigration [db id name ups downs tx?]
   proto/Migration
   (id [this]
     id)
@@ -22,6 +22,8 @@
     :sql)
   (name [this]
     name)
+  (tx? [this direction]
+    (if (nil? tx?) true tx?))
   (up [this config]
     (swap! ups conj id)
     :success)
@@ -29,7 +31,27 @@
     (swap! downs conj id)
     :success))
 
-(defrecord MockStore [completed-ids config]
+(defrecord MockRepeatableMigration [db id name checksum ups tx?]
+  proto/Migration
+  (id [this]
+    id)
+  (migration-type [this]
+    :r-sql)
+  (name [this]
+    name)
+  (tx? [this direction]
+    (if (nil? tx?) true tx?))
+  (up [this config]
+    (swap! ups conj id)
+    :success)
+  (down [this config]
+    :noop)
+
+  proto/RepeatableMigration
+  (checksum [this]
+    checksum))
+
+(defrecord MockStore [completed-ids repeatable-checksums config]
   proto/Store
   (init [this])
   (completed-ids [this]
@@ -43,12 +65,23 @@
   (migrate-down [this migration]
     (proto/down migration config)
     (swap! completed-ids disj (proto/id migration)))
+  (repeatable-checksums [this]
+    @repeatable-checksums)
+  (migrate-repeatable-up [this name checksum migration]
+    (proto/up migration config)
+    (swap! repeatable-checksums assoc name checksum)
+    :success)
+  (execute-in-tx [this f]
+    (f))
   (connect [this])
   (disconnect [this]))
 
-(defn make-migration [{:keys [id name ups downs]}]
-  (MockMigration. nil id name ups downs))
+(defn make-migration [{:keys [id name ups downs tx?]}]
+  (MockMigration. nil id name ups downs tx?))
+
+(defn make-repeatable-migration [{:keys [id name checksum ups tx?]}]
+  (MockRepeatableMigration. nil id name checksum ups tx?))
 
 (defmethod proto/make-store :mock
   [{:keys [completed-ids] :as config}]
-  (MockStore. completed-ids config))
+  (MockStore. completed-ids (atom {}) config))

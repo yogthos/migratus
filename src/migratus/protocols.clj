@@ -14,6 +14,11 @@
 (ns migratus.protocols
   (:refer-clojure :exclude [name]))
 
+(def mig-hierarchy
+  (-> (make-hierarchy)
+      (derive :r-sql :sql)
+      (derive :r-edn :edn)))
+
 (defprotocol Migration
   (id [this] "Id of this migration.")
   (migration-type [this] "Type of this migration.")
@@ -21,6 +26,9 @@
   (tx? [this direction] "Whether this migration should run in a transaction.")
   (up [this config] "Bring this migration up.")
   (down [this config] "Bring this migration down."))
+
+(defprotocol RepeatableMigration
+  (checksum [this] "Checksum of up migration"))
 
 (defprotocol Store
   (config [this])
@@ -36,8 +44,16 @@
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
+  (repeatable-checksums [this]
+    "Map of repeatable migration name to the checksum that was last applied.")
+  (migrate-repeatable-up [this name checksum migration]
+    "Run a repeatable migration and record its name and checksum.")
   (squash [this ids name]
     "Squash a batch of migrations into a single migration")
+  (execute-in-tx [this f]
+    "Calls (f), optionally wrapping the call in a single transaction that
+    spans the whole batch of migrations f runs, if the store is configured
+    to do so. f takes no arguments.")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]
@@ -49,7 +65,8 @@
   "Dispatcher to create migrations based on filename extension. To add support
   for a new migration filename type, add a new defmethod for this."
   (fn [mig-type mig-id mig-name payload config]
-    mig-type))
+    mig-type)
+  :hierarchy #'mig-hierarchy)
 
 (defmethod make-migration* :default
   [mig-type mig-id mig-name payload config]
@@ -59,7 +76,8 @@
 (defmulti migration-files*
   "Dispatcher to get a list of filenames to create when creating new migrations"
   (fn [mig-type migration-name]
-    mig-type))
+    mig-type)
+  :hierarchy #'mig-hierarchy)
 
 (defmethod migration-files* :default
   [mig-type migration-name]
@@ -70,7 +88,8 @@
 (defmulti get-extension*
   "Dispatcher to get the supported file extension for this migration"
   (fn [mig-type]
-    mig-type))
+    mig-type)
+  :hierarchy #'mig-hierarchy)
 
 (defmethod get-extension* :default
   [mig-type]
@@ -88,7 +107,8 @@
 (defmulti squash-migration-files*
   "Dispatcher to read a list of files and squash them into a single migration file"
   (fn [mig-type migration-dir migration-name ups downs]
-    mig-type))
+    mig-type)
+  :hierarchy #'mig-hierarchy)
 
 (defmethod squash-migration-files* :default
   [mig-type migration-dir migration-name ups downs]

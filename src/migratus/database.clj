@@ -34,6 +34,12 @@
   [config]
   (:migration-table-name config default-migrations-table))
 
+(defn migrate-in-transaction?
+  "Whether a whole batch of pending migrations should run in a single
+   transaction, per config."
+  [config]
+  (boolean (:migrate-in-transaction? config)))
+
 (defn connection-or-spec
   "Migration code from java.jdbc to next.jdbc .
    java.jdbc accepts a spec that contains a ^java.sql.Connection as :connection.
@@ -121,6 +127,40 @@
           (mark-unreserved db table-name)))
       :ignore)))
 
+(defn mark-complete-repeatable [db table-name description id checksum]
+  (log/debug "marking repeatable" description "complete with checksum" checksum)
+  (mark-not-complete db table-name id)
+  (sql/insert! (connection-or-spec db)
+               (keyword table-name)
+               {:id          id
+                :applied     (java.sql.Timestamp. (.getTime (java.util.Date.)))
+                :description description
+                :checksum    checksum}))
+
+(defn migrate-repeatable-up* [db config name checksum migration]
+  (let [id         (proto/id migration)
+        table-name (migration-table-name config)]
+    (if (mark-reserved db table-name)
+      (try
+        (proto/up migration (assoc config :conn db))
+        (mark-complete-repeatable db table-name name id checksum)
+        :success
+        (catch Throwable up-e
+          (log/error (format "Repeatable migration %s failed because %s" name (.getMessage up-e)))
+          (throw up-e))
+        (finally
+          (mark-unreserved db table-name)))
+      :ignore)))
+
+(defn repeatable-checksums* [db table-name]
+  (let [t-con (connection-or-spec db)]
+    (->> (sql/query t-con
+                    [(str "select description, checksum from " table-name
+                          " where checksum is not null")]
+                    {:builder-fn rs/as-unqualified-lower-maps})
+         (map (juxt :description :checksum))
+         (into {}))))
+
 (defn squash* [db config ids name]
   (let [table-name (migration-table-name config)]
     (if (mark-reserved db table-name)
@@ -197,7 +237,8 @@
 (defn completed-ids* [db table-name]
   (let [t-con (connection-or-spec db)]
     (->> (sql/query t-con
-                    [(str "select id, applied from " table-name " where id != " reserved-id)]
+                    [(str "select id, applied from " table-name " where id != " reserved-id
+                    " and checksum is null")]
                     {:builder-fn rs/as-unqualified-lower-maps})
          (sort-by :applied #(compare %2 %1))
          (map :id)
@@ -206,7 +247,8 @@
 (defn completed* [db table-name]
   (let [t-con (connection-or-spec db)]
     (->> (sql/query t-con
-                    [(str "select * from " table-name " where id != " reserved-id)]
+                    [(str "select * from " table-name " where id != " reserved-id
+                       " and checksum is null")]
                     {:builder-fn rs/as-unqualified-lower-maps})
          (sort-by :applied #(compare %2 %1))
          (vec))))
@@ -232,7 +274,7 @@
   [db table-name]
   (jdbc/with-transaction [t-con (connection-or-spec db)]
     (try
-      (sql/query t-con [(str "SELECT applied,description FROM " table-name)])
+      (sql/query t-con [(str "SELECT applied,description,checksum FROM " table-name)])
       true
       (catch SQLException _
         false))))
@@ -259,18 +301,18 @@
        (modify-sql-fn
         (str "CREATE TABLE " table-name
              " (id BIGINT UNIQUE NOT NULL, applied " timestamp-column-type
-             ", description VARCHAR(1024) )"))))))
+             ", description VARCHAR(1024), checksum INT )"))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
   [db modify-sql-fn table-name]
   (log/info "updating migration table" (str "'" table-name "'"))
   (jdbc/with-transaction [t-con (connection-or-spec db)]
-    (jdbc/execute-batch!
-     t-con
-     [(modify-sql-fn
-       [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
-        (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")])])))
+    (doseq [statement (modify-sql-fn
+                        [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
+                         (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")
+                         (str "ALTER TABLE " table-name " ADD COLUMN checksum int4")])]
+      (jdbc/execute! t-con [statement]))))
 
 
 (defn init-schema! [db table-name modify-sql-fn]
@@ -349,11 +391,25 @@
                   (jdbc/with-transaction [t-con (connection-or-spec @connection)]
                     (migrate-down* t-con config migration))
                   (migrate-down* (:db config) config migration)))
+  (repeatable-checksums [this]
+    (repeatable-checksums* @connection (migration-table-name config)))
+  (migrate-repeatable-up [this name checksum migration]
+                          (log/info "Connection is " @connection
+                                    "Config is" (update config :db utils/censor-password))
+                          (if (proto/tx? migration :up)
+                            (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+                              (migrate-repeatable-up* t-con config name checksum migration))
+                            (migrate-repeatable-up* (:db config) config name checksum migration)))
   (squash [this ids name]
           (log/info "Connection is " @connection
                     "Config is" (update config :db utils/censor-password))
           (jdbc/with-transaction [t-con (connection-or-spec @connection)]
             (squash* t-con config ids name)))
+  (execute-in-tx [this f]
+    (if (migrate-in-transaction? config)
+      (jdbc/with-transaction [t-con (connection-or-spec @connection)]
+        (f))
+      (f)))
   (connect [this]
     (reset! connection (connect* (:db config)))
     (init-schema! @connection

@@ -3,6 +3,7 @@
             [clojure.test :refer :all]
             [migratus.core :as core]
             [migratus.migration.edn :refer :all]
+            [migratus.migration.repeatable :as repeatable-mig]
             migratus.mock
             [migratus.protocols :as proto]
             [migratus.utils :as utils])
@@ -107,6 +108,29 @@
     (is (test-file-exists?))
     (proto/down mig test-config)
     (is (test-file-exists?))))
+
+(defn r-edn-mig [content]
+  (proto/make-migration* :r-edn 1 "r-edn-migration" (pr-str content) nil))
+
+(deftest test-repeatable-edn-migration
+  (let [payload {:ns test-namespace :up-fn 'migrate-up}
+        mig     (r-edn-mig payload)]
+    (testing "parses as a repeatable migration"
+      (is (satisfies? proto/RepeatableMigration mig))
+      (is (= :r-edn (proto/migration-type mig)))
+      (is (= 1 (proto/id mig))))
+    (testing "checksum is derived from the whole EDN payload, not just :up-fn"
+      (is (= (repeatable-mig/crc32 (pr-str payload))
+             (proto/checksum mig))))
+    (testing "down is a no-op -- there's no meaningful down for a repeatable migration"
+      (is (= :noop (proto/down mig test-config))))
+    (testing "tx? defaults to true, same as a regular EDN migration, and can be overridden"
+      (is (true? (proto/tx? mig :up)))
+      (is (false? (proto/tx? (r-edn-mig (assoc payload :transaction? false)) :up))))
+    (testing "up runs the resolved fn, same as a regular EDN migration"
+      (is (not (test-file-exists?)))
+      (proto/up mig test-config)
+      (is (test-file-exists?)))))
 
 (deftest test-run-edn-migrations
   (let [config (merge test-config

@@ -416,7 +416,7 @@
       (is (test-sql/verify-table-exists? config "foo1"))
       (is (test-sql/verify-table-exists? config "bar1"))
       (let [from-db (verify-data config (:migration-table-name config))]
-        (is (= (map #(dissoc % :applied) from-db)
+        (is (= (map #(dissoc % :applied :checksum) from-db)
                '({:id          20220604113000,
                   :description "test-squash"}))))
       (finally
@@ -450,7 +450,7 @@
   (core/migrate config)
   (let [from-db (verify-data config (:migration-table-name config))]
     (testing "descriptions match")
-    (is (= (map #(dissoc % :applied) from-db)
+    (is (= (map #(dissoc % :applied :checksum) from-db)
            '({:id          20111202110600,
               :description "create-foo-table"}
               {:id          20111202113000,

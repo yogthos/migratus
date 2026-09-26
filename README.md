@@ -223,6 +223,33 @@ This will result with up/down migration files being created prefixed with the cu
 20150701134958-create-user.down.sql
 ```
 
+## Repeatable Migrations
+
+Some database objects, such as triggers, views, and stored procedures, are easier to maintain as a
+"living" definition that's simply re-applied whenever it changes, rather than as an append-only
+series of versioned up/down scripts. Migratus supports this with **repeatable migrations**.
+
+A repeatable migration is a regular SQL (or EDN) migration file whose name has an `R-` prefix after
+the id, e.g. `20220820030300-R-create-trigger-quux.up.sql`. You can also create one with:
+
+```clojure
+(migratus/create config "create-trigger-quux" :sql true)
+```
+
+Unlike regular migrations, a repeatable migration doesn't run once and get marked complete forever.
+Instead, Migratus tracks a checksum of its contents: every time you run `migrate`, each repeatable
+migration whose current checksum differs from (or has never matched) what's recorded in the
+migration table is re-run. Repeatable migrations always run *after* all regular pending migrations
+in the same `migrate`/`up` call, so they can safely depend on schema changes made earlier in the
+same batch — which is also why they pair well with `:migrate-in-transaction?` (see
+[Configuration](#configuration)): if a repeatable migration depends on a table created earlier in
+the batch, running the whole batch in one transaction means either all of it lands, or none of it
+does.
+
+A repeatable migration only has an `up` — there's no meaningful "down" for a definition that's
+just re-applied, so make the `up` script idempotent (e.g. `CREATE OR REPLACE FUNCTION ...`,
+`DROP TRIGGER IF EXISTS ... ; CREATE TRIGGER ...`).
+
 ## Code-based Migrations
 
 Application developers often encounter situations where migrations cannot be easily expressed as a SQL script. For instance:
@@ -331,6 +358,8 @@ To run migrations against a database use a :store of :database, and specify the 
 * `:init-script` -  string pointing to a script that should be run when the database is initialized
 * `:init-in-transaction?` - defaults to true, but some databases do not support schema initialization in a transaction
 * `:migration-table-name` - string specifying a custom name for the migration table, defaults to `schema_migrations`
+* `:migrate-in-transaction?` - defaults to false. When true, all pending migrations (and any pending repeatable migrations) run inside a single transaction for the whole `migrate`/`up` call, instead of one transaction per migration. If any migration in the batch fails, the entire batch is rolled back, leaving the database exactly as it was before the call. See [Repeatable Migrations](#repeatable-migrations).
+  A migration that opts out of running inside a transaction (`-- :disable-transaction` for SQL, e.g. for `CREATE INDEX CONCURRENTLY` on PostgreSQL, or `:transaction? false` for EDN) can't be combined with `:migrate-in-transaction? true`: `migrate`/`up` will throw before opening the batch transaction (and before running any migration in the batch), naming the offending migrations. Either drop `:migrate-in-transaction?` for that run, or apply that migration separately (e.g. via `up`) outside of it.
 
 #### example configurations
 
