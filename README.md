@@ -76,6 +76,15 @@ of the migration file:
 -- :disable-transaction
 ```
 
+This can be combined with `-- :repeatable` (see [Repeatable Migrations](#repeatable-migrations)) —
+put each marker on its own leading `--` comment line, in either order:
+
+```sql
+-- :repeatable
+-- :disable-transaction
+CREATE INDEX CONCURRENTLY ...
+```
+
 ### Running Functions in Migrations
 
 Functions inside migrations may need to be additionally wrapped, a PostgreSQL example would look as follows:

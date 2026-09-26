@@ -16,11 +16,27 @@
 (def ^Pattern sql-comment-without-expect (Pattern/compile "--((?! *expect).)*$" Pattern/MULTILINE))
 (def ^Pattern empty-line (Pattern/compile "^[ ]+" Pattern/MULTILINE))
 
+(defn- leading-comment-lines
+  "The leading `--`-comment (and blank) lines at the top of a script, up to
+   the first substantive line. Markers like `-- :disable-transaction` and
+   `-- :repeatable` are looked for among these, one per line, so they can be
+   combined in either order instead of only the first one in the file
+   'winning' and the rest being silently ignored."
+  [sql]
+  (->> (str/split-lines sql)
+       (take-while #(let [line (str/trim %)]
+                      (or (str/blank? line) (str/starts-with? line "--"))))))
+
+(defn- has-marker? [sql marker]
+  (boolean (and sql
+               (some #(str/starts-with? (str/trim %) marker)
+                     (leading-comment-lines sql)))))
+
 (defn use-tx? [sql]
-  (not (str/starts-with? sql "-- :disable-transaction")))
+  (not (has-marker? sql "-- :disable-transaction")))
 
 (defn repeatable? [sql]
-  (boolean (and sql (str/starts-with? sql "-- :repeatable"))))
+  (has-marker? sql "-- :repeatable"))
 
 (defn sanitize [command expect-results?]
   (-> command
