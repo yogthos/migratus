@@ -1,3 +1,4 @@
+-- :repeatable
 CREATE OR REPLACE FUNCTION quux_set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN

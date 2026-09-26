@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [clojure.tools.logging :as log]
             [migratus.protocols :as proto]
+            [migratus.utils :as utils]
             [clojure.java.io :as io])
   (:import
     (java.sql Connection
@@ -17,6 +18,9 @@
 
 (defn use-tx? [sql]
   (not (str/starts-with? sql "-- :disable-transaction")))
+
+(defn repeatable? [sql]
+  (boolean (and sql (str/starts-with? sql "-- :repeatable"))))
 
 (defn sanitize [command expect-results?]
   (-> command
@@ -142,9 +146,37 @@
       (run-sql config down :down)
       (throw (Exception. (format "Down commands not found for %d" id))))))
 
+;; Repeatable SQL migration: re-runs `up` whenever its checksum changes, no
+;; down -- like a repeatable EDN migration (migratus.migration.edn), there's
+;; no meaningful "down" for a definition that's just re-applied. Marked by a
+;; `-- :repeatable` comment on the first line of the up script, the same way
+;; `-- :disable-transaction` opts a migration out of running in a transaction.
+(defrecord RepeatableSqlMigration [id name up checksum]
+  proto/Migration
+  (id [_this]
+    id)
+  (migration-type [_this] :sql)
+  (name [_this]
+    name)
+  (tx? [_this _direction]
+    (if up
+      (use-tx? up)
+      (throw (Exception. (format "SQL up commands not found for %d" id)))))
+  (up [_this config]
+    (if up
+      (run-sql config up :up)
+      (throw (Exception. (format "Up commands not found for %d" id)))))
+  (down [_this _config] :noop)
+
+  proto/RepeatableMigration
+  (checksum [_this]
+    checksum))
+
 (defmethod proto/make-migration* :sql
   [_ mig-id mig-name payload _config]
-  (->SqlMigration mig-id mig-name (:up payload) (:down payload)))
+  (if (repeatable? (:up payload))
+    (->RepeatableSqlMigration mig-id mig-name (:up payload) (utils/crc32 (:up payload)))
+    (->SqlMigration mig-id mig-name (:up payload) (:down payload))))
 
 
 (defmethod proto/get-extension* :sql

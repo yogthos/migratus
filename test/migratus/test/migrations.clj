@@ -1,7 +1,6 @@
 (ns migratus.test.migrations
   (:require
     [clojure.test :refer [deftest is]]
-    [migratus.migration.repeatable :as repeatable-mig]
     [migratus.migration.sql :as sql-mig]
     [migratus.migrations :as sut]
     [migratus.properties :as props]
@@ -9,14 +8,10 @@
     [migratus.utils :as utils]))
 
 (deftest test-parse-name
-  (is (= ["20111202110600" nil "create-foo-table" ["up" "sql"]]
+  (is (= ["20111202110600" "create-foo-table" ["up" "sql"]]
         (sut/parse-name "20111202110600-create-foo-table.up.sql")))
-  (is (= ["20111202110600" nil "create-foo-table" ["down" "sql"]]
-        (sut/parse-name "20111202110600-create-foo-table.down.sql")))
-  (is (= ["20111202110600" "r" "create-foo-table" ["up" "sql"]]
-         (sut/parse-name "20111202110600-R-create-foo-table.up.sql")))
-  (is (= ["20111202110600" "r" "create-foo-table" ["down" "sql"]]
-         (sut/parse-name "20111202110600-R-create-foo-table.down.sql"))))
+  (is (= ["20111202110600" "create-foo-table" ["down" "sql"]]
+        (sut/parse-name "20111202110600-create-foo-table.down.sql"))))
 
 (def multi-stmt-up
   (str "-- this is the first statement\n\n"
@@ -145,28 +140,28 @@
           table)
         "the regular migration parses as a plain SqlMigration")
 
-    (is (instance? migratus.migration.repeatable.RepeatableSqlMigration trigger)
-        "the R-prefixed migration parses as a RepeatableSqlMigration")
+    (is (instance? migratus.migration.sql.RepeatableSqlMigration trigger)
+        "a migration whose up script starts with -- :repeatable parses as a RepeatableSqlMigration")
     (is (satisfies? proto/RepeatableMigration trigger))
-    (is (= :r-sql (proto/migration-type trigger)))
+    (is (= :sql (proto/migration-type trigger)))
     (is (= 20220820030300 (proto/id trigger)))
-    (let [up-sql "CREATE OR REPLACE FUNCTION quux_set_updated_at()\nRETURNS TRIGGER AS $$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n--;;\nDROP TRIGGER IF EXISTS quux_set_updated_at ON quux;\n--;;\nCREATE TRIGGER quux_set_updated_at\nBEFORE UPDATE ON quux\nFOR EACH ROW\nEXECUTE PROCEDURE quux_set_updated_at();\n"]
-      (is (= (repeatable-mig/crc32 up-sql) (proto/checksum trigger))))))
+    (let [up-sql "-- :repeatable\nCREATE OR REPLACE FUNCTION quux_set_updated_at()\nRETURNS TRIGGER AS $$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n--;;\nDROP TRIGGER IF EXISTS quux_set_updated_at ON quux;\n--;;\nCREATE TRIGGER quux_set_updated_at\nBEFORE UPDATE ON quux\nFOR EACH ROW\nEXECUTE PROCEDURE quux_set_updated_at();\n"]
+      (is (= (utils/crc32 up-sql) (proto/checksum trigger))))))
 
 (deftest test-list-migrations-repeatable-edn
   (let [migrations (sut/list-migrations {:migration-dir "migrations-repeatable-edn"})
-        payload    "{:ns migratus.test.migration.edn.test-script\n :up-fn migrate-up}\n"]
+        payload    "{:ns migratus.test.migration.edn.test-script\n :up-fn migrate-up\n :repeatable? true}\n"]
     (is (= 1 (count migrations)))
     (let [mig (first migrations)]
       (is (instance? migratus.migration.edn.RepeatableEdnMigration mig)
-          "the R-prefixed .edn migration parses as a RepeatableEdnMigration")
+          "a payload with :repeatable? true parses as a RepeatableEdnMigration")
       (is (satisfies? proto/RepeatableMigration mig))
-      (is (= :r-edn (proto/migration-type mig)))
+      (is (= :edn (proto/migration-type mig)))
       (is (= 20220820030300 (proto/id mig)))
       (is (= "say-hello" (proto/name mig)))
       (is (true? (proto/tx? mig :up))
           "defaults to running in a transaction, same as a regular EDN migration")
       (is (= :noop (proto/down mig {}))
           "repeatable migrations have no down")
-      (is (= (repeatable-mig/crc32 payload) (proto/checksum mig))
+      (is (= (utils/crc32 payload) (proto/checksum mig))
           "checksum is derived from the whole EDN payload, not just :up-fn"))))

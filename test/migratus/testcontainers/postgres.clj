@@ -7,9 +7,10 @@
             [clojure.test :refer [deftest is testing]]
             [migratus.test.migration.sql :as test-sql]
             [migratus.core :as migratus]
-            [migratus.migration.repeatable :as repeatable-mig]
+            [migratus.migration.sql :as sql-mig]
             [migratus.migrations :as mig]
             [migratus.protocols :as proto]
+            [migratus.utils :as utils]
             [next.jdbc :as jdbc]
             [next.jdbc.result-set :as rs]
             [next.jdbc.transaction :as jdbc-tx]))
@@ -146,7 +147,8 @@
           (let [applied-before  (trigger-applied-at)
                 original-list-migrations mig/list-migrations
                 ;; same trigger, with a harmless comment added so its checksum differs
-                changed-sql     (str "-- recreate the trigger (content changed)\n"
+                changed-sql     (str "-- :repeatable\n"
+                                     "-- recreate the trigger (content changed)\n"
                                      "CREATE OR REPLACE FUNCTION quux_set_updated_at()\n"
                                      "RETURNS TRIGGER AS $$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n"
                                      "$$ LANGUAGE plpgsql;\n"
@@ -155,9 +157,9 @@
                                      "--;;\n"
                                      "CREATE TRIGGER quux_set_updated_at\nBEFORE UPDATE ON quux\n"
                                      "FOR EACH ROW\nEXECUTE PROCEDURE quux_set_updated_at();\n")
-                changed-migration (repeatable-mig/->RepeatableSqlMigration
+                changed-migration (sql-mig/->RepeatableSqlMigration
                                     20220820030300 "create-trigger-quux" changed-sql
-                                    (repeatable-mig/crc32 changed-sql))]
+                                    (utils/crc32 changed-sql))]
             (with-redefs [mig/list-migrations
                           (fn [cfg]
                             (conj (remove #(= "create-trigger-quux" (proto/name %))

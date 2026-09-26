@@ -101,23 +101,24 @@
       (destroy nil migration)
       (is (empty? (migration-exists? migration-edn))))))
 
-(deftest test-create-and-destroy-repeatable
+(deftest test-manually-marking-a-created-migration-repeatable
   (let [migration    "create-trigger"
         migration-up "create-trigger.up.sql"]
-    (testing "should create a single, R-prefixed up migration (repeatable migrations have no down)"
-      (create nil migration :sql true)
+    (testing "create only ever makes a plain migration -- there's no repeatable flag"
+      (create nil migration :sql)
       (is (migration-exists? migration-up))
-      (is (re-find #"-[rR]-create-trigger\.up\.sql$" (first (migration-exists? migration-up)))
-          "the created file name is prefixed with R-")
-      (is (empty? (migration-exists? "create-trigger.down.sql"))
-          "no down file is created for a repeatable migration"))
-    (testing "the created migration parses back as a repeatable migration"
-      (let [created (->> (mig/list-migrations {:migration-dir "migrations"})
-                         (filter #(= migration (proto/name %)))
-                         first)]
-        (is (some? created))
-        (is (satisfies? proto/RepeatableMigration created))
-        (is (= :r-sql (proto/migration-type created)))))
+      (is (migration-exists? "create-trigger.down.sql")
+          "a plain create still makes both an up and a down file"))
+    (testing "the author manually adds -- :repeatable to the up file to make it repeatable"
+      (let [file (io/file (utils/find-migration-dir "migrations")
+                          (first (migration-exists? migration-up)))]
+        (spit file (str "-- :repeatable\n"
+                       "CREATE OR REPLACE FUNCTION noop() RETURNS void AS $$ BEGIN END; $$ LANGUAGE plpgsql;\n"))
+        (let [created (->> (mig/list-migrations {:migration-dir "migrations"})
+                           (filter #(= migration (proto/name %)))
+                           first)]
+          (is (satisfies? proto/RepeatableMigration created))
+          (is (= :sql (proto/migration-type created))))))
     (testing "should delete the migration"
       (destroy nil migration)
       (is (empty? (migration-exists? migration-up))))))
@@ -303,7 +304,18 @@
                            {:id 100 :name "trigger" :checksum 333 :ups order})]
           (with-redefs [mig/list-migrations (constantly [regular repeatable])]
             (migrate {}))
-          (is (= [1 100] @order)))))))
+          (is (= [1 100] @order))))
+
+      (testing "multiple repeatable migrations run in id order, regardless of list-migrations order"
+        (let [order (atom [])
+              earlier (mock/make-repeatable-migration
+                        {:id 200 :name "earlier" :checksum 1 :ups order})
+              later   (mock/make-repeatable-migration
+                        {:id 201 :name "later" :checksum 1 :ups order})]
+          ;; deliberately returned out of id order
+          (with-redefs [mig/list-migrations (constantly [later earlier])]
+            (migrate {}))
+          (is (= [200 201] @order)))))))
 
 (deftest test-pending-list-includes-repeatable
   (let [ups    (atom [])

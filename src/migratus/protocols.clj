@@ -14,11 +14,6 @@
 (ns migratus.protocols
   (:refer-clojure :exclude [name]))
 
-(def mig-hierarchy
-  (-> (make-hierarchy)
-      (derive :r-sql :sql)
-      (derive :r-edn :edn)))
-
 (defprotocol Migration
   (id [this] "Id of this migration.")
   (migration-type [this] "Type of this migration.")
@@ -65,8 +60,7 @@
   "Dispatcher to create migrations based on filename extension. To add support
   for a new migration filename type, add a new defmethod for this."
   (fn [mig-type mig-id mig-name payload config]
-    mig-type)
-  :hierarchy #'mig-hierarchy)
+    mig-type))
 
 (defmethod make-migration* :default
   [mig-type mig-id mig-name payload config]
@@ -76,8 +70,7 @@
 (defmulti migration-files*
   "Dispatcher to get a list of filenames to create when creating new migrations"
   (fn [mig-type migration-name]
-    mig-type)
-  :hierarchy #'mig-hierarchy)
+    mig-type))
 
 (defmethod migration-files* :default
   [mig-type migration-name]
@@ -88,8 +81,7 @@
 (defmulti get-extension*
   "Dispatcher to get the supported file extension for this migration"
   (fn [mig-type]
-    mig-type)
-  :hierarchy #'mig-hierarchy)
+    mig-type))
 
 (defmethod get-extension* :default
   [mig-type]
@@ -107,8 +99,7 @@
 (defmulti squash-migration-files*
   "Dispatcher to read a list of files and squash them into a single migration file"
   (fn [mig-type migration-dir migration-name ups downs]
-    mig-type)
-  :hierarchy #'mig-hierarchy)
+    mig-type))
 
 (defmethod squash-migration-files* :default
   [mig-type migration-dir migration-name ups downs]

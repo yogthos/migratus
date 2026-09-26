@@ -1,2 +1,3 @@
 {:ns migratus.test.migration.edn.test-script
- :up-fn migrate-up}
+ :up-fn migrate-up
+ :repeatable? true}

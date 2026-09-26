@@ -229,12 +229,17 @@ Some database objects, such as triggers, views, and stored procedures, are easie
 "living" definition that's simply re-applied whenever it changes, rather than as an append-only
 series of versioned up/down scripts. Migratus supports this with **repeatable migrations**.
 
-A repeatable migration is a regular SQL (or EDN) migration file whose name has an `R-` prefix after
-the id, e.g. `20220820030300-R-create-trigger-quux.up.sql`. You can also create one with:
+A repeatable migration is a regular SQL or EDN migration file, marked by an in-content flag rather
+than anything in the file name (so upgrading can never reinterpret a pre-existing migration just
+because of what it happens to be named):
 
-```clojure
-(migratus/create config "create-trigger-quux" :sql true)
-```
+- SQL: the `.up.sql` file's first line is `-- :repeatable`.
+- EDN: the migration map has `:repeatable? true`.
+
+`migratus/create` only ever creates a plain migration — add the marker yourself once the files
+exist, e.g. after `(migratus/create config "create-trigger-quux")`, edit
+`...-create-trigger-quux.up.sql` to start with `-- :repeatable`. You can delete the generated
+`.down.sql` file, since there's no meaningful down for a repeatable migration (see below).
 
 Unlike regular migrations, a repeatable migration doesn't run once and get marked complete forever.
 Instead, Migratus tracks a checksum of its contents: every time you run `migrate`, each repeatable

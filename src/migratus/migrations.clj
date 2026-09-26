@@ -4,7 +4,6 @@
     [clojure.string :as str]
     [clojure.tools.logging :as log]
     migratus.migration.edn
-    migratus.migration.repeatable
     migratus.migration.sql
     [migratus.properties :as props]
     [migratus.protocols :as proto]
@@ -41,7 +40,7 @@
     (catch Exception e
       (log/error e (str "failed to parse migration id: " id)))))
 
-(def migration-file-pattern #"^(\d+)-(?:(r|R)-)?([^\.]+)((?:\.[^\.]+)+)$")
+(def migration-file-pattern #"^(\d+)-([^\.]+)((?:\.[^\.]+)+)$")
 
 (defn valid-extension?
   "Returns true if file-name extension matches one of the file extensions supported
@@ -57,10 +56,10 @@
 
 (defn parse-name [file-name]
   (when (valid-extension? file-name)
-    (let [[id prefix name ext] (next (re-matches migration-file-pattern file-name))
+    (let [[id name ext] (next (re-matches migration-file-pattern file-name))
           migration-type (remove empty? (some-> ext (str/split #"\.")))]
       (when (and id name (< 0 (count migration-type) 3))
-        [id (some-> prefix str/lower-case) name migration-type]))))
+        [id name migration-type]))))
 
 (defn warn-on-invalid-migration [file-name]
   (log/warn (str "skipping: '" file-name "'")
@@ -68,11 +67,11 @@
             (str migration-file-pattern)))
 
 (defn migration-map
-  [[id prefix mig-name exts] content properties]
+  [[id mig-name exts] content properties]
   (let [content  (if properties
                    (props/inject-properties properties content)
                    content)
-        mig-type (keyword (str (when (= "r" prefix) "r-") (last exts)))
+        mig-type (keyword (last exts))
         payload  (if (= 1 (count exts))
                    content
                    {(keyword (first exts)) content})]
@@ -162,19 +161,16 @@
                                     (props/load-properties config))]
       (make-migration config id mig))))
 
-(defn create [config name migration-type repeatable?]
+(defn create [config name migration-type]
   (let [migration-dir  (find-or-create-migration-dir
                         (utils/get-parent-migration-dir config)
                         (utils/get-migration-dir config))
-        migration-name (->kebab-case (str (timestamp) (when repeatable? "r-") name))
-        dispatch-type  (if repeatable?
-                         (keyword (str "r-" (clojure.core/name migration-type)))
-                         migration-type)]
+        migration-name (->kebab-case (str (timestamp) name))]
     (doall
-     (for [mig-file (proto/migration-files* dispatch-type migration-name)]
+     (for [mig-file (proto/migration-files* migration-type migration-name)]
        (let [file (io/file migration-dir mig-file)]
          (.createNewFile file)
-         (.getName (io/file migration-dir mig-file)))))))
+         (.getName file))))))
 
 (defn create-squash [config id name migration-type ups downs]
   (let [migration-dir  (find-or-create-migration-dir

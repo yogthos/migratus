@@ -301,7 +301,7 @@
        (modify-sql-fn
         (str "CREATE TABLE " table-name
              " (id BIGINT UNIQUE NOT NULL, applied " timestamp-column-type
-             ", description VARCHAR(1024), checksum INT )"))))))
+             ", description VARCHAR(1024), checksum BIGINT )"))))))
 
 (defn update-migration-table!
   "Updates the schema for the migration table via t-con in db in table-name"
@@ -311,7 +311,7 @@
     (doseq [statement (modify-sql-fn
                         [(str "ALTER TABLE " table-name " ADD COLUMN description varchar(1024)")
                          (str "ALTER TABLE " table-name " ADD COLUMN applied timestamp")
-                         (str "ALTER TABLE " table-name " ADD COLUMN checksum int4")])]
+                         (str "ALTER TABLE " table-name " ADD COLUMN checksum bigint")])]
       (jdbc/execute! t-con [statement]))))
 
 

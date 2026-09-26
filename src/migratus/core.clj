@@ -160,18 +160,19 @@
   (proto/migrate-repeatable-up store (proto/name migration) (proto/checksum migration) migration))
 
 (defn- migrate-repeatable-up* [store migrations]
-  (when (seq migrations)
-    (log/info "Running repeatable migrations for" (pr-str (mapv proto/name migrations)))
-    (loop [[migration & more] migrations]
-      (when migration
-        (case (repeatable-up* store migration)
-          :success (recur more)
-          :ignore (do
-                    (log/info "Migration reserved by another instance. Ignoring.")
-                    :ignore)
-          (do
-            (log/error "Stopping:" (migration-name migration) "failed to migrate")
-            :failure))))))
+  (let [migrations (sort-by proto/id migrations)]
+    (when (seq migrations)
+      (log/info "Running repeatable migrations for" (pr-str (mapv proto/name migrations)))
+      (loop [[migration & more] migrations]
+        (when migration
+          (case (repeatable-up* store migration)
+            :success (recur more)
+            :ignore (do
+                      (log/info "Migration reserved by another instance. Ignoring.")
+                      :ignore)
+            (do
+              (log/error "Stopping:" (migration-name migration) "failed to migrate")
+              :failure)))))))
 
 (defn- assert-transactable!
   "When config requests running the whole batch in a single transaction,
@@ -272,8 +273,8 @@
 
 (defn create
   "Create a new migration with the current date"
-  [config & [name type repeatable?]]
-  (mig/create config name (or type :sql) (or repeatable? false)))
+  [config & [name type]]
+  (mig/create config name (or type :sql)))
 
 (defn create-squash
   "Delete all migrations between from and to,

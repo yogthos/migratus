@@ -36,7 +36,7 @@
   (id [this]
     id)
   (migration-type [this]
-    :r-sql)
+    :sql)
   (name [this]
     name)
   (tx? [this direction]
