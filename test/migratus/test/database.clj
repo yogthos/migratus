@@ -416,7 +416,7 @@
       (is (test-sql/verify-table-exists? config "foo1"))
       (is (test-sql/verify-table-exists? config "bar1"))
       (let [from-db (verify-data config (:migration-table-name config))]
-        (is (= (map #(dissoc % :applied) from-db)
+        (is (= (map #(dissoc % :applied :checksum) from-db)
                '({:id          20220604113000,
                   :description "test-squash"}))))
       (finally
@@ -450,7 +450,7 @@
   (core/migrate config)
   (let [from-db (verify-data config (:migration-table-name config))]
     (testing "descriptions match")
-    (is (= (map #(dissoc % :applied) from-db)
+    (is (= (map #(dissoc % :applied :checksum) from-db)
            '({:id          20111202110600,
               :description "create-foo-table"}
               {:id          20111202113000,
@@ -529,3 +529,48 @@
     (is (thrown? CancellationException @migration-in-future))
     (Thread/sleep 100)
     (is (= 1 @lines-processed))))
+
+(deftest test-upgrade-from-pre-checksum-migration-table
+  (let [table   (:migration-table-name config)
+        db      (:db config)
+        columns #(db/column-names db table)]
+    ;; the migration table as created by migratus 1.6.x, with one applied migration
+    (jdbc/execute! db [(str "CREATE TABLE " table
+                            " (id BIGINT UNIQUE NOT NULL, applied TIMESTAMP, description VARCHAR(1024))")])
+    (sql/insert! db (keyword table) {:id          20111202110600
+                                     :applied     (java.sql.Timestamp. (System/currentTimeMillis))
+                                     :description "create-foo-table"})
+    (jdbc/execute! db ["CREATE TABLE IF NOT EXISTS foo (id bigint)"])
+
+    (testing "upgrading doesn't alter the table of a project without repeatable migrations"
+      (core/migrate config)
+      (is (= #{"id" "applied" "description"} (columns)))
+      (is (= [20111202110600 20111202113000 20120827170200]
+             (sort (map :id (verify-data config table))))))
+
+    (testing "the checksum column is added the first time a repeatable migration runs"
+      (let [sql        "-- :repeatable\nCREATE TABLE IF NOT EXISTS repeatable_target (id bigint);"
+            repeatable (migratus.migration.sql/->RepeatableSqlMigration
+                         20200101000000 "repeatable-target" sql (utils/crc32 sql))
+            list-migrations migratus.migrations/list-migrations]
+        (with-redefs [migratus.migrations/list-migrations #(conj (vec (list-migrations %)) repeatable)]
+          (is (= ["repeatable-target"] (core/pending-list config)))
+          (core/migrate config)
+          (is (contains? (columns) "checksum"))
+          (is (test-sql/verify-table-exists? config "repeatable_target"))
+          (is (empty? (core/pending-list config)))
+          (testing "and regular migration bookkeeping is unaffected"
+            (is (= 3 (count (core/completed-list config))))
+            (core/rollback config)
+            (is (= 2 (count (core/completed-list config))))))))))
+
+(deftest test-reset-reapplies-repeatable-migrations
+  (let [sql        "-- :repeatable\nCREATE TABLE IF NOT EXISTS repeatable_target (id bigint);"
+        repeatable (migratus.migration.sql/->RepeatableSqlMigration
+                     20200101000000 "repeatable-target" sql (utils/crc32 sql))
+        list-migrations migratus.migrations/list-migrations]
+    (with-redefs [migratus.migrations/list-migrations #(conj (vec (list-migrations %)) repeatable)]
+      (core/migrate config)
+      (jdbc/execute! (:db config) ["DROP TABLE repeatable_target"])
+      (core/reset config)
+      (is (test-sql/verify-table-exists? config "repeatable_target")))))

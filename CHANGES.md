@@ -1,3 +1,8 @@
+### Unreleased
+* add repeatable migrations (marked by `-- :repeatable`/`:repeatable? true` in the file content, checksum-tracked, always run last in a batch) ([#274](https://github.com/yogthos/migratus/issues/274))
+* add `:migrate-in-transaction?` to run a whole batch of pending migrations in a single transaction, rolling back the entire batch on failure ([#274](https://github.com/yogthos/migratus/issues/274))
+* the new `Store` protocol methods (`repeatable-checksums`, `migrate-repeatable-up`, `clear-repeatable-checksums`, `execute-in-tx`) are only called when the corresponding feature is used, so existing custom stores keep working unchanged
+
 ### 1.6.7
 * parse init script into statements so multiple `--;;` separated statements work across JDBC drivers ([#93](https://github.com/yogthos/migratus/issues/93))
 

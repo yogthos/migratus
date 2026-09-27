@@ -67,6 +67,25 @@
     (is (not (verify-table-exists? config "quux2")))))
 
 
+(deftest test-use-tx-and-repeatable-markers
+  (testing "each marker alone is recognized"
+    (is (false? (use-tx? "-- :disable-transaction\nCREATE INDEX CONCURRENTLY ...;")))
+    (is (true? (repeatable? "-- :repeatable\nCREATE OR REPLACE FUNCTION f() ...;"))))
+  (testing "neither marker present"
+    (is (true? (use-tx? "CREATE TABLE foo(id bigint);")))
+    (is (false? (repeatable? "CREATE TABLE foo(id bigint);"))))
+  (testing "both markers combine regardless of order -- neither one silently loses to the other"
+    (is (false? (use-tx? "-- :repeatable\n-- :disable-transaction\nCREATE INDEX CONCURRENTLY ...;")))
+    (is (true? (repeatable? "-- :repeatable\n-- :disable-transaction\nCREATE INDEX CONCURRENTLY ...;")))
+    (is (false? (use-tx? "-- :disable-transaction\n-- :repeatable\nCREATE INDEX CONCURRENTLY ...;")))
+    (is (true? (repeatable? "-- :disable-transaction\n-- :repeatable\nCREATE INDEX CONCURRENTLY ...;"))))
+  (testing "a blank line between markers is tolerated"
+    (is (false? (use-tx? "-- :repeatable\n\n-- :disable-transaction\nCREATE INDEX CONCURRENTLY ...;")))
+    (is (true? (repeatable? "-- :repeatable\n\n-- :disable-transaction\nCREATE INDEX CONCURRENTLY ...;"))))
+  (testing "a marker after the first substantive line doesn't count"
+    (is (true? (use-tx? "CREATE TABLE foo(id bigint);\n-- :disable-transaction\n")))
+    (is (false? (repeatable? "CREATE TABLE foo(id bigint);\n-- :repeatable\n")))))
+
 (deftest test-split-init-commands
   (testing "splits multiple statements on --;;"
     (is (= ["CREATE TABLE a (id int);" "CREATE TABLE b (id int);"]

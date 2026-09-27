@@ -76,6 +76,15 @@ of the migration file:
 -- :disable-transaction
 ```
 
+This can be combined with `-- :repeatable` (see [Repeatable Migrations](#repeatable-migrations)) —
+put each marker on its own leading `--` comment line, in either order:
+
+```sql
+-- :repeatable
+-- :disable-transaction
+CREATE INDEX CONCURRENTLY ...
+```
+
 ### Running Functions in Migrations
 
 Functions inside migrations may need to be additionally wrapped, a PostgreSQL example would look as follows:
@@ -223,6 +232,43 @@ This will result with up/down migration files being created prefixed with the cu
 20150701134958-create-user.down.sql
 ```
 
+## Repeatable Migrations
+
+Some database objects, such as triggers, views, and stored procedures, are easier to maintain as a
+"living" definition that's simply re-applied whenever it changes, rather than as an append-only
+series of versioned up/down scripts. Migratus supports this with **repeatable migrations**.
+
+A repeatable migration is a regular SQL or EDN migration file, marked by an in-content flag rather
+than anything in the file name (so upgrading can never reinterpret a pre-existing migration just
+because of what it happens to be named):
+
+- SQL: the `.up.sql` file's first line is `-- :repeatable`.
+- EDN: the migration map has `:repeatable? true`.
+
+`migratus/create` only ever creates a plain migration — add the marker yourself once the files
+exist, e.g. after `(migratus/create config "create-trigger-quux")`, edit
+`...-create-trigger-quux.up.sql` to start with `-- :repeatable`. You can delete the generated
+`.down.sql` file, since there's no meaningful down for a repeatable migration (see below).
+
+Unlike regular migrations, a repeatable migration doesn't run once and get marked complete forever.
+Instead, Migratus tracks a checksum of its contents: every time you run `migrate`, each repeatable
+migration whose current checksum differs from (or has never matched) what's recorded in the
+migration table is re-run. Repeatable migrations always run *after* all regular pending migrations
+in the same `migrate`/`up` call, so they can safely depend on schema changes made earlier in the
+same batch — which is also why they pair well with `:migrate-in-transaction?` (see
+[Configuration](#configuration)): if a repeatable migration depends on a table created earlier in
+the batch, running the whole batch in one transaction means either all of it lands, or none of it
+does.
+
+A repeatable migration only has an `up` — there's no meaningful "down" for a definition that's
+just re-applied, so make the `up` script idempotent (e.g. `CREATE OR REPLACE FUNCTION ...`,
+`DROP TRIGGER IF EXISTS ... ; CREATE TRIGGER ...`). `rollback` and `down` leave repeatable
+migrations alone, while `reset` re-applies all of them after re-running the regular migrations.
+
+Checksums are stored in a `checksum` column of the migration table. For migration tables created
+by earlier versions of Migratus, the column is added the first time a repeatable migration is
+applied, so projects that don't use repeatable migrations see no change to their migration table.
+
 ## Code-based Migrations
 
 Application developers often encounter situations where migrations cannot be easily expressed as a SQL script. For instance:
@@ -331,6 +377,9 @@ To run migrations against a database use a :store of :database, and specify the 
 * `:init-script` -  string pointing to a script that should be run when the database is initialized
 * `:init-in-transaction?` - defaults to true, but some databases do not support schema initialization in a transaction
 * `:migration-table-name` - string specifying a custom name for the migration table, defaults to `schema_migrations`
+* `:migrate-in-transaction?` - defaults to false. When true, all pending migrations (and any pending repeatable migrations) run inside a single transaction for the whole `migrate`/`up` call, instead of one transaction per migration. If any migration in the batch fails, the entire batch is rolled back, leaving the database exactly as it was before the call. See [Repeatable Migrations](#repeatable-migrations).
+  A migration that opts out of running inside a transaction (`-- :disable-transaction` for SQL, e.g. for `CREATE INDEX CONCURRENTLY` on PostgreSQL, or `:transaction? false` for EDN) can't be combined with `:migrate-in-transaction? true`: `migrate`/`up` will throw before opening the batch transaction (and before running any migration in the batch), naming the offending migrations. Either drop `:migrate-in-transaction?` for that run, or apply that migration separately (e.g. via `up`) outside of it.
+  Note that the rollback only covers what the database can roll back: on databases where DDL statements implicitly commit (e.g. MySQL, Oracle) schema changes made before the failing migration will persist.
 
 #### example configurations
 

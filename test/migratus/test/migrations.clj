@@ -4,6 +4,7 @@
     [migratus.migration.sql :as sql-mig]
     [migratus.migrations :as sut]
     [migratus.properties :as props]
+    [migratus.protocols :as proto]
     [migratus.utils :as utils]))
 
 (deftest test-parse-name
@@ -123,3 +124,44 @@
         Exception
         #"Multiple migrations with id"
         (sut/list-migrations {:migration-dir "migrations-duplicate-name"}))))
+
+(deftest test-list-migrations-repeatable
+  (let [migrations (sut/list-migrations {:migration-dir "migrations-repeatable"})
+        by-name     (into {} (map (juxt proto/name identity)) migrations)
+        table       (get by-name "create-table-quux")
+        trigger     (get by-name "create-trigger-quux")]
+    (is (= 2 (count migrations)))
+
+    (is (= (sql-mig/->SqlMigration
+             20220820030400
+             "create-table-quux"
+             "CREATE TABLE IF NOT EXISTS quux(id bigint, name varchar(255), updated_at timestamp);\n--;;\nCREATE INDEX quux_name on quux(name);\n"
+             "DROP TABLE IF EXISTS quux;")
+          table)
+        "the regular migration parses as a plain SqlMigration")
+
+    (is (instance? migratus.migration.sql.RepeatableSqlMigration trigger)
+        "a migration whose up script starts with -- :repeatable parses as a RepeatableSqlMigration")
+    (is (satisfies? proto/RepeatableMigration trigger))
+    (is (= :sql (proto/migration-type trigger)))
+    (is (= 20220820030300 (proto/id trigger)))
+    (let [up-sql "-- :repeatable\nCREATE OR REPLACE FUNCTION quux_set_updated_at()\nRETURNS TRIGGER AS $$\nBEGIN\n  NEW.updated_at = now();\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;\n--;;\nDROP TRIGGER IF EXISTS quux_set_updated_at ON quux;\n--;;\nCREATE TRIGGER quux_set_updated_at\nBEFORE UPDATE ON quux\nFOR EACH ROW\nEXECUTE PROCEDURE quux_set_updated_at();\n"]
+      (is (= (utils/crc32 up-sql) (proto/checksum trigger))))))
+
+(deftest test-list-migrations-repeatable-edn
+  (let [migrations (sut/list-migrations {:migration-dir "migrations-repeatable-edn"})
+        payload    "{:ns migratus.test.migration.edn.test-script\n :up-fn migrate-up\n :repeatable? true}\n"]
+    (is (= 1 (count migrations)))
+    (let [mig (first migrations)]
+      (is (instance? migratus.migration.edn.RepeatableEdnMigration mig)
+          "a payload with :repeatable? true parses as a RepeatableEdnMigration")
+      (is (satisfies? proto/RepeatableMigration mig))
+      (is (= :edn (proto/migration-type mig)))
+      (is (= 20220820030300 (proto/id mig)))
+      (is (= "say-hello" (proto/name mig)))
+      (is (true? (proto/tx? mig :up))
+          "defaults to running in a transaction, same as a regular EDN migration")
+      (is (= :noop (proto/down mig {}))
+          "repeatable migrations have no down")
+      (is (= (utils/crc32 payload) (proto/checksum mig))
+          "checksum is derived from the whole EDN payload, not just :up-fn"))))

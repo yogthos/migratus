@@ -6,12 +6,19 @@
     java.io.File
     java.util.jar.JarFile
     [java.util Map]
+    [java.util.zip CRC32]
     [java.net URL URLDecoder URI]
     [java.nio.file FileSystem FileSystems FileSystemNotFoundException FileSystemAlreadyExistsException]))
 
 (def default-migration-parent "resources/")
 (def default-migration-dir "migrations")
 (def default-init-script-name "init.sql")
+
+(defn crc32 [^String s]
+  (let [crc (CRC32.)
+        bytes (.getBytes s "UTF-8")]
+    (.update crc bytes)
+    (.getValue crc)))
 
 (defn get-parent-migration-dir
   "Gets the :parent-migration-dir from config, or default if missing."

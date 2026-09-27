@@ -2,7 +2,8 @@
   "Support for EDN migration files that specify clojure code migrations."
   (:require
     [clojure.edn :as edn]
-    [migratus.protocols :as proto]))
+    [migratus.protocols :as proto]
+    [migratus.utils :as utils]))
 
 ;; up-fn and down-fn here are actually vars; invoking them as fns will deref
 ;; them and invoke the fn bound by the var.
@@ -18,6 +19,22 @@
   (down [this config]
     (when down-fn
       (apply down-fn config down-args))))
+
+;; Repeatable EDN migration: re-runs up whenever its checksum changes, no
+;; down. Marked by `:repeatable? true` in the EDN payload.
+(defrecord RepeatableEdnMigration [id name up-fn transaction? up-args checksum]
+  proto/Migration
+  (id [_] id)
+  (migration-type [_] :edn)
+  (name [_] name)
+  (tx? [_ _] (if (nil? transaction?) true transaction?))
+  (up [_ config]
+    (when up-fn
+      (apply up-fn config up-args)))
+  (down [_ _] :noop)
+
+  proto/RepeatableMigration
+  (checksum [_] checksum))
 
 (defn to-sym
   "Converts x to a non-namespaced symbol, throwing if x is namespaced"
@@ -42,7 +59,7 @@
 
 (defmethod proto/make-migration* :edn
   [_ mig-id mig-name payload config]
-  (let [{:keys [ns up-fn down-fn transaction?]
+  (let [{:keys [ns up-fn down-fn transaction? repeatable?]
          :or   {up-fn "up" down-fn "down"}} (edn/read-string payload)
         mig-ns (to-sym ns)
         [up-fn & up-args] (cond-> up-fn (not (coll? up-fn)) vector)
@@ -51,12 +68,18 @@
       (throw (IllegalArgumentException.
                (format "Invalid migration %s: no namespace" mig-name))))
     (require mig-ns)
-    (->EdnMigration mig-id mig-name
-                    (resolve-fn mig-name mig-ns up-fn)
-                    (resolve-fn mig-name mig-ns down-fn)
-                    transaction?
-                    up-args
-                    down-args)))
+    (if repeatable?
+      (->RepeatableEdnMigration mig-id mig-name
+                                (resolve-fn mig-name mig-ns up-fn)
+                                transaction?
+                                up-args
+                                (utils/crc32 payload))
+      (->EdnMigration mig-id mig-name
+                      (resolve-fn mig-name mig-ns up-fn)
+                      (resolve-fn mig-name mig-ns down-fn)
+                      transaction?
+                      up-args
+                      down-args))))
 
 (defmethod proto/get-extension* :edn
   [_]

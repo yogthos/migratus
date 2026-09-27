@@ -67,12 +67,15 @@
             (str migration-file-pattern)))
 
 (defn migration-map
-  [[id name exts] content properties]
-  (assoc-in {}
-            (concat [id name] (map keyword (reverse exts)))
-            (if properties
-              (props/inject-properties properties content)
-              content)))
+  [[id mig-name exts] content properties]
+  (let [content  (if properties
+                   (props/inject-properties properties content)
+                   content)
+        mig-type (keyword (last exts))
+        payload  (if (= 1 (count exts))
+                   content
+                   {(keyword (first exts)) content})]
+    {id {mig-name {mig-type payload}}}))
 
 (defn find-migration-files [migration-dir exclude-scripts properties]
   (log/debug "Looking for migrations in" migration-dir)
@@ -167,7 +170,7 @@
      (for [mig-file (proto/migration-files* migration-type migration-name)]
        (let [file (io/file migration-dir mig-file)]
          (.createNewFile file)
-         (.getName (io/file migration-dir mig-file)))))))
+         (.getName file))))))
 
 (defn create-squash [config id name migration-type ups downs]
   (let [migration-dir  (find-or-create-migration-dir
