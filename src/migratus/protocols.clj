@@ -39,16 +39,21 @@
     "Run and record an up migration")
   (migrate-down [this migration]
     "Run and record a down migration")
+  (squash [this ids name]
+    "Squash a batch of migrations into a single migration")
+  ;; The following are only called when the corresponding feature is used, so
+  ;; stores that don't support repeatable migrations or
+  ;; :migrate-in-transaction? can leave them unimplemented.
   (repeatable-checksums [this]
     "Map of repeatable migration name to the checksum that was last applied.")
   (migrate-repeatable-up [this name checksum migration]
     "Run a repeatable migration and record its name and checksum.")
-  (squash [this ids name]
-    "Squash a batch of migrations into a single migration")
+  (clear-repeatable-checksums [this]
+    "Forget the recorded checksums of all repeatable migrations, so that they
+    are all re-applied by the next migrate.")
   (execute-in-tx [this f]
-    "Calls (f), optionally wrapping the call in a single transaction that
-    spans the whole batch of migrations f runs, if the store is configured
-    to do so. f takes no arguments.")
+    "Calls (f) inside a single transaction spanning the whole batch of
+    migrations f runs. f takes no arguments.")
   (connect [this]
     "Opens resources necessary to run migrations against the store.")
   (disconnect [this]

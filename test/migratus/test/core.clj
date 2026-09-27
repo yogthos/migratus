@@ -259,7 +259,8 @@
         repeatable     (mock/make-repeatable-migration {:id 2 :name "trigger" :checksum 1 :ups repeatable-ups})]
     (doseq [regular-result [:failure :ignore]]
       (reset! repeatable-ups [])
-      (let [store (reify proto/Store
+      (let [store (reify
+                    proto/Store
                     (migrate-up [_this _migration] regular-result)
                     (migrate-repeatable-up [_this _name _checksum migration]
                       (proto/up migration nil)
@@ -338,3 +339,47 @@
            NOTE: when you add a protocol, to migratus core, update this test")
   (is (= '("sql" "edn")
          (proto/get-all-supported-extensions))))
+
+(deftest test-store-without-new-methods-still-works
+  ;; third-party stores written before repeatable migrations and
+  ;; :migrate-in-transaction? only implement the original Store methods
+  (let [ups       (atom [])
+        completed (atom #{})
+        store     (reify proto/Store
+                    (connect [_])
+                    (disconnect [_])
+                    (completed-ids [_] @completed)
+                    (migrate-up [_ migration]
+                      (proto/up migration nil)
+                      (swap! completed conj (proto/id migration))
+                      :success)
+                    (migrate-down [_ migration]
+                      (proto/down migration nil)
+                      (swap! completed disj (proto/id migration))))]
+    (with-redefs [proto/make-store    (constantly store)
+                  mig/list-migrations (constantly [(mock/make-migration
+                                                     {:id 1 :name "regular" :ups ups :downs (atom [])})])]
+      (is (nil? (migrate {})))
+      (is (= [1] @ups))
+      (is (empty? (pending-list {})))
+      (rollback {})
+      (is (= ["regular"] (pending-list {})))
+      (reset {})
+      (is (= [1 1] @ups)))))
+
+(deftest test-up-and-reset-with-repeatable
+  (let [ups        (atom [])
+        store      (mock/->MockStore (atom #{}) (atom {}) {})
+        repeatable (mock/make-repeatable-migration {:id 100 :name "trigger" :checksum 1 :ups ups})]
+    (with-redefs [proto/make-store    (constantly store)
+                  mig/list-migrations (constantly [repeatable])]
+      (testing "up with a repeatable id records its checksum, not a regular completion"
+        (up {} 100)
+        (is (= [100] @ups))
+        (is (empty? (proto/completed-ids store)))
+        (is (= {"trigger" 1} (proto/repeatable-checksums store)))
+        (up {} 100)
+        (is (= [100] @ups) "unchanged checksum is skipped"))
+      (testing "reset re-applies repeatable migrations"
+        (reset {})
+        (is (= [100 100] @ups))))))

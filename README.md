@@ -262,7 +262,12 @@ does.
 
 A repeatable migration only has an `up` — there's no meaningful "down" for a definition that's
 just re-applied, so make the `up` script idempotent (e.g. `CREATE OR REPLACE FUNCTION ...`,
-`DROP TRIGGER IF EXISTS ... ; CREATE TRIGGER ...`).
+`DROP TRIGGER IF EXISTS ... ; CREATE TRIGGER ...`). `rollback` and `down` leave repeatable
+migrations alone, while `reset` re-applies all of them after re-running the regular migrations.
+
+Checksums are stored in a `checksum` column of the migration table. For migration tables created
+by earlier versions of Migratus, the column is added the first time a repeatable migration is
+applied, so projects that don't use repeatable migrations see no change to their migration table.
 
 ## Code-based Migrations
 
@@ -374,6 +379,7 @@ To run migrations against a database use a :store of :database, and specify the 
 * `:migration-table-name` - string specifying a custom name for the migration table, defaults to `schema_migrations`
 * `:migrate-in-transaction?` - defaults to false. When true, all pending migrations (and any pending repeatable migrations) run inside a single transaction for the whole `migrate`/`up` call, instead of one transaction per migration. If any migration in the batch fails, the entire batch is rolled back, leaving the database exactly as it was before the call. See [Repeatable Migrations](#repeatable-migrations).
   A migration that opts out of running inside a transaction (`-- :disable-transaction` for SQL, e.g. for `CREATE INDEX CONCURRENTLY` on PostgreSQL, or `:transaction? false` for EDN) can't be combined with `:migrate-in-transaction? true`: `migrate`/`up` will throw before opening the batch transaction (and before running any migration in the batch), naming the offending migrations. Either drop `:migrate-in-transaction?` for that run, or apply that migration separately (e.g. via `up`) outside of it.
+  Note that the rollback only covers what the database can roll back: on databases where DDL statements implicitly commit (e.g. MySQL, Oracle) schema changes made before the failing migration will persist.
 
 #### example configurations
 

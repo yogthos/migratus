@@ -65,16 +65,18 @@
   (migrate-down [this migration]
     (proto/down migration config)
     (swap! completed-ids disj (proto/id migration)))
+  (connect [this])
+  (disconnect [this])
   (repeatable-checksums [this]
     @repeatable-checksums)
   (migrate-repeatable-up [this name checksum migration]
     (proto/up migration config)
     (swap! repeatable-checksums assoc name checksum)
     :success)
+  (clear-repeatable-checksums [this]
+    (reset! repeatable-checksums {}))
   (execute-in-tx [this f]
-    (f))
-  (connect [this])
-  (disconnect [this]))
+    (f)))
 
 (defn make-migration [{:keys [id name ups downs tx?]}]
   (MockMigration. nil id name ups downs tx?))

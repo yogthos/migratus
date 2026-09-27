@@ -104,6 +104,9 @@
                         (<= (:id e) to))))
          (sort-by :id))))
 
+(defn migration-name [migration]
+  (str (proto/id migration) "-" (proto/name migration)))
+
 (defn repeatable-migration?
   [migration]
   (satisfies? proto/RepeatableMigration migration))
@@ -119,19 +122,25 @@
                   (completed? (proto/id migration))))
             (mig/list-migrations config))))
 
+(defn- pending-repeatable
+  "Of the given migrations, the repeatable ones whose current checksum differs
+   from (or is missing from) what was last recorded for them in the store."
+  [store migrations]
+  (let [repeatable (filter repeatable-migration? migrations)]
+    ;; only query the store when there are repeatable migrations, so stores
+    ;; that don't implement repeatable-checksums keep working
+    (when (seq repeatable)
+      (let [applied-checksums (proto/repeatable-checksums store)]
+        (remove (fn [migration]
+                  (= (get applied-checksums (proto/name migration))
+                     (proto/checksum migration)))
+                repeatable)))))
+
 (defn pending-repeatable-migrations
   "Returns repeatable migrations whose current checksum differs from (or is
    missing from) what was last recorded for them in the store."
   [config store]
-  (let [applied-checksums (proto/repeatable-checksums store)]
-    (->> (mig/list-migrations config)
-         (filter repeatable-migration?)
-         (remove (fn [migration]
-                   (= (get applied-checksums (proto/name migration))
-                      (proto/checksum migration)))))))
-
-(defn migration-name [migration]
-  (str (proto/id migration) "-" (proto/name migration)))
+  (pending-repeatable store (mig/list-migrations config)))
 
 (defn- up* [store migration]
   (log/info "Up" (migration-name migration))
@@ -193,6 +202,14 @@
                     (str/join ", " (map migration-name incompatible)))
                {:migrations (mapv proto/id incompatible)})))))
 
+(defn- execute-in-tx
+  "Runs (f), in a single transaction spanning the whole batch when
+   :migrate-in-transaction? is set."
+  [config store f]
+  (if (:migrate-in-transaction? config)
+    (proto/execute-in-tx store f)
+    (f)))
+
 (defn- run-migrate [store regular repeatable]
   (let [regular-result (migrate-up* store regular)]
     (if (contains? #{:ignore :failure} regular-result)
@@ -211,7 +228,7 @@
            ;; assert before opening the batch transaction (execute-in-tx), so an
            ;; incompatible migration is rejected without touching the database
            (assert-transactable! config (concat regular repeatable))
-           (proto/execute-in-tx store (fn [] (run-migrate store regular repeatable)))))))
+           (execute-in-tx config store (fn [] (run-migrate store regular repeatable)))))))
 
 (defn up
   "Bring up the migrations identified by ids.
@@ -221,9 +238,11 @@
        (fn [store ids]
          (let [completed  (set (proto/completed-ids store))
                ids        (set/difference (set ids) completed)
-               migrations (filter (comp ids proto/id) (mig/list-migrations config))]
-           (assert-transactable! config migrations)
-           (proto/execute-in-tx store (fn [] (migrate-up* store migrations)))))))
+               migrations (filter (comp ids proto/id) (mig/list-migrations config))
+               regular    (remove repeatable-migration? migrations)
+               repeatable (pending-repeatable store migrations)]
+           (assert-transactable! config (concat regular repeatable))
+           (execute-in-tx config store (fn [] (run-migrate store regular repeatable)))))))
 
 (defn- run-down [config store ids]
   (let [completed  (set (proto/completed-ids store))
@@ -252,7 +271,11 @@
          vector)))
 
 (defn- reset* [config store _]
-  (run-down config store (->> (proto/completed-ids store) sort)))
+  (run-down config store (->> (proto/completed-ids store) sort))
+  ;; the objects repeatable migrations define may have been dropped along with
+  ;; the schema, so have the migrate that follows re-apply all of them
+  (when (some repeatable-migration? (mig/list-migrations config))
+    (proto/clear-repeatable-checksums store)))
 
 (defn rollback
   "Rollback the last migration that was successfully applied."
